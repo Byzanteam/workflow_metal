@@ -11,11 +11,11 @@ on:
       - master
 
 env:
-  ELIXIR-VERSION: 1.10.2
-  OTP-VERSION: 22.2
+  ELIXIR_VERSION: 1.10.2
+  OTP_VERSION: 22.2
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,8 +23,8 @@ jobs:
     - name: Setup elixir
       uses: actions/setup-elixir@v1
       with:
-        elixir-version: $ELIXIR-VERSION
-        otp-version: $OTP-VERSION
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.OTP_VERSION }}
 
     - uses: actions/cache@v1.1.2
       with:
@@ -50,8 +50,8 @@ jobs:
     - name: Setup elixir
       uses: actions/setup-elixir@v1
       with:
-        elixir-version: $ELIXIR-VERSION
-        otp-version: $OTP-VERSION
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.OTP_VERSION }}
     - name: Format
       run: mix format --check-formatted
 
@@ -63,8 +63,8 @@ jobs:
     - name: Setup elixir
       uses: actions/setup-elixir@v1
       with:
-        elixir-version: $ELIXIR-VERSION
-        otp-version: $OTP-VERSION
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.OTP_VERSION }}
 
     - uses: actions/cache@v1.1.2
       with:
@@ -84,8 +84,8 @@ jobs:
     - name: Setup elixir
       uses: actions/setup-elixir@v1
       with:
-        elixir-version: $ELIXIR-VERSION
-        otp-version: $OTP-VERSION
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.OTP_VERSION }}
 
     - uses: actions/cache@v1.1.2
       with:
@@ -97,7 +97,7 @@ jobs:
     - uses: actions/cache@v1.1.2
       with:
         path: priv/plts
-        key: ${{ runner.os }}-plt-$OTP-VERSION-$ELIXIR-VERSION
+        key: ${{ runner.os }}-plt-$OTP_VERSION-$ELIXIR_VERSION
         restore-keys: |
           ${{ runner.os }}-plt-
 
@@ -112,8 +112,8 @@ jobs:
     - name: Setup elixir
       uses: actions/setup-elixir@v1
       with:
-        elixir-version: $ELIXIR-VERSION
-        otp-version: $OTP-VERSION
+        elixir-version: ${{ env.ELIXIR_VERSION }}
+        otp-version: ${{ env.OTP_VERSION }}
 
     - uses: actions/cache@v1.1.2
       with:
