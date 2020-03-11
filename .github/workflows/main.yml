@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - develop
+      - master
+
+env:
+  ELIXIR-VERSION: 1.10.2
+  OTP-VERSION: 22.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup elixir
+      uses: actions/setup-elixir@v1
+      with:
+        elixir-version: $ELIXIR-VERSION
+        otp-version: $OTP-VERSION
+
+    - uses: actions/cache@v1.1.2
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        restore-keys: |
+          ${{ runner.os }}-mix-
+
+    - name: Install Dependencies
+      run: mix deps.get
+
+    - name: Compile
+      run: mix compile --warnings-as-errors
+
+    - name: Test
+      run: mix test
+
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup elixir
+      uses: actions/setup-elixir@v1
+      with:
+        elixir-version: $ELIXIR-VERSION
+        otp-version: $OTP-VERSION
+    - name: Format
+      run: mix format --check-formatted
+
+  doctor:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup elixir
+      uses: actions/setup-elixir@v1
+      with:
+        elixir-version: $ELIXIR-VERSION
+        otp-version: $OTP-VERSION
+
+    - uses: actions/cache@v1.1.2
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        restore-keys: |
+          ${{ runner.os }}-mix-
+
+    - name: Doctor
+      run: mix doctor --summary
+
+  dialyxir:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup elixir
+      uses: actions/setup-elixir@v1
+      with:
+        elixir-version: $ELIXIR-VERSION
+        otp-version: $OTP-VERSION
+
+    - uses: actions/cache@v1.1.2
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        restore-keys: |
+          ${{ runner.os }}-mix-
+
+    - uses: actions/cache@v1.1.2
+      with:
+        path: priv/plts
+        key: ${{ runner.os }}-plt-$OTP-VERSION-$ELIXIR-VERSION
+        restore-keys: |
+          ${{ runner.os }}-plt-
+
+    - name: Dialyxir
+      run: mix dialyxir
+
+  credo:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup elixir
+      uses: actions/setup-elixir@v1
+      with:
+        elixir-version: $ELIXIR-VERSION
+        otp-version: $OTP-VERSION
+
+    - uses: actions/cache@v1.1.2
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        restore-keys: |
+          ${{ runner.os }}-mix-
+
+    - name: Credo
+      run: mix credo --strict
