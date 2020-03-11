@@ -97,7 +97,7 @@ jobs:
     - name: Doctor
       run: mix doctor --summary
 
-  dialyxir:
+  dialyzer:
     runs-on: ubuntu-latest
     needs: mix
 
@@ -123,8 +123,8 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-plt-
 
-    - name: Dialyxir
-      run: mix dialyxir
+    - name: Dialyzer
+      run: mix dialyzer
 
   credo:
     runs-on: ubuntu-latest
