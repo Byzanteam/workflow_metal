@@ -8,6 +8,7 @@ defmodule WorkflowMetal.MixProject do
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      build_per_environment: is_nil(System.get_env("GITHUB_ACTIONS")),
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ]

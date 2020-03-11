@@ -87,8 +87,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-mix-
 
-    - name: Compile
-      run: mix compile --warnings-as-errors
+    - uses: actions/cache@v1.1.2
+      with:
+        path: _build
+        key: ${{ runner.os }}-build-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
+        restore-keys: |
+          ${{ runner.os }}-build-
 
     - name: Test
       run: mix test
