@@ -5,6 +5,7 @@ defmodule WorkflowMetal.Application do
 
   use Application
 
+  @doc false
   def start(_type, _args) do
     children = [
       # Starts a worker by calling: WorkflowMetal.Worker.start_link(arg)

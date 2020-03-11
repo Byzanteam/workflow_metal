@@ -26,7 +26,8 @@ defmodule WorkflowMetal.MixProject do
   defp deps do
     [
       {:credo, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.0.0-rc.7", only: [:dev], runtime: false}
+      {:dialyxir, "~> 1.0.0-rc.7", only: [:dev], runtime: false},
+      {:doctor, "~> 0.11.0", only: [:dev]}
     ]
   end
 end
