@@ -1,5 +1,7 @@
 # WorkflowMetal
 
+![CI](https://github.com/Byzanteam/workflow_metal/workflows/CI/badge.svg)
+
 **TODO: Add description**
 
 ## Installation
