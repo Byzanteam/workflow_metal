@@ -1,20 +1,36 @@
 defmodule WorkflowMetal.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
   @moduledoc false
 
-  use Application
-
   @doc false
-  def start(_type, _args) do
-    children = [
-      # Starts a worker by calling: WorkflowMetal.Worker.start_link(arg)
-      # {WorkflowMetal.Worker, arg}
-    ]
+  defmacro __using__(opts) do
+    quote bind_quoted: [opts: opts] do
+      @opts opts
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: WorkflowMetal.Supervisor]
-    Supervisor.start_link(children, opts)
+      @doc """
+      Start a workflow_metal application
+      """
+      @spec start() :: {:ok, pid()}
+      def start do
+        name = name(@opts)
+
+        WorkflowMetal.Application.Supervisor.start_link(__MODULE__, name, @opts)
+      end
+
+      defp name(opts) do
+        case Keyword.get(opts, :name) do
+          nil ->
+            __MODULE__
+
+          name when is_atom(name) ->
+            name
+
+          invalid ->
+            raise ArgumentError,
+              message:
+                "expected :name option to be an atom but got: " <>
+                  inspect(invalid)
+        end
+      end
+    end
   end
 end
