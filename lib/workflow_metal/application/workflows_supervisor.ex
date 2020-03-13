@@ -23,4 +23,23 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   def init(args) do
     DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [args])
   end
+
+  @doc """
+  Start a workflow supervisor.
+  """
+  @spec create_workflow(module(), %{workflow_id: term()}) :: DynamicSupervisor.on_start_child()
+  def create_workflow(application, workflow_params) do
+    workflow_id = Map.fetch!(workflow_params, :workflow_id)
+    workflows_supervisor = supervisor_name(application.supervisor_name())
+
+    child_spec = {
+      WorkflowMetal.Workflow.Supervisor,
+      [workflow_id: workflow_id]
+    }
+    DynamicSupervisor.start_child(workflows_supervisor, child_spec)
+  end
+
+  defp supervisor_name(name) do
+    Module.concat(name, __MODULE__)
+  end
 end
