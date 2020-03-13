@@ -8,9 +8,9 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   @doc """
   Start the workflows supervisor to supervise all workflows.
   """
-  @spec start_link({atom(), atom(), keyword()}) :: {:ok, pid()}
+  @spec start_link({module(), atom(), keyword()}) :: Supervisor.on_start()
   def start_link({_application, name, _opts} = args) do
-    supervisor_name = Module.concat(name, __MODULE__)
+    supervisor_name = supervisor_name(name)
 
     DynamicSupervisor.start_link(
       __MODULE__,

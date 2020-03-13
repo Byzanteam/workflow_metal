@@ -6,6 +6,7 @@ defmodule WorkflowMetal.ApplicationTest do
   end
 
   test "build an application" do
-    assert {:ok, _pid} = Application.start()
+    assert {:ok, _pid} = Application.start_link()
+    assert Application.supervisor_name() === __MODULE__.Application.TestApplication
   end
 end
