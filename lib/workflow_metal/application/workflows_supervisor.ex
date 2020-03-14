@@ -36,6 +36,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
       WorkflowMetal.Workflow.Supervisor,
       [workflow_id: workflow_id]
     }
+
     DynamicSupervisor.start_child(workflows_supervisor, child_spec)
   end
 

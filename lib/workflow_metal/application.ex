@@ -1,7 +1,7 @@
 defmodule WorkflowMetal.Application do
   @moduledoc false
 
-  @type application() :: module()
+  @type t() :: module()
 
   @doc false
   defmacro __using__(opts) do
