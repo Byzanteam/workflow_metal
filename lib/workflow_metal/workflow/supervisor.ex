@@ -22,7 +22,8 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @impl true
   def init({config, args}) do
     children = [
-      {WorkflowMetal.Workflow.Workflow, {config, args}}
+      {WorkflowMetal.Workflow.Workflow, {config, args}},
+      {WorkflowMetal.VersionManager.Supervisor, {config, args}}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
