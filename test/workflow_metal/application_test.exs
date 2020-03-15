@@ -5,7 +5,7 @@ defmodule WorkflowMetal.ApplicationTest do
     use WorkflowMetal.Application, name: __MODULE__.TestApplication
   end
 
-  alias TestApplication
+  alias DummyApplication.TestApplication
   alias WorkflowMetal.Application.Config
 
   test "build an application" do
