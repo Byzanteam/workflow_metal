@@ -5,25 +5,33 @@ defmodule WorkflowMetal.Workflow.Supervisor do
 
   use Supervisor
 
+  @type application :: WorkflowMetal.Application.t()
+
+  @type workflow_params :: [workflow_id: term()]
+  @type workflow_arg :: {application, workflow_params}
+
   @doc false
-  def start_link(config, args) do
-    Supervisor.start_link(__MODULE__, {config, args}, name: name(config, args))
+  @spec start_link(application, workflow_params) :: Supervisor.on_start()
+  def start_link(application, workflow_params) do
+    Supervisor.start_link(__MODULE__, {application, workflow_params},
+      name: via_name(application, workflow_params)
+    )
   end
 
-  defp name({application, name, _opts}, opts) do
-    workflow_id = Keyword.fetch!(opts, :workflow_id)
-    registration = Module.concat(name, Registry)
+  defp via_name(application, workflow_params) do
+    workflow_id = Keyword.fetch!(workflow_params, :workflow_id)
 
-    {:via, Registry, {registration, {application, __MODULE__, workflow_id}}}
+    WorkflowMetal.Registration.via_tuple(application, {application, __MODULE__, workflow_id})
   end
 
   ## Callbacks
 
   @impl true
-  def init({config, args}) do
+  @spec init(workflow_arg) :: {:ok, tuple()}
+  def init(workflow_arg) do
     children = [
-      {WorkflowMetal.Workflow.Workflow, {config, args}},
-      {WorkflowMetal.VersionManager.Supervisor, {config, args}}
+      {WorkflowMetal.Workflow.Workflow, workflow_arg},
+      {WorkflowMetal.VersionManager.Supervisor, workflow_arg}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

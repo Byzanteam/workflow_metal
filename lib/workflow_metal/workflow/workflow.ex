@@ -5,15 +5,18 @@ defmodule WorkflowMetal.Workflow.Workflow do
 
   use GenServer
 
-  def start_link({config, args}) do
-    GenServer.start_link(__MODULE__, [], name: name(config, args))
+  @type workflow_arg :: WorkflowMetal.Workflow.Supervisor.workflow_arg()
+
+  @doc false
+  @spec start_link(workflow_arg) :: GenServer.on_start()
+  def start_link({application, workflow_params}) do
+    GenServer.start_link(__MODULE__, [], name: via_name(application, workflow_params))
   end
 
-  defp name({application, name, _opts}, opts) do
-    workflow_id = Keyword.fetch!(opts, :workflow_id)
-    registration = Module.concat(name, Registry)
+  defp via_name(application, workflow_params) do
+    workflow_id = Keyword.fetch!(workflow_params, :workflow_id)
 
-    {:via, Registry, {registration, {application, __MODULE__, workflow_id}}}
+    WorkflowMetal.Registration.via_tuple(application, {application, __MODULE__, workflow_id})
   end
 
   @impl true

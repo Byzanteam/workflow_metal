@@ -5,29 +5,29 @@ defmodule WorkflowMetal.VersionManager.Supervisor do
 
   use DynamicSupervisor
 
+  @type workflow_arg :: WorkflowMetal.Workflow.Supervisor.workflow_arg()
+
   @doc """
   Start the workflows supervisor to supervise all workflows.
   """
-  @spec start_link({{module(), atom(), keyword()}, keyword()}) :: Supervisor.on_start()
-  def start_link({config, args}) do
-    supervisor_name = supervisor_name(config, args)
-
+  @spec start_link(workflow_arg) :: Supervisor.on_start()
+  def start_link({application, workflow_params} = workflow_arg) do
     DynamicSupervisor.start_link(
       __MODULE__,
-      {config, args},
-      name: supervisor_name
+      workflow_arg,
+      name: via_name(application, workflow_params)
     )
   end
 
   @impl true
-  def init({config, args}) do
-    DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [config, args])
+  @spec init(workflow_arg) :: {:ok, DynamicSupervisor.sup_flags()}
+  def init(workflow_arg) do
+    DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [workflow_arg])
   end
 
-  defp supervisor_name({application, name, _opts}, opts) do
-    workflow_id = Keyword.fetch!(opts, :workflow_id)
-    registration = Module.concat(name, Registry)
+  defp via_name(application, workflow_params) do
+    workflow_id = Keyword.fetch!(workflow_params, :workflow_id)
 
-    {:via, Registry, {registration, {application, __MODULE__, workflow_id}}}
+    WorkflowMetal.Registration.via_tuple(application, {application, __MODULE__, workflow_id})
   end
 end

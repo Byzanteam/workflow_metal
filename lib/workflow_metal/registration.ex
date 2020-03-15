@@ -6,6 +6,13 @@ defmodule WorkflowMetal.Registration do
   @type application :: WorkflowMetal.Application.t()
   @type config :: keyword
 
+  @doc false
+  def via_tuple(application, name) do
+    {adapter, adapter_meta} = WorkflowMetal.Application.registry_adapter(application)
+
+    adapter.via_tuple(adapter_meta, name)
+  end
+
   @doc """
   Get the configured process registry.
 

@@ -5,42 +5,42 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   use DynamicSupervisor
 
+  @type application :: WorkflowMetal.Application.t()
+  @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
+
   @doc """
   Start the workflows supervisor to supervise all workflows.
   """
-  @spec start_link({module(), atom(), keyword()}) :: Supervisor.on_start()
-  def start_link({_application, name, _opts} = args) do
-    supervisor_name = supervisor_name(name)
+  @spec start_link(application) :: Supervisor.on_start()
+  def start_link(application) do
+    workflows_supervisor = supervisor_name(application)
 
     DynamicSupervisor.start_link(
       __MODULE__,
-      args,
-      name: supervisor_name
+      application,
+      name: workflows_supervisor
     )
   end
 
   @impl true
-  def init(args) do
-    DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [args])
+  def init(application) do
+    DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [application])
   end
 
   @doc """
   Start a workflow supervisor.
   """
-  @spec create_workflow(module(), %{workflow_id: term()}) :: DynamicSupervisor.on_start_child()
+  @spec create_workflow(application, workflow_params) :: DynamicSupervisor.on_start_child()
   def create_workflow(application, workflow_params) do
-    workflow_id = Map.fetch!(workflow_params, :workflow_id)
-    workflows_supervisor = supervisor_name(application.supervisor_name())
+    workflow_id = Keyword.fetch!(workflow_params, :workflow_id)
+    workflows_supervisor = supervisor_name(application)
 
-    child_spec = {
-      WorkflowMetal.Workflow.Supervisor,
-      [workflow_id: workflow_id]
-    }
+    child_spec = {WorkflowMetal.Workflow.Supervisor, [workflow_id: workflow_id]}
 
     DynamicSupervisor.start_child(workflows_supervisor, child_spec)
   end
 
-  defp supervisor_name(name) do
-    Module.concat(name, __MODULE__)
+  defp supervisor_name(application) do
+    Module.concat(application, WorkflowsSupervisor)
   end
 end

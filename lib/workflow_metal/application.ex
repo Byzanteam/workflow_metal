@@ -1,7 +1,11 @@
 defmodule WorkflowMetal.Application do
   @moduledoc false
 
+  alias WorkflowMetal.Application.Config
+
   @type t() :: module()
+  @type application_config :: keyword()
+  @type application_meta :: {t, application_config}
 
   @doc false
   defmacro __using__(opts) do
@@ -14,8 +18,7 @@ defmodule WorkflowMetal.Application do
       @spec start_link() :: Supervisor.on_start()
       def start_link do
         WorkflowMetal.Application.Supervisor.start_link(
-          __MODULE__,
-          supervisor_name(),
+          application(),
           config()
         )
       end
@@ -23,7 +26,7 @@ defmodule WorkflowMetal.Application do
       @doc """
       Retrive the supervisor name of the current application.
       """
-      def supervisor_name do
+      def application do
         name(config())
       end
 
@@ -51,4 +54,8 @@ defmodule WorkflowMetal.Application do
       end
     end
   end
+
+  @doc false
+  @spec registry_adapter(t) :: {module, map}
+  def registry_adapter(application), do: Config.get(application, :registry)
 end

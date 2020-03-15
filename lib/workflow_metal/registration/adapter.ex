@@ -19,4 +19,9 @@ defmodule WorkflowMetal.Registration.Adapter do
   """
   @callback child_spec(application, config) ::
               {:ok, Supervisor.child_spec(), adapter_meta}
+
+  @doc """
+  Return a `:via` tuple to route a message to a process by its registered name
+  """
+  @callback via_tuple(adapter_meta :: adapter_meta, name :: term) :: {:via, module, term}
 end

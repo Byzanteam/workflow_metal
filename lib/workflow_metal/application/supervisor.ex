@@ -9,31 +9,41 @@ defmodule WorkflowMetal.Application.Supervisor do
   @doc """
   Start the application supervisor.
   """
-  @spec start_link(application, atom, config) :: Supervisor.on_start()
-  def start_link(application, name, config) do
+  @spec start_link(application, config) :: Supervisor.on_start()
+  def start_link(application, config) do
     Supervisor.start_link(
       __MODULE__,
-      {application, name, config},
-      name: name
+      {application, config},
+      name: application
     )
   end
 
   @impl true
-  def init({application, name, config} = args) do
-    {registry_child_spec, config} = registry_child_spec(name, config)
+  def init({application, config}) do
+    {registry_child_spec, config} = registry_child_spec(application, config)
+
+    config_child_spec = config_child_spec(application, config)
 
     children = [
+      config_child_spec,
       registry_child_spec,
-      {WorkflowMetal.Application.WorkflowsSupervisor, {application, name, config}}
+      {WorkflowMetal.Application.WorkflowsSupervisor, application}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
   end
 
-  defp registry_child_spec(name, config) do
-    {adapter, adapter_config} = WorkflowMetal.Registration.adapter(name, config)
+  defp config_child_spec(application, config) do
+    %{
+      id: WorkflowMetal.Application.Config,
+      start: {WorkflowMetal.Application.Config, :start_link, [application, config]}
+    }
+  end
 
-    {:ok, child_spec, adapter_meta} = adapter.child_spec(name, adapter_config)
+  defp registry_child_spec(application, config) do
+    {adapter, adapter_config} = WorkflowMetal.Registration.adapter(application, config)
+
+    {:ok, child_spec, adapter_meta} = adapter.child_spec(application, adapter_config)
 
     config = Keyword.put(config, :registry, {adapter, adapter_meta})
 
