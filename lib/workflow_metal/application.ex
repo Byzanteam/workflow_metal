@@ -48,7 +48,8 @@ defmodule WorkflowMetal.Application do
       @doc """
       Start a workflow
       """
-      defdelegate create_workflow(application, workflow_params), to: WorkflowMetal.Application.WorkflowsSupervisor
+      defdelegate create_workflow(application, workflow_params),
+        to: WorkflowMetal.Application.WorkflowsSupervisor
 
       defp name(opts) do
         case Keyword.get(opts, :name) do
