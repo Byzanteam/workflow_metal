@@ -12,6 +12,14 @@ defmodule WorkflowMetal.Application do
     quote bind_quoted: [opts: opts] do
       @config WorkflowMetal.Application.Supervisor.compile_config(__MODULE__, opts)
 
+      def child_spec(_opts) do
+        %{
+          id: __MODULE__,
+          start: {__MODULE__, :start_link, []},
+          type: :supervisor
+        }
+      end
+
       @doc """
       Start a workflow_metal application
       """
@@ -36,6 +44,11 @@ defmodule WorkflowMetal.Application do
       def config do
         @config
       end
+
+      @doc """
+      Start a workflow
+      """
+      defdelegate create_workflow(application, workflow_params), to: WorkflowMetal.Application.WorkflowsSupervisor
 
       defp name(opts) do
         case Keyword.get(opts, :name) do

@@ -1,12 +1,18 @@
 defmodule WorkflowMetal.ApplicationTest do
   use ExUnit.Case
 
-  defmodule Application do
+  defmodule DummyApplication do
     use WorkflowMetal.Application, name: __MODULE__.TestApplication
   end
 
   test "build an application" do
-    assert {:ok, _pid} = Application.start_link()
-    assert WorkflowMetal.Application.Config.get(__MODULE__.Application.TestApplication, :registry)
+    start_supervised(DummyApplication)
+
+    assert WorkflowMetal.Application.Config.get(__MODULE__.DummyApplication.TestApplication, :registry)
+  end
+
+  test "create workflow" do
+    start_supervised(DummyApplication)
+    assert {:ok, _pid} = DummyApplication.create_workflow(DummyApplication.TestApplication, [workflow_id: 123])
   end
 end
