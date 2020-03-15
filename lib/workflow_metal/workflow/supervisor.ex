@@ -27,7 +27,6 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   ## Callbacks
 
   @impl true
-  @spec init(workflow_arg) :: {:ok, tuple()}
   def init(workflow_arg) do
     children = [
       {WorkflowMetal.Workflow.Workflow, workflow_arg},

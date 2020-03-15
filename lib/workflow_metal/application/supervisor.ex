@@ -1,7 +1,7 @@
 defmodule WorkflowMetal.Application.Supervisor do
   @moduledoc false
 
-  use DynamicSupervisor
+  use Supervisor
 
   @type application :: WorkflowMetal.Application.t()
   @type config :: keyword

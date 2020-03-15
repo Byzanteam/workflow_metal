@@ -20,7 +20,6 @@ defmodule WorkflowMetal.VersionManager.Supervisor do
   end
 
   @impl true
-  @spec init(workflow_arg) :: {:ok, DynamicSupervisor.sup_flags()}
   def init(workflow_arg) do
     DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [workflow_arg])
   end
