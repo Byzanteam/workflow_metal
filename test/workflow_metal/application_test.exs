@@ -7,6 +7,6 @@ defmodule WorkflowMetal.ApplicationTest do
 
   test "build an application" do
     assert {:ok, _pid} = Application.start_link()
-    assert Application.supervisor_name() === __MODULE__.Application.TestApplication
+    assert WorkflowMetal.Application.Config.get(__MODULE__.Application.TestApplication, :registry)
   end
 end
