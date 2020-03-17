@@ -5,6 +5,7 @@
   - Registry(Registry)
   - Config(Agent)
   - WorkflowsSupervisor(DynamicSupervisor)
+    - Storage(GenServer)
     - WorkflowSupervisor(Supervisor)
       - Workflow(GenServer)
       - WorkflowVersionManager(DynamicSupervisor)

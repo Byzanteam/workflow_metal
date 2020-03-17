@@ -7,7 +7,7 @@ defmodule WorkflowMetal.Workflow.Supervisor do
 
   @type application :: WorkflowMetal.Application.t()
 
-  @type workflow_params :: [workflow_id: term()]
+  @type workflow_params :: %{workflow_id: term(), workflow_version: String.t()}
   @type workflow_arg :: {application, workflow_params}
 
   @doc false
