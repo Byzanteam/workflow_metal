@@ -30,6 +30,9 @@ defmodule WorkflowMetal.Workflow.Schemas.Workflow do
 
   @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
 
+  @doc """
+  Build a Workflow struct from a map
+  """
   @spec new(workflow_params) :: __MODULE__.t()
   def new(%{} = params) do
     {:ok, %__MODULE__{id: params[:id], name: params[:name], version: params[:version]}}
