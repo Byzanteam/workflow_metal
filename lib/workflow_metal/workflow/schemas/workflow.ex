@@ -13,9 +13,9 @@ defmodule WorkflowMetal.Workflow.Schemas.Workflow do
   ]
 
   alias WorkflowMetal.Workflow.Schemas.{
+    Arc,
     Place,
-    Transition,
-    Arc
+    Transition
   }
 
   @type t() :: %__MODULE__{

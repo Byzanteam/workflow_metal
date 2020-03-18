@@ -5,6 +5,8 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   use DynamicSupervisor
 
+  alias WorkflowMetal.Workflow.Schemas
+
   @type application :: WorkflowMetal.Application.t()
   @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
 
@@ -32,7 +34,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   """
   @spec create_workflow(application, workflow_params) :: DynamicSupervisor.on_start_child()
   def create_workflow(application, workflow_params) do
-    {:ok, workflow} = WorkflowMetal.Workflow.Schemas.Workflow.new(workflow_params)
+    {:ok, workflow} = Schemas.Workflow.new(workflow_params)
 
     workflow_id = Map.fetch!(workflow, :id)
     workflow_version = Map.fetch!(workflow, :version)
