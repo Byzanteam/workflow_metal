@@ -10,9 +10,9 @@ defmodule WorkflowMetal.Workflow.Schemas.Arc.Guard do
   ]
 
   @type t() :: %__MODULE__{
-    id: any(),
-    arc_id: any(),
-    exp: String.t(),
-    computer: module()
-  }
+          id: any(),
+          arc_id: any(),
+          exp: String.t(),
+          computer: module()
+        }
 end

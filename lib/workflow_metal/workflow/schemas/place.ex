@@ -11,10 +11,10 @@ defmodule WorkflowMetal.Workflow.Schemas.Place do
   ]
 
   @type t() :: %__MODULE__{
-    id: any(),
-    workflow_id: any(),
-    name: String.t(),
-    description: String.t(),
-    type: :start | :normal | :end
-  }
+          id: any(),
+          workflow_id: any(),
+          name: String.t(),
+          description: String.t(),
+          type: :start | :normal | :end
+        }
 end

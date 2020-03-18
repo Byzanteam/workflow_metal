@@ -12,11 +12,11 @@ defmodule WorkflowMetal.Workflow.Schemas.WorkitemAssignment do
   ]
 
   @type t() :: %__MODULE__{
-    id: any(),
-    workflow_id: any(),
-    case_id: any(),
-    transition_id: any(),
-    workitem_id: any(),
-    assignee_id: any()
-  }
+          id: any(),
+          workflow_id: any(),
+          case_id: any(),
+          transition_id: any(),
+          workitem_id: any(),
+          assignee_id: any()
+        }
 end

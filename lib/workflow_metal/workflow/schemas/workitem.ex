@@ -18,15 +18,15 @@ defmodule WorkflowMetal.Workflow.Schemas.Workitem do
   alias WorkflowMetal.Workflow.Schemas.WorkitemAssignment
 
   @type t() :: %__MODULE__{
-    id: any(),
-    workflow_id: any(),
-    case_id: any(),
-    transition_id: any(),
-    state: :enabled | :started | :canceled | :finished,
-    enabled_at: NaiveDateTime.t(),
-    started_at: NaiveDateTime.t(),
-    canceled_at: NaiveDateTime.t(),
-    finished_at: NaiveDateTime.t(),
-    workitem_assignments: [WorkitemAssignment.t()]
-  }
+          id: any(),
+          workflow_id: any(),
+          case_id: any(),
+          transition_id: any(),
+          state: :enabled | :started | :canceled | :finished,
+          enabled_at: NaiveDateTime.t(),
+          started_at: NaiveDateTime.t(),
+          canceled_at: NaiveDateTime.t(),
+          finished_at: NaiveDateTime.t(),
+          workitem_assignments: [WorkitemAssignment.t()]
+        }
 end

@@ -19,14 +19,14 @@ defmodule WorkflowMetal.Workflow.Schemas.Workflow do
   }
 
   @type t() :: %__MODULE__{
-    id: any(),
-    name: String.t(),
-    description: String.t(),
-    version: String.t(),
-    places: [Place.t()],
-    transitions: [Transition.t()],
-    arcs: [Arc.t()]
-  }
+          id: any(),
+          name: String.t(),
+          description: String.t(),
+          version: String.t(),
+          places: [Place.t()],
+          transitions: [Transition.t()],
+          arcs: [Arc.t()]
+        }
 
   @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
 

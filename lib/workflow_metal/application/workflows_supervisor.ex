@@ -41,7 +41,9 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
     storage_name = storage_name(application, workflow_id)
 
     storage = {WorkflowMetal.Storage, [name: storage_name, init: {workflow_version, workflow}]}
-    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, [workflow_id: workflow_id, storage: storage_name]}
+
+    workflow_supervisor =
+      {WorkflowMetal.Workflow.Supervisor, [workflow_id: workflow_id, storage: storage_name]}
 
     DynamicSupervisor.start_child(workflows_supervisor, storage)
     DynamicSupervisor.start_child(workflows_supervisor, workflow_supervisor)

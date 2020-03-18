@@ -12,11 +12,11 @@ defmodule WorkflowMetal.Workflow.Schemas.Case do
   ]
 
   @type t() :: %__MODULE__{
-    id: any(),
-    workflow_id: any(),
-    state: :created | :active | :canceled | :finished,
-    activated_at: NaiveDateTime.t(),
-    canceled_at: NaiveDateTime.t(),
-    finished_at: NaiveDateTime.t(),
-  }
+          id: any(),
+          workflow_id: any(),
+          state: :created | :active | :canceled | :finished,
+          activated_at: NaiveDateTime.t(),
+          canceled_at: NaiveDateTime.t(),
+          finished_at: NaiveDateTime.t()
+        }
 end

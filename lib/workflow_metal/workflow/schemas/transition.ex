@@ -12,11 +12,11 @@ defmodule WorkflowMetal.Workflow.Schemas.Transition do
   ]
 
   @type t() :: %__MODULE__{
-    id: any(),
-    workflow_id: any(),
-    name: String.t(),
-    description: String.t(),
-    executer: module(),
-    executer_params: map()
-  }
+          id: any(),
+          workflow_id: any(),
+          name: String.t(),
+          description: String.t(),
+          executer: module(),
+          executer_params: map()
+        }
 end
