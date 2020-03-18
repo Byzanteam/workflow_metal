@@ -36,8 +36,8 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   def create_workflow(application, workflow_params) do
     {:ok, workflow} = Schemas.Workflow.new(workflow_params)
 
-    workflow_id = Map.fetch!(workflow, :id)
-    workflow_version = Map.fetch!(workflow, :version)
+    workflow_id = Keyword.fetch!(workflow_params, :id)
+    workflow_version = Keyword.fetch!(workflow_params, :version)
 
     workflows_supervisor = supervisor_name(application)
     storage_name = storage_name(application, workflow_id)

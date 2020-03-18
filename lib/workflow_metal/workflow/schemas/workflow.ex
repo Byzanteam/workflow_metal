@@ -34,7 +34,7 @@ defmodule WorkflowMetal.Workflow.Schemas.Workflow do
   Build a Workflow struct from a map
   """
   @spec new(workflow_params) :: {:ok, __MODULE__.t()}
-  def new(%{} = params) do
+  def new(params) when is_list(params) do
     {:ok,
      %__MODULE__{
        id: params[:id],
