@@ -25,7 +25,7 @@ defmodule WorkflowMetal.VersionManager.Supervisor do
   end
 
   defp via_name(application, workflow_params) do
-    workflow_id = Keyword.fetch!(workflow_params, :workflow_id)
+    workflow_id = Map.fetch!(workflow_params, :workflow_id)
 
     WorkflowMetal.Registration.via_tuple(application, {__MODULE__, workflow_id})
   end
