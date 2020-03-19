@@ -5,6 +5,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   use DynamicSupervisor
 
+  alias WorkflowMetal.Registration
   alias WorkflowMetal.Workflow.Schemas
 
   @type application :: WorkflowMetal.Application.t()
@@ -37,9 +38,14 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
     {:ok, workflow} = Schemas.Workflow.new(workflow_params)
 
     workflows_supervisor = supervisor_name(application)
-    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow}
+    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow: workflow}
 
-    DynamicSupervisor.start_child(workflows_supervisor, workflow_supervisor)
+    Registration.start_child(
+      application,
+      WorkflowMetal.Workflow.Supervisor.name(workflow),
+      workflows_supervisor,
+      workflow_supervisor
+    )
   end
 
   defp supervisor_name(application) do

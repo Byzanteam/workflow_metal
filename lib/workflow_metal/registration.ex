@@ -3,6 +3,8 @@ defmodule WorkflowMetal.Registration do
   Use the process registry configured for a WorkflowMetal application.
   """
 
+  alias WorkflowMetal.Registration.Adapter
+
   @type application :: WorkflowMetal.Application.t()
   @type config :: keyword
 
@@ -33,5 +35,15 @@ defmodule WorkflowMetal.Registration do
                 inspect(config)
               }`"
     end
+  end
+
+  @doc """
+  """
+  @spec start_child(application, term, Supervisor.supervisor(), Adapter.child_spec()) ::
+          DynamicSupervisor.on_start_child()
+  def start_child(application, name, supervisor, child_spec) do
+    {adapter, adapter_meta} = WorkflowMetal.Application.registry_adapter(application)
+
+    adapter.start_child(adapter_meta, name, supervisor, child_spec)
   end
 end
