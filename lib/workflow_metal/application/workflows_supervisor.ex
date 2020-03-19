@@ -36,26 +36,13 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   def create_workflow(application, workflow_params) do
     {:ok, workflow} = Schemas.Workflow.new(workflow_params)
 
-    workflow_id = Keyword.fetch!(workflow_params, :id)
-    workflow_version = Keyword.fetch!(workflow_params, :version)
-
     workflows_supervisor = supervisor_name(application)
-    storage_name = storage_name(application, workflow_id)
+    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow}
 
-    storage = {WorkflowMetal.Storage, [name: storage_name, init: {workflow_version, workflow}]}
-
-    workflow_supervisor =
-      {WorkflowMetal.Workflow.Supervisor, [workflow_id: workflow_id, storage: storage_name]}
-
-    DynamicSupervisor.start_child(workflows_supervisor, storage)
     DynamicSupervisor.start_child(workflows_supervisor, workflow_supervisor)
   end
 
   defp supervisor_name(application) do
     Module.concat(application, WorkflowsSupervisor)
-  end
-
-  defp storage_name(application, workflow_id) do
-    WorkflowMetal.Storage.via_name(application, workflow_id)
   end
 end
