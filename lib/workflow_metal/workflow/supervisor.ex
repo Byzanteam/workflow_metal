@@ -8,8 +8,9 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @type application :: WorkflowMetal.Application.t()
 
   @type workflow :: WorkflowMetal.Workflow.Schemas.Workflow.t()
-  @type workflow_params :: [workflow_id: term()]
+  @type workflow_params :: [workflow_id: term(), workflow_version: String.t()]
   @type workflow_arg :: {application, workflow}
+  @type workflow_reference :: [workflow_id: term(), workflow_version: String.t() | :current]
 
   @type options :: [name: term, workflow: workflow]
 
@@ -23,10 +24,17 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   end
 
   @doc false
-  @spec name(workflow) :: term()
+  @spec name(workflow | workflow_reference) :: term()
   def name(workflow) do
-    workflow_id = Map.fetch!(workflow, :id)
+    workflow_id = Keyword.fetch!(workflow, :workflow_id)
     {__MODULE__, workflow_id}
+  end
+
+  @doc false
+  @spec via_name(application, workflow | workflow_reference) :: term()
+  def via_name(application, workflow) do
+    workflow_id = Keyword.fetch!(workflow, :workflow_id)
+    WorkflowMetal.Registration.via_tuple(application, {__MODULE__, workflow_id})
   end
 
   ## Callbacks
@@ -34,7 +42,8 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @impl true
   def init(workflow_arg) do
     children = [
-      {WorkflowMetal.Workflow.Workflow, workflow_arg}
+      {WorkflowMetal.Workflow.Workflow, workflow_arg},
+      {WorkflowMetal.Case.Supervisor, workflow_arg}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

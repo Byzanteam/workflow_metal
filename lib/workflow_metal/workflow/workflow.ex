@@ -5,7 +5,16 @@ defmodule WorkflowMetal.Workflow.Workflow do
 
   use GenServer
 
+  defstruct [
+    :table,
+    versions: []
+  ]
+
+  @type application :: WorkflowMetal.Application.t()
+  @type workflow :: WorkflowMetal.Workflow.Supervisor.workflow()
   @type workflow_arg :: WorkflowMetal.Workflow.Supervisor.workflow_arg()
+  @type workflow_address :: nil | {pid, String.t()}
+  @type workflow_reference :: WorkflowMetal.Workflow.Supervisor.workflow_reference()
 
   @doc false
   @spec start_link(workflow_arg) :: GenServer.on_start()
@@ -13,9 +22,10 @@ defmodule WorkflowMetal.Workflow.Workflow do
     GenServer.start_link(__MODULE__, [workflow: workflow], name: via_name(application, workflow))
   end
 
-  defp via_name(application, workflow) do
+  @doc false
+  @spec via_name(application, workflow | workflow_reference) :: term()
+  def via_name(application, workflow) do
     workflow_id = Map.fetch!(workflow, :id)
-
     WorkflowMetal.Registration.via_tuple(application, {__MODULE__, workflow_id})
   end
 
@@ -26,6 +36,25 @@ defmodule WorkflowMetal.Workflow.Workflow do
     table = :ets.new(:storage, [:set, :private])
     :ets.insert(table, {workflow_version, workflow})
 
-    {:ok, table}
+    {:ok, %__MODULE__{table: table, versions: [workflow_version]}}
+  end
+
+  @doc false
+  @spec whereis_version(application, workflow_reference) :: workflow_address
+  def whereis_version(application, workflow_reference) do
+    workflow_version = Keyword.fetch!(workflow_reference, :workflow_version)
+    workflow_name = via_name(application, workflow_reference)
+    GenServer.call(workflow_name, {:whereis_version, workflow_version})
+  end
+
+  @impl true
+  def handle_call({:whereis_version, workflow_version}, _, state) do
+    %{versions: versions} = state
+
+    if Enum.member?(versions, workflow_version) do
+      {:reply, {self(), workflow_version}, state}
+    else
+      {:reply, nil, state}
+    end
   end
 end
