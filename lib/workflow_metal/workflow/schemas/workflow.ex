@@ -37,10 +37,10 @@ defmodule WorkflowMetal.Workflow.Schemas.Workflow do
   def new(params) when is_list(params) do
     {:ok,
      %__MODULE__{
-       id: params[:id],
+       id: params[:workflow_id],
        name: params[:name],
        description: params[:description],
-       version: params[:version],
+       version: params[:workflow_version],
        arcs: [],
        places: [],
        transitions: []
