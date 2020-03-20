@@ -30,5 +30,25 @@ defmodule WorkflowMetal.Registration.LocalRegistry do
     {:via, Registry, {registry_name, name}}
   end
 
+  @doc false
+  @impl WorkflowMetal.Registration.Adapter
+  def start_child(adapter_meta, name, supervisor, child_spec) do
+    name = via_tuple(adapter_meta, name)
+
+    child_spec =
+      case child_spec do
+        module when is_atom(module) ->
+          {module, name: name}
+
+        {module, args} when is_atom(module) and is_list(args) ->
+          {module, Keyword.put(args, :name, name)}
+      end
+
+    case DynamicSupervisor.start_child(supervisor, child_spec) do
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      reply -> reply
+    end
+  end
+
   defp registry_name(adapter_meta), do: Map.fetch!(adapter_meta, :registry_name)
 end

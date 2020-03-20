@@ -9,6 +9,7 @@ defmodule WorkflowMetal.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       build_per_environment: is_nil(System.get_env("GITHUB_ACTIONS")),
+      aliases: aliases(),
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
       ]
@@ -28,6 +29,12 @@ defmodule WorkflowMetal.MixProject do
       {:credo, "~> 1.2", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0.0-rc.7", only: [:dev], runtime: false},
       {:doctor, "~> 0.11.0", only: [:dev]}
+    ]
+  end
+
+  defp aliases do
+    [
+      "code.check": ["format --check-formatted", "doctor --summary", "credo --strict", "dialyzer"]
     ]
   end
 end

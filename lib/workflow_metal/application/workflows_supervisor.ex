@@ -5,10 +5,14 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   use DynamicSupervisor
 
+  alias WorkflowMetal.Case.Case
+  alias WorkflowMetal.Registration
   alias WorkflowMetal.Workflow.Schemas
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
+  @type workflow_reference :: WorkflowMetal.Workflow.Supervisor.workflow_reference()
+  @type case_params :: WorkflowMetal.Case.Supervisor.case_params()
 
   @doc """
   Start the workflows supervisor to supervise all workflows.
@@ -36,26 +40,40 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   def create_workflow(application, workflow_params) do
     {:ok, workflow} = Schemas.Workflow.new(workflow_params)
 
-    workflow_id = Keyword.fetch!(workflow_params, :id)
-    workflow_version = Keyword.fetch!(workflow_params, :version)
-
     workflows_supervisor = supervisor_name(application)
-    storage_name = storage_name(application, workflow_id)
+    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow: workflow}
 
-    storage = {WorkflowMetal.Storage, [name: storage_name, init: {workflow_version, workflow}]}
+    Registration.start_child(
+      application,
+      WorkflowMetal.Workflow.Supervisor.name(workflow_params),
+      workflows_supervisor,
+      workflow_supervisor
+    )
+  end
 
-    workflow_supervisor =
-      {WorkflowMetal.Workflow.Supervisor, [workflow_id: workflow_id, storage: storage_name]}
+  @doc """
+  Start a case supervisor
+  """
+  @spec create_workflow_case(application, case_params) ::
+          DynamicSupervisor.on_start_child() | {:error, :invalid_workflow_reference}
+  def create_workflow_case(application, case_params) do
+    {workflow_reference, case_params} = Keyword.pop!(case_params, :workflow_reference)
 
-    DynamicSupervisor.start_child(workflows_supervisor, storage)
-    DynamicSupervisor.start_child(workflows_supervisor, workflow_supervisor)
+    case WorkflowMetal.Workflow.Workflow.whereis_version(application, workflow_reference) do
+      nil ->
+        {:error, :invalid_workflow_reference}
+
+      workflow_addr ->
+        Registration.start_child(
+          application,
+          Case.name(case_params),
+          WorkflowMetal.Case.Supervisor.via_name(application, workflow_reference),
+          {Case, [workflow_addr: workflow_addr, case_params: case_params]}
+        )
+    end
   end
 
   defp supervisor_name(application) do
     Module.concat(application, WorkflowsSupervisor)
-  end
-
-  defp storage_name(application, workflow_id) do
-    WorkflowMetal.Storage.via_name(application, workflow_id)
   end
 end

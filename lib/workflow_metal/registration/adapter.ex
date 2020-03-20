@@ -14,6 +14,8 @@ defmodule WorkflowMetal.Registration.Adapter do
   @type application :: WorkflowMetal.Application.t()
   @type config :: keyword
 
+  @type child_spec :: module | {module, term}
+
   @doc """
   Return a supervisor spec for the registry
   """
@@ -24,4 +26,15 @@ defmodule WorkflowMetal.Registration.Adapter do
   Return a `:via` tuple to route a message to a process by its registered name
   """
   @callback via_tuple(adapter_meta :: adapter_meta, name :: term) :: {:via, module, term}
+
+  @doc """
+  Start a child under a DynamicSupervisor. If a child with give name already
+  exists, find its pid.
+  """
+  @callback start_child(
+              adapter_meta :: adapter_meta,
+              name :: term,
+              supervisor :: Supervisor.supervisor(),
+              child_spec :: child_spec()
+            ) :: DynamicSupervisor.on_start_child()
 end
