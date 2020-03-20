@@ -7,7 +7,7 @@ defmodule WorkflowMetal.Workflow.Supervisor do
 
   @type application :: WorkflowMetal.Application.t()
 
-  @type workflow :: WorkflowMetal.Workflow.Schemas.Workflow.t()
+  @type workflow :: WorkflowMetal.Workflow.Schema.Workflow.t()
   @type workflow_id :: term()
   @type workflow_version :: Version.t()
   @type workflow_params :: [workflow_id: workflow_id, workflow_version: workflow_version]

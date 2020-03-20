@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schemas.Arc do
+defmodule WorkflowMetal.Workflow.Schema.Arc do
   @moduledoc false
 
   @enforce_keys [:id, :workflow_id, :place_id, :transition_id, :direction]

@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schemas.Workflow do
+defmodule WorkflowMetal.Workflow.Schema.Workflow do
   @moduledoc false
 
   @enforce_keys [:id, :name, :version]
@@ -12,7 +12,7 @@ defmodule WorkflowMetal.Workflow.Schemas.Workflow do
     arcs: []
   ]
 
-  alias WorkflowMetal.Workflow.Schemas.{
+  alias WorkflowMetal.Workflow.Schema.{
     Arc,
     Place,
     Transition

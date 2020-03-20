@@ -7,7 +7,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   alias WorkflowMetal.Case.Case
   alias WorkflowMetal.Registration
-  alias WorkflowMetal.Workflow.Schemas
+  alias WorkflowMetal.Workflow.Schema
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
@@ -38,7 +38,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   """
   @spec create_workflow(application, workflow_params) :: DynamicSupervisor.on_start_child()
   def create_workflow(application, workflow_params) do
-    {:ok, workflow} = Schemas.Workflow.new(workflow_params)
+    {:ok, workflow} = Schema.Workflow.new(workflow_params)
 
     workflows_supervisor = supervisor_name(application)
     workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow: workflow}

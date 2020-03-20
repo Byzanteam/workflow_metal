@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schemas.Token do
+defmodule WorkflowMetal.Workflow.Schema.Token do
   @moduledoc false
 
   @enforce_keys [:id, :workflow_id, :case_id, :state, :produced_at]

@@ -1,13 +1,14 @@
-defmodule WorkflowMetal.Workflow.Schemas.Place do
+defmodule WorkflowMetal.Workflow.Schema.Transition do
   @moduledoc false
 
-  @enforce_keys [:id, :workflow_id, :name, :type]
+  @enforce_keys [:id, :workflow_id, :name, :executer]
   defstruct [
     :id,
     :workflow_id,
     :name,
     :description,
-    :type
+    :executer,
+    executer_params: %{}
   ]
 
   @type t() :: %__MODULE__{
@@ -15,6 +16,7 @@ defmodule WorkflowMetal.Workflow.Schemas.Place do
           workflow_id: any(),
           name: String.t(),
           description: String.t(),
-          type: :start | :normal | :end
+          executer: module(),
+          executer_params: map()
         }
 end
