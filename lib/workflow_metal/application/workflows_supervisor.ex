@@ -59,19 +59,17 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   def create_workflow_case(application, case_params) do
     {workflow_reference, case_params} = Keyword.pop!(case_params, :workflow_reference)
 
-    with(
-      workflow_addr when not is_nil(workflow_addr) <-
-        WorkflowMetal.Workflow.Workflow.whereis_version(application, workflow_reference)
-    ) do
-      Registration.start_child(
-        application,
-        Case.name(case_params),
-        WorkflowMetal.Case.Supervisor.via_name(application, workflow_reference),
-        {Case, [workflow_addr: workflow_addr, case_params: case_params]}
-      )
-    else
+    case WorkflowMetal.Workflow.Workflow.whereis_version(application, workflow_reference) do
       nil ->
         {:error, :invalid_workflow_reference}
+
+      workflow_addr ->
+        Registration.start_child(
+          application,
+          Case.name(case_params),
+          WorkflowMetal.Case.Supervisor.via_name(application, workflow_reference),
+          {Case, [workflow_addr: workflow_addr, case_params: case_params]}
+        )
     end
   end
 
