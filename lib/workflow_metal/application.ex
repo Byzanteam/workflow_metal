@@ -10,7 +10,7 @@ defmodule WorkflowMetal.Application do
   @doc false
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
-      @config WorkflowMetal.Application.Supervisor.compile_config(__MODULE__, opts)
+      @config WorkflowMetal.Application.Config.compile_config(__MODULE__, opts)
 
       def child_spec(_opts) do
         %{

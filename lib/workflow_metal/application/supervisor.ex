@@ -61,11 +61,4 @@ defmodule WorkflowMetal.Application.Supervisor do
 
     {child_spec, config}
   end
-
-  @doc """
-  Retrieves the compile time configuration.
-  """
-  def compile_config(_application, config) do
-    Keyword.take(config, [:name, :registry, :storage])
-  end
 end

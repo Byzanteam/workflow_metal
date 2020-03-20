@@ -30,6 +30,13 @@ defmodule WorkflowMetal.Application.Config do
     end)
   end
 
+  @doc """
+  Retrieves the compile time configuration.
+  """
+  def compile_config(_application, config) do
+    Keyword.take(config, [:name, :registry, :storage])
+  end
+
   defp config_name(application) do
     Module.concat(application, Config)
   end
