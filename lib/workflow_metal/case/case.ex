@@ -13,4 +13,9 @@ defmodule WorkflowMetal.Case.Case do
     case_id = Keyword.fetch!(case_params, :case_id)
     {__MODULE__, case_id}
   end
+
+  @impl true
+  def init(init_args) do
+    {:ok, init_args}
+  end
 end
