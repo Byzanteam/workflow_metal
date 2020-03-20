@@ -23,9 +23,16 @@ defmodule WorkflowMetal.Workflow.Workflow do
   end
 
   @doc false
-  @spec via_name(application, workflow | workflow_reference) :: term()
-  def via_name(application, workflow) do
+  @spec via_name(application, workflow) :: term()
+  def via_name(application, workflow) when is_map(workflow) do
     workflow_id = Map.fetch!(workflow, :id)
+    WorkflowMetal.Registration.via_tuple(application, {__MODULE__, workflow_id})
+  end
+
+  @doc false
+  @spec via_name(application, workflow_reference) :: term()
+  def via_name(application, workflow_reference) when is_list(workflow_reference) do
+    workflow_id = Keyword.fetch!(workflow_reference, :id)
     WorkflowMetal.Registration.via_tuple(application, {__MODULE__, workflow_id})
   end
 
