@@ -54,12 +54,14 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   @doc """
   Start a case supervisor
   """
-  @spec create_workflow_case(application, case_params) :: DynamicSupervisor.on_start_child() | {:error, :invalid_workflow_reference}
+  @spec create_workflow_case(application, case_params) ::
+          DynamicSupervisor.on_start_child() | {:error, :invalid_workflow_reference}
   def create_workflow_case(application, case_params) do
     {workflow_reference, case_params} = Keyword.pop!(case_params, :workflow_reference)
 
     with(
-      workflow_addr when not is_nil(workflow_addr) <- WorkflowMetal.Workflow.Workflow.whereis_version(application, workflow_reference)
+      workflow_addr when not is_nil(workflow_addr) <-
+        WorkflowMetal.Workflow.Workflow.whereis_version(application, workflow_reference)
     ) do
       Registration.start_child(
         application,
