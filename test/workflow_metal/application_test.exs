@@ -2,7 +2,9 @@ defmodule WorkflowMetal.ApplicationTest do
   use ExUnit.Case
 
   defmodule DummyApplication do
-    use WorkflowMetal.Application, name: __MODULE__.TestApplication
+    use WorkflowMetal.Application,
+      name: __MODULE__.TestApplication,
+      storage: WorkflowMetal.Storage.Adapters.InMemory
   end
 
   alias DummyApplication.TestApplication

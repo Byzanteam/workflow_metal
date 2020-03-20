@@ -78,4 +78,8 @@ defmodule WorkflowMetal.Application do
   @doc false
   @spec registry_adapter(t) :: {module, map}
   def registry_adapter(application), do: Config.get(application, :registry)
+
+  @doc false
+  @spec storage_adapter(t) :: {module, map}
+  def storage_adapter(application), do: Config.get(application, :storage)
 end

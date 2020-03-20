@@ -8,9 +8,11 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @type application :: WorkflowMetal.Application.t()
 
   @type workflow :: WorkflowMetal.Workflow.Schemas.Workflow.t()
-  @type workflow_params :: [workflow_id: term(), workflow_version: String.t()]
+  @type workflow_id :: term()
+  @type workflow_version :: Version.t()
+  @type workflow_params :: [workflow_id: workflow_id, workflow_version: workflow_version]
   @type workflow_arg :: {application, workflow}
-  @type workflow_reference :: [workflow_id: term(), workflow_version: String.t() | :current]
+  @type workflow_reference :: [workflow_id: term(), workflow_version: workflow_version | :current]
 
   @type options :: [name: term, workflow: workflow]
 
