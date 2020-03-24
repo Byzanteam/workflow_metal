@@ -91,7 +91,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
     Registration.start_child(
       application,
       Case.name(workflow_identifier, case_params),
-      WorkflowMetal.Case.Supervisor.name(workflow_identifier),
+      WorkflowMetal.Case.Supervisor.name(workflow_id),
       {Case, [case_params]}
     )
   end
