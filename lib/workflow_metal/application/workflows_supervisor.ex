@@ -37,27 +37,6 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   end
 
   @doc """
-  Start a workflow supervisor.
-  """
-  @spec create_workflow(application, workflow_id, workflow_params) ::
-          DynamicSupervisor.on_start_child()
-  def create_workflow(application, workflow_id, workflow_params \\ []) do
-    {:ok, workflow} = Schema.Workflow.new(workflow_params)
-
-    workflows_supervisor = supervisor_name(application)
-
-    workflow_supervisor =
-      {WorkflowMetal.Workflow.Supervisor, workflow_id: workflow_id, workflow: workflow}
-
-    Registration.start_child(
-      application,
-      WorkflowMetal.Workflow.Supervisor.name({application, workflow_id}),
-      workflows_supervisor,
-      workflow_supervisor
-    )
-  end
-
-  @doc """
   Retrive the workflow from the storage and open it(start `Supervisor` and its children).
   """
   @spec open_workflow(application, workflow_id) ::
@@ -78,22 +57,6 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
       error ->
         error
     end
-  end
-
-  @doc """
-  Start a case supervisor
-  """
-  @spec create_workflow_case(application, workflow_id, case_params) ::
-          DynamicSupervisor.on_start_child()
-  def create_workflow_case(application, workflow_id, case_params) do
-    workflow_identifier = {application, workflow_id}
-
-    Registration.start_child(
-      application,
-      Case.name(workflow_identifier, case_params),
-      WorkflowMetal.Case.Supervisor.name(workflow_id),
-      {Case, [case_params]}
-    )
   end
 
   defp supervisor_name(application) do
