@@ -45,16 +45,18 @@ defmodule WorkflowMetal.Application do
         @config
       end
 
+      # API
+
       @doc """
-      Start a workflow
+      Create a workflow, store it in the storage
       """
-      defdelegate create_workflow(application, workflow_id),
+      defdelegate create_workflow(application, workflow_id, workflow_params),
         to: WorkflowMetal.Application.WorkflowsSupervisor
 
       @doc """
-      Start a case
+      Open a workflow
       """
-      defdelegate create_workflow_case(application, workflow_id, case_params),
+      defdelegate open_workflow(application, workflow_id),
         to: WorkflowMetal.Application.WorkflowsSupervisor
 
       defp name(opts) do

@@ -37,6 +37,17 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   end
 
   @doc """
+  Start a workflow supervisor.
+  """
+  @spec create_workflow(application, workflow_id, workflow_params) ::
+          WorkflowMetal.Storage.Adapter.on_upsert_workflow()
+  def create_workflow(application, workflow_id, workflow_params) do
+    {:ok, workflow} = Schema.Workflow.new(workflow_params)
+
+    WorkflowMetal.Storage.upsert_workflow(application, workflow_id, workflow)
+  end
+
+  @doc """
   Retrive the workflow from the storage and open it(start `Supervisor` and its children).
   """
   @spec open_workflow(application, workflow_id) ::

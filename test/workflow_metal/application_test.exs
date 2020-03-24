@@ -19,6 +19,6 @@ defmodule WorkflowMetal.ApplicationTest do
   test "create workflow" do
     start_supervised(DummyApplication)
 
-    assert {:ok, _pid} = DummyApplication.create_workflow(TestApplication, 123)
+    assert {:ok, _pid} = DummyApplication.create_workflow(TestApplication, 123, [])
   end
 end
