@@ -12,6 +12,16 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type error :: term()
 
+  @type on_upsert_workflow ::
+          {:ok, :created}
+          | {:ok, :updated}
+          | {:error, error}
+  @type on_retrive_workflow ::
+          {:ok, workflow_data}
+          | {:error, :workflow_not_found}
+          | {:error, error}
+  @type on_delete_workflow :: :ok
+
   @doc """
   Return a child spec for the storage 
   """
@@ -25,10 +35,7 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               workflow_id,
               workflow_data
-            ) ::
-              {:ok, :created}
-              | {:ok, :updated}
-              | {:error, error}
+            ) :: on_upsert_workflow
 
   @doc """
   Retrive a workflow.
@@ -36,10 +43,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @callback retrive_workflow(
               adapter_meta,
               workflow_id
-            ) ::
-              {:ok, workflow_data}
-              | {:error, :workflow_not_found}
-              | {:error, error}
+            ) :: on_retrive_workflow
 
   @doc """
   Delete a specified workflow.
@@ -47,5 +51,5 @@ defmodule WorkflowMetal.Storage.Adapter do
   @callback delete_workflow(
               adapter_meta,
               workflow_id
-            ) :: :ok
+            ) :: on_delete_workflow
 end
