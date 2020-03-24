@@ -1,12 +1,11 @@
 defmodule WorkflowMetal.Workflow.Schema.Workflow do
   @moduledoc false
 
-  @enforce_keys [:id, :name, :version]
+  @enforce_keys [:id, :name]
   defstruct [
     :id,
     :name,
     :description,
-    :version,
     places: [],
     transitions: [],
     arcs: []
@@ -22,7 +21,6 @@ defmodule WorkflowMetal.Workflow.Schema.Workflow do
           id: any(),
           name: String.t(),
           description: String.t(),
-          version: String.t(),
           places: [Place.t()],
           transitions: [Transition.t()],
           arcs: [Arc.t()]
@@ -40,7 +38,6 @@ defmodule WorkflowMetal.Workflow.Schema.Workflow do
        id: params[:workflow_id],
        name: params[:name],
        description: params[:description],
-       version: params[:workflow_version],
        arcs: [],
        places: [],
        transitions: []

@@ -8,7 +8,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type config :: keyword
 
   @type workflow_id :: WorkflowMetal.Workflow.Supervisor.workflow_id()
-  @type workflow_version :: WorkflowMetal.Workflow.Supervisor.workflow_version()
   @type workflow_data :: map()
 
   @type error :: term()
@@ -25,7 +24,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @callback upsert_workflow(
               adapter_meta,
               workflow_id,
-              workflow_version,
               workflow_data
             ) ::
               {:ok, :created}
@@ -37,20 +35,17 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback retrive_workflow(
               adapter_meta,
-              workflow_id,
-              workflow_version
+              workflow_id
             ) ::
               {:ok, workflow_data}
               | {:error, :workflow_not_found}
-              | {:error, :workflow_version_not_found}
               | {:error, error}
 
   @doc """
-  Delete a specified version workflow.
+  Delete a specified workflow.
   """
   @callback delete_workflow(
               adapter_meta,
-              workflow_id,
-              workflow_version :: workflow_version | :all
+              workflow_id
             ) :: :ok
 end

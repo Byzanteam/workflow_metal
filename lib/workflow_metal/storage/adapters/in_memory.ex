@@ -62,52 +62,49 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def upsert_workflow(adapter_meta, workflow_id, workflow_version, workflow_data) do
+  def upsert_workflow(adapter_meta, workflow_id, workflow_data) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:upsert, workflow_id, workflow_version, workflow_data})
+    GenServer.call(storage, {:upsert, workflow_id, workflow_data})
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def retrive_workflow(adapter_meta, workflow_id, workflow_version) do
+  def retrive_workflow(adapter_meta, workflow_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:retrive, workflow_id, workflow_version})
+    GenServer.call(storage, {:retrive, workflow_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def delete_workflow(adapter_meta, workflow_id, workflow_version) do
+  def delete_workflow(adapter_meta, workflow_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:delete, workflow_id, workflow_version})
+    GenServer.call(storage, {:delete, workflow_id})
   end
 
   @impl GenServer
   def handle_call(
-        {:upsert, workflow_id, workflow_version, workflow_data},
+        {:upsert, workflow_id, workflow_data},
         _from,
         %State{} = state
       ) do
-    {reply, state} = persist_workflow({workflow_id, workflow_version, workflow_data}, state)
+    {reply, state} = persist_workflow({workflow_id, workflow_data}, state)
 
     {:reply, reply, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:retrive, workflow_id, workflow_version},
+        {:retrive, workflow_id},
         _from,
         %State{} = state
       ) do
     %State{workflows: workflows} = state
 
-    version = to_string(workflow_version)
-
     reply =
       case Map.get(workflows, workflow_id, nil) do
-        %{^version => workflow_data} -> {:ok, workflow_data}
-        %{} -> {:error, :workflow_version_not_found}
         nil -> {:error, :workflow_not_found}
+        workflow_data -> {:ok, workflow_data}
       end
 
     {:reply, reply, state}
@@ -115,29 +112,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:delete, workflow_id, workflow_version},
+        {:delete, workflow_id},
         _from,
         %State{} = state
       ) do
     %State{workflows: workflows} = state
 
-    workflow =
-      workflows
-      |> Map.get(workflow_id, %{})
-      |> Map.delete(to_string(workflow_version))
-
-    {:reply, :ok, %{state | workflows: Map.put(workflows, workflow_id, workflow)}}
+    {:reply, :ok, %{state | workflows: Map.delete(workflows, workflow_id)}}
   end
 
-  defp persist_workflow({workflow_id, workflow_version, workflow_data}, %State{} = state) do
+  defp persist_workflow({workflow_id, workflow_data}, %State{} = state) do
     %{workflows: workflows} = state
 
-    workflow =
-      workflows
-      |> Map.get(workflow_id, %{})
-      |> Map.put(to_string(workflow_version), workflow_data)
-
-    {:ok, %{state | workflows: Map.put(workflows, workflow_id, workflow)}}
+    {:ok, %{state | workflows: Map.put(workflows, workflow_id, workflow_data)}}
   end
 
   defp storage_name(adapter_meta) when is_map(adapter_meta),

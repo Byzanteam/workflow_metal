@@ -19,10 +19,10 @@
 ## functions
 create_workflow(application, workflow_id)
 
-create_workflow_version(application, workflow_id, version)
-deploy_workflow_version(application, workflow_id, version)
+create_workflow_version(application, workflow_id)
+deploy_workflow_version(application, workflow_id)
 
-create_workflow_case(application, workflow_id, version \\ :current)
+create_workflow_case(application, workflow_id)
 
 
 ## Lagecy

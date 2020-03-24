@@ -36,36 +36,33 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  def upsert_workflow(application, workflow_id, workflow_version, workflow_data) do
+  def upsert_workflow(application, workflow_id, workflow_data) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.upsert_workflow(
       adapter_meta,
       workflow_id,
-      workflow_version,
       workflow_data
     )
   end
 
   @doc false
-  def retrive_workflow(application, workflow_id, workflow_version) do
+  def retrive_workflow(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.retrive_workflow(
       adapter_meta,
-      workflow_id,
-      workflow_version
+      workflow_id
     )
   end
 
   @doc false
-  def delete_workflow(application, workflow_id, workflow_version) do
+  def delete_workflow(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.delete_workflow(
       adapter_meta,
-      workflow_id,
-      workflow_version
+      workflow_id
     )
   end
 end

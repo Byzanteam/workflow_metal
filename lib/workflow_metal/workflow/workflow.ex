@@ -6,8 +6,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
   use GenServer
 
   defstruct [
-    :table,
-    versions: []
+    :table
   ]
 
   @type application :: WorkflowMetal.Application.t()
@@ -37,31 +36,9 @@ defmodule WorkflowMetal.Workflow.Workflow do
   end
 
   @impl true
-  def init(workflow: workflow) do
-    workflow_version = Map.fetch!(workflow, :version)
-
+  def init(_init_args) do
     table = :ets.new(:storage, [:set, :private])
-    :ets.insert(table, {workflow_version, workflow})
 
-    {:ok, %__MODULE__{table: table, versions: [workflow_version]}}
-  end
-
-  @doc false
-  @spec whereis_version(application, workflow_reference) :: workflow_address
-  def whereis_version(application, workflow_reference) do
-    workflow_version = Keyword.fetch!(workflow_reference, :workflow_version)
-    workflow_name = via_name(application, workflow_reference)
-    GenServer.call(workflow_name, {:whereis_version, workflow_version})
-  end
-
-  @impl true
-  def handle_call({:whereis_version, workflow_version}, _, state) do
-    %{versions: versions} = state
-
-    if Enum.member?(versions, workflow_version) do
-      {:reply, {self(), workflow_version}, state}
-    else
-      {:reply, nil, state}
-    end
+    {:ok, %__MODULE__{table: table}}
   end
 end
