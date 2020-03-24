@@ -50,14 +50,23 @@ defmodule WorkflowMetal.Application do
       @doc """
       Create a workflow, store it in the storage
       """
-      defdelegate create_workflow(application, workflow_id, workflow_params),
-        to: WorkflowMetal.Application.WorkflowsSupervisor
+      def create_workflow(workflow_id, workflow_params) do
+        WorkflowMetal.Application.WorkflowsSupervisor.create_workflow(
+          application(),
+          workflow_id,
+          workflow_params
+        )
+      end
 
       @doc """
       Open a workflow
       """
-      defdelegate open_workflow(application, workflow_id),
-        to: WorkflowMetal.Application.WorkflowsSupervisor
+      def open_workflow(workflow_id) do
+        WorkflowMetal.Application.WorkflowsSupervisor.open_workflow(
+          application(),
+          workflow_id
+        )
+      end
 
       defp name(opts) do
         case Keyword.get(opts, :name) do
