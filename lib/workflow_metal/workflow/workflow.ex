@@ -6,6 +6,8 @@ defmodule WorkflowMetal.Workflow.Workflow do
   use GenServer
 
   defstruct [
+    :application,
+    :workflow_id,
     :table
   ]
 
@@ -34,9 +36,32 @@ defmodule WorkflowMetal.Workflow.Workflow do
   end
 
   @impl true
-  def init(_init_args) do
+  def init({application, workflow_id}) do
     table = :ets.new(:storage, [:set, :private])
 
-    {:ok, %__MODULE__{table: table}}
+    {
+      :ok,
+      %__MODULE__{
+        application: application,
+        workflow_id: workflow_id,
+        table: table
+      },
+      {:continue, :rebuild_from_storage}
+    }
+  end
+
+  @impl true
+  def handle_continue(:rebuild_from_storage, %__MODULE__{} = state) do
+    %{application: application, workflow_id: workflow_id, table: table} = state
+
+    case WorkflowMetal.Storage.retrive_workflow(application, workflow_id) do
+      {:ok, workflow_data} ->
+        # TODO: insert the net
+        :ets.insert(table, workflow_data)
+        {:noreply, state}
+
+      {:error, reason} ->
+        {:stop, reason, state}
+    end
   end
 end
