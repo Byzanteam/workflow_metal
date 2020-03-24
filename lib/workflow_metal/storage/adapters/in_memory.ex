@@ -124,7 +124,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp persist_workflow({workflow_id, workflow_data}, %State{} = state) do
     %{workflows: workflows} = state
 
-    {:ok, %{state | workflows: Map.put(workflows, workflow_id, workflow_data)}}
+    reply =
+      if Map.has_key?(workflows, workflow_id) do
+        {:ok, :updated}
+      else
+        {:ok, :created}
+      end
+
+    {reply, %{state | workflows: Map.put(workflows, workflow_id, workflow_data)}}
   end
 
   defp storage_name(adapter_meta) when is_map(adapter_meta),
