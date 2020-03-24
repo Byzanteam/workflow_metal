@@ -5,14 +5,12 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   use DynamicSupervisor
 
-  alias WorkflowMetal.Case.Case
   alias WorkflowMetal.Registration
   alias WorkflowMetal.Workflow.Schema
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
-  @type case_params :: WorkflowMetal.Case.Supervisor.case_params()
 
   @doc """
   Start the workflows supervisor to supervise all workflows.

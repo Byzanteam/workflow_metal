@@ -10,6 +10,8 @@ defmodule WorkflowMetal.Application do
   @doc false
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
+      alias WorkflowMetal.Application.WorkflowsSupervisor
+
       @config WorkflowMetal.Application.Config.compile_config(__MODULE__, opts)
 
       def child_spec(_opts) do
@@ -51,7 +53,7 @@ defmodule WorkflowMetal.Application do
       Create a workflow, store it in the storage
       """
       def create_workflow(workflow_id, workflow_params) do
-        WorkflowMetal.Application.WorkflowsSupervisor.create_workflow(
+        WorkflowsSupervisor.create_workflow(
           application(),
           workflow_id,
           workflow_params
@@ -62,7 +64,7 @@ defmodule WorkflowMetal.Application do
       Open a workflow
       """
       def open_workflow(workflow_id) do
-        WorkflowMetal.Application.WorkflowsSupervisor.open_workflow(
+        WorkflowsSupervisor.open_workflow(
           application(),
           workflow_id
         )
