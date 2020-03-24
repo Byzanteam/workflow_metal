@@ -10,29 +10,27 @@ defmodule WorkflowMetal.Workflow.Workflow do
   ]
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow :: WorkflowMetal.Workflow.Supervisor.workflow()
-  @type workflow_arg :: WorkflowMetal.Workflow.Supervisor.workflow_arg()
-  @type workflow_address :: nil | {pid, String.t()}
-  @type workflow_reference :: WorkflowMetal.Workflow.Supervisor.workflow_reference()
+  @type workflow :: WorkflowMetal.Workflow.Schema.Workflow.t()
+
+  @type workflow_id :: term()
+  @type workflow_identifier :: {application, workflow_id}
 
   @doc false
-  @spec start_link(workflow_arg) :: GenServer.on_start()
-  def start_link({application, workflow}) do
-    GenServer.start_link(__MODULE__, [workflow: workflow], name: via_name(application, workflow))
+  @spec start_link(workflow_identifier) :: GenServer.on_start()
+  def start_link({application, workflow_id} = workflow_identifier) do
+    via_name =
+      WorkflowMetal.Registration.via_tuple(
+        application,
+        name(workflow_id)
+      )
+
+    GenServer.start_link(__MODULE__, workflow_identifier, name: via_name)
   end
 
   @doc false
-  @spec via_name(application, workflow) :: term()
-  def via_name(application, workflow) when is_map(workflow) do
-    workflow_id = Map.fetch!(workflow, :id)
-    WorkflowMetal.Registration.via_tuple(application, {__MODULE__, workflow_id})
-  end
-
-  @doc false
-  @spec via_name(application, workflow_reference) :: term()
-  def via_name(application, workflow_reference) when is_list(workflow_reference) do
-    workflow_id = Keyword.fetch!(workflow_reference, :id)
-    WorkflowMetal.Registration.via_tuple(application, {__MODULE__, workflow_id})
+  @spec name(workflow_identifier) :: term()
+  def name(workflow_id) do
+    {__MODULE__, workflow_id}
   end
 
   @impl true

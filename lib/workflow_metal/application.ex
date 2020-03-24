@@ -48,13 +48,13 @@ defmodule WorkflowMetal.Application do
       @doc """
       Start a workflow
       """
-      defdelegate create_workflow(application, workflow_params),
+      defdelegate create_workflow(application, workflow_id),
         to: WorkflowMetal.Application.WorkflowsSupervisor
 
       @doc """
       Start a case
       """
-      defdelegate create_workflow_case(application, workflow_reference),
+      defdelegate create_workflow_case(application, workflow_id, case_params),
         to: WorkflowMetal.Application.WorkflowsSupervisor
 
       defp name(opts) do
