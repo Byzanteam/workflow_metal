@@ -16,6 +16,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     ]
   end
 
+  @doc false
   def start_link(opts \\ []) do
     {start_opts, _in_memory_opts} = Keyword.split(opts, [:name, :timeout, :debug, :spawn_opt])
 
