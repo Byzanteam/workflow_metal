@@ -51,12 +51,12 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec retrive_workflow(application, workflow_id) ::
-          WorkflowMetal.Storage.Adapter.on_retrive_workflow()
-  def retrive_workflow(application, workflow_id) do
+  @spec fetch_workflow(application, workflow_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_workflow()
+  def fetch_workflow(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.retrive_workflow(
+    adapter.fetch_workflow(
       adapter_meta,
       workflow_id
     )

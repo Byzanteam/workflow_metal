@@ -54,7 +54,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
   def handle_continue(:rebuild_from_storage, %__MODULE__{} = state) do
     %{application: application, workflow_id: workflow_id, table: table} = state
 
-    case WorkflowMetal.Storage.retrive_workflow(application, workflow_id) do
+    case WorkflowMetal.Storage.fetch_workflow(application, workflow_id) do
       {:ok, workflow_schema} ->
         %{id: id} = workflow_schema
         # TODO: insert the net

@@ -16,7 +16,7 @@ defmodule WorkflowMetal.Storage.Adapter do
           :ok
           | {:error, :duplicate_workflow}
           | {:error, error}
-  @type on_retrive_workflow ::
+  @type on_fetch_workflow ::
           {:ok, workflow_schema}
           | {:error, :workflow_not_found}
           | {:error, error}
@@ -39,10 +39,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   @doc """
   Retrive a workflow.
   """
-  @callback retrive_workflow(
+  @callback fetch_workflow(
               adapter_meta,
               workflow_id
-            ) :: on_retrive_workflow
+            ) :: on_fetch_workflow
 
   @doc """
   Delete a specified workflow.

@@ -71,10 +71,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def retrive_workflow(adapter_meta, workflow_id) do
+  def fetch_workflow(adapter_meta, workflow_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:retrive, workflow_id})
+    GenServer.call(storage, {:fetch_workflow, workflow_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -103,7 +103,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:retrive, workflow_id},
+        {:fetch_workflow, workflow_id},
         _from,
         %State{} = state
       ) do
