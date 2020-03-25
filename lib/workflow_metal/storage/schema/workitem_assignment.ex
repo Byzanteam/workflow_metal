@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schema.WorkitemAssignment do
+defmodule WorkflowMetal.Storage.Schema.WorkitemAssignment do
   @moduledoc false
 
   @enforce_keys [:id, :workflow_id, :case_id, :transition_id, :workitem_id, :assignee_id]

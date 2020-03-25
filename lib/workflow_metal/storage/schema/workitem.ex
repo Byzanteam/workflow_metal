@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schema.Workitem do
+defmodule WorkflowMetal.Storage.Schema.Workitem do
   @moduledoc false
 
   @enforce_keys [:id, :workflow_id, :case_id, :transition_id, :state]
@@ -15,7 +15,7 @@ defmodule WorkflowMetal.Workflow.Schema.Workitem do
     workitem_assignments: []
   ]
 
-  alias WorkflowMetal.Workflow.Schema.WorkitemAssignment
+  alias WorkflowMetal.Storage.Schema.WorkitemAssignment
 
   @type t() :: %__MODULE__{
           id: any(),

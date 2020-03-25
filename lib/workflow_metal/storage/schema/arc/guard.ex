@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schema.Arc.Guard do
+defmodule WorkflowMetal.Storage.Schema.Arc.Guard do
   @moduledoc false
 
   @enforce_keys [:id, :arc_id]

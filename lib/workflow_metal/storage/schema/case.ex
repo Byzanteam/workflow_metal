@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schema.Case do
+defmodule WorkflowMetal.Storage.Schema.Case do
   @moduledoc false
 
   @enforce_keys [:id, :workflow_id]
