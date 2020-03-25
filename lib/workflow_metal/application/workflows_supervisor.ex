@@ -52,6 +52,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
     workflows_supervisor = supervisor_name(application)
     workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow_id: workflow_id}
 
+    # FIXME: 这里是否应该让 storage 提供一个 exisiting? 的接口
     case WorkflowMetal.Storage.retrive_workflow(application, workflow_id) do
       {:ok, _} ->
         Registration.start_child(
