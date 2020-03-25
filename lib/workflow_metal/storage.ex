@@ -8,6 +8,8 @@ defmodule WorkflowMetal.Storage do
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
+  @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type config :: keyword()
 
@@ -71,6 +73,31 @@ defmodule WorkflowMetal.Storage do
     adapter.delete_workflow(
       adapter_meta,
       workflow_id
+    )
+  end
+
+  @doc false
+  @spec create_case(application, case_schema) ::
+          WorkflowMetal.Storage.Adapter.on_create_case()
+  def create_case(application, case_schema) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.create_case(
+      adapter_meta,
+      case_schema
+    )
+  end
+
+  @doc false
+  @spec fetch_case(application, workflow_id, case_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_case()
+  def fetch_case(application, workflow_id, case_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_case(
+      adapter_meta,
+      workflow_id,
+      case_id
     )
   end
 end
