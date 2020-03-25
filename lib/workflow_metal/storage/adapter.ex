@@ -7,7 +7,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type application :: WorkflowMetal.Application.t()
   @type config :: keyword
 
-  @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @type error :: term()

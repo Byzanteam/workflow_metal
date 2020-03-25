@@ -17,8 +17,10 @@ defmodule WorkflowMetal.Storage.Schema.Workflow do
     Transition
   }
 
+  @type id :: term()
+
   @type t() :: %__MODULE__{
-          id: any(),
+          id: id,
           places: [Place.t()],
           transitions: [Transition.t()],
           arcs: [Arc.t()]

@@ -35,13 +35,18 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
     guards: []
   ]
 
+  @type id :: term()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+  @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
+  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+
   alias WorkflowMetal.Storage.Schema.Guard
 
   @type t() :: %__MODULE__{
-          id: any(),
-          workflow_id: any(),
-          place_id: any(),
-          transition_id: any(),
+          id: id,
+          workflow_id: workflow_id,
+          place_id: place_id,
+          transition_id: transition_id,
           direction: :in | :out,
           guards: [Guard.t()]
         }

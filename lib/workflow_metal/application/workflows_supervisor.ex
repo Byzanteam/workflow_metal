@@ -9,8 +9,8 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
   @doc """
   Start the workflows supervisor to supervise all workflows.

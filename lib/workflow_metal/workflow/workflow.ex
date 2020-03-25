@@ -14,7 +14,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
   @type application :: WorkflowMetal.Application.t()
   @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
 
-  @type workflow_id :: term()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_identifier :: {application, workflow_id}
 
   @doc false

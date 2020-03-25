@@ -11,9 +11,12 @@ defmodule WorkflowMetal.Storage.Schema.Guard do
     :computer
   ]
 
+  @type id :: term()
+  @type arc_id :: WorkflowMetal.Storage.Schema.Arc.id()
+
   @type t() :: %__MODULE__{
-          id: any(),
-          arc_id: any(),
+          id: id,
+          arc_id: arc_id,
           exp: String.t(),
           computer: module()
         }
