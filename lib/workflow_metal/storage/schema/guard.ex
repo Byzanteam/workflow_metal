@@ -1,5 +1,7 @@
-defmodule WorkflowMetal.Storage.Schema.Arc.Guard do
-  @moduledoc false
+defmodule WorkflowMetal.Storage.Schema.Guard do
+  @moduledoc """
+  Present a guard on an arc.
+  """
 
   @enforce_keys [:id, :arc_id]
   defstruct [

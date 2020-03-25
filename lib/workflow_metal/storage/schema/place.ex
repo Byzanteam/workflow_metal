@@ -1,20 +1,26 @@
 defmodule WorkflowMetal.Storage.Schema.Place do
-  @moduledoc false
+  @moduledoc """
+  Present a place.
 
-  @enforce_keys [:id, :workflow_id, :name, :type]
+  There is one `:start`, one `:end`, and several `:normal` places in a workflow.
+
+  ## Type
+
+  - `:normal`
+  - `:start`
+  - `:end`
+  """
+
+  @enforce_keys [:id, :workflow_id, :type]
   defstruct [
     :id,
     :workflow_id,
-    :name,
-    :description,
     :type
   ]
 
   @type t() :: %__MODULE__{
           id: any(),
           workflow_id: any(),
-          name: String.t(),
-          description: String.t(),
           type: :start | :normal | :end
         }
 end

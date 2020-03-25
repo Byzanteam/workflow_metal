@@ -1,12 +1,12 @@
 defmodule WorkflowMetal.Storage.Schema.Transition do
-  @moduledoc false
+  @moduledoc """
+  Present a transition.
+  """
 
-  @enforce_keys [:id, :workflow_id, :name, :executer]
+  @enforce_keys [:id, :workflow_id, :executer]
   defstruct [
     :id,
     :workflow_id,
-    :name,
-    :description,
     :executer,
     executer_params: %{}
   ]
@@ -14,8 +14,6 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   @type t() :: %__MODULE__{
           id: any(),
           workflow_id: any(),
-          name: String.t(),
-          description: String.t(),
           executer: module(),
           executer_params: map()
         }
