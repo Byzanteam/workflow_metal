@@ -63,10 +63,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def upsert_workflow(adapter_meta, workflow_id, workflow_data) do
+  def create_workflow(adapter_meta, workflow_id, workflow_data) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:upsert, workflow_id, workflow_data})
+    GenServer.call(storage, {:create, workflow_id, workflow_data})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -85,13 +85,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:upsert, workflow_id, workflow_data},
+        {:create, workflow_id, workflow_data},
         _from,
         %State{} = state
       ) do
-    {reply, state} = persist_workflow({workflow_id, workflow_data}, state)
+    %{workflows: workflows} = state
 
-    {:reply, reply, state}
+    if Map.has_key?(workflows, workflow_id) do
+      {:reply, {:error, :duplicate_workflow}, state}
+    else
+      {reply, state} = persist_workflow({workflow_id, workflow_data}, state)
+
+      {:reply, reply, state}
+    end
   end
 
   @impl GenServer
@@ -125,14 +131,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp persist_workflow({workflow_id, workflow_data}, %State{} = state) do
     %{workflows: workflows} = state
 
-    reply =
-      if Map.has_key?(workflows, workflow_id) do
-        {:ok, :updated}
-      else
-        {:ok, :created}
-      end
-
-    {reply, %{state | workflows: Map.put(workflows, workflow_id, workflow_data)}}
+    {:ok, %{state | workflows: Map.put(workflows, workflow_id, workflow_data)}}
   end
 
   defp storage_name(adapter_meta) when is_map(adapter_meta),

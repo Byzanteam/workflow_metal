@@ -12,9 +12,9 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type error :: term()
 
-  @type on_upsert_workflow ::
-          {:ok, :created}
-          | {:ok, :updated}
+  @type on_create_workflow ::
+          :ok
+          | {:error, :duplicate_workflow}
           | {:error, error}
   @type on_retrive_workflow ::
           {:ok, workflow_data}
@@ -31,11 +31,11 @@ defmodule WorkflowMetal.Storage.Adapter do
   @doc """
   Create or update a workflow.
   """
-  @callback upsert_workflow(
+  @callback create_workflow(
               adapter_meta,
               workflow_id,
               workflow_data
-            ) :: on_upsert_workflow
+            ) :: on_create_workflow
 
   @doc """
   Retrive a workflow.

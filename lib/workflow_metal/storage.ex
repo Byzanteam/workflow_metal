@@ -36,10 +36,10 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  def upsert_workflow(application, workflow_id, workflow_data) do
+  def create_workflow(application, workflow_id, workflow_data) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.upsert_workflow(
+    adapter.create_workflow(
       adapter_meta,
       workflow_id,
       workflow_data

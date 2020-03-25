@@ -38,11 +38,11 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   Start a workflow supervisor.
   """
   @spec create_workflow(application, workflow_id, workflow_params) ::
-          WorkflowMetal.Storage.Adapter.on_upsert_workflow()
+          WorkflowMetal.Storage.Adapter.on_create_workflow()
   def create_workflow(application, workflow_id, workflow_params) do
     {:ok, workflow} = Schema.Workflow.new(workflow_params)
 
-    WorkflowMetal.Storage.upsert_workflow(application, workflow_id, workflow)
+    WorkflowMetal.Storage.create_workflow(application, workflow_id, workflow)
   end
 
   @doc """
