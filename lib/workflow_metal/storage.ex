@@ -5,7 +5,10 @@ defmodule WorkflowMetal.Storage do
   Use the storage configured for a WorkflowMetal application.
   """
 
-  @type application :: Application.t()
+  @type application :: WorkflowMetal.Application.t()
+  @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
+  @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
+
   @type config :: keyword()
 
   @doc """
@@ -36,17 +39,20 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  def create_workflow(application, workflow_id, workflow_data) do
+  @spec create_workflow(application, workflow_schema) ::
+          WorkflowMetal.Storage.Adapter.on_create_workflow()
+  def create_workflow(application, workflow_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.create_workflow(
       adapter_meta,
-      workflow_id,
-      workflow_data
+      workflow_schema
     )
   end
 
   @doc false
+  @spec retrive_workflow(application, workflow_id) ::
+          WorkflowMetal.Storage.Adapter.on_retrive_workflow()
   def retrive_workflow(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -57,6 +63,8 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec delete_workflow(application, workflow_id) ::
+          WorkflowMetal.Storage.Adapter.on_delete_workflow()
   def delete_workflow(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 

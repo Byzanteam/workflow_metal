@@ -11,7 +11,6 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
 
-  @type workflow_params :: [workflow_id: workflow_id]
   @type options :: [name: term, workflow: workflow]
 
   @doc false

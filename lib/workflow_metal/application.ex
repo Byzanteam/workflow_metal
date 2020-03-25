@@ -52,11 +52,10 @@ defmodule WorkflowMetal.Application do
       @doc """
       Create a workflow, store it in the storage
       """
-      def create_workflow(workflow_id, workflow_params) do
+      def create_workflow(workflow_schema) do
         WorkflowsSupervisor.create_workflow(
           application(),
-          workflow_id,
-          workflow_params
+          workflow_schema
         )
       end
 

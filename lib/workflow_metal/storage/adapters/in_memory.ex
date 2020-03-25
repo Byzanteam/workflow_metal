@@ -63,10 +63,11 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_workflow(adapter_meta, workflow_id, workflow_data) do
+  def create_workflow(adapter_meta, workflow_schema) do
     storage = storage_name(adapter_meta)
+    %{id: workflow_id} = workflow_schema
 
-    GenServer.call(storage, {:create, workflow_id, workflow_data})
+    GenServer.call(storage, {:create, workflow_id, workflow_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -85,7 +86,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create, workflow_id, workflow_data},
+        {:create, workflow_id, workflow_schema},
         _from,
         %State{} = state
       ) do
@@ -94,7 +95,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     if Map.has_key?(workflows, workflow_id) do
       {:reply, {:error, :duplicate_workflow}, state}
     else
-      {reply, state} = persist_workflow({workflow_id, workflow_data}, state)
+      {reply, state} = persist_workflow({workflow_id, workflow_schema}, state)
 
       {:reply, reply, state}
     end
@@ -111,7 +112,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     reply =
       case Map.get(workflows, workflow_id, nil) do
         nil -> {:error, :workflow_not_found}
-        workflow_data -> {:ok, workflow_data}
+        workflow_schema -> {:ok, workflow_schema}
       end
 
     {:reply, reply, state}
@@ -128,10 +129,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:reply, :ok, %{state | workflows: Map.delete(workflows, workflow_id)}}
   end
 
-  defp persist_workflow({workflow_id, workflow_data}, %State{} = state) do
+  defp persist_workflow({workflow_id, workflow_schema}, %State{} = state) do
     %{workflows: workflows} = state
 
-    {:ok, %{state | workflows: Map.put(workflows, workflow_id, workflow_data)}}
+    {:ok, %{state | workflows: Map.put(workflows, workflow_id, workflow_schema)}}
   end
 
   defp storage_name(adapter_meta) when is_map(adapter_meta),

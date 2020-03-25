@@ -55,9 +55,10 @@ defmodule WorkflowMetal.Workflow.Workflow do
     %{application: application, workflow_id: workflow_id, table: table} = state
 
     case WorkflowMetal.Storage.retrive_workflow(application, workflow_id) do
-      {:ok, workflow_data} ->
+      {:ok, workflow_schema} ->
+        %{id: id} = workflow_schema
         # TODO: insert the net
-        :ets.insert(table, workflow_data)
+        :ets.insert(table, {id, workflow_schema})
         {:noreply, state}
 
       {:error, reason} ->

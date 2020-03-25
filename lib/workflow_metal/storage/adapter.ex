@@ -8,7 +8,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type config :: keyword
 
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
-  @type workflow_data :: term()
+  @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @type error :: term()
 
@@ -17,7 +17,7 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :duplicate_workflow}
           | {:error, error}
   @type on_retrive_workflow ::
-          {:ok, workflow_data}
+          {:ok, workflow_schema}
           | {:error, :workflow_not_found}
           | {:error, error}
   @type on_delete_workflow :: :ok
@@ -33,8 +33,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback create_workflow(
               adapter_meta,
-              workflow_id,
-              workflow_data
+              workflow_schema
             ) :: on_create_workflow
 
   @doc """

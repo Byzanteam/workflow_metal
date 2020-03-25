@@ -10,7 +10,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
-  @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
+  @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @doc """
   Start the workflows supervisor to supervise all workflows.
@@ -37,12 +37,10 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   @doc """
   Start a workflow supervisor.
   """
-  @spec create_workflow(application, workflow_id, workflow_params) ::
+  @spec create_workflow(application, workflow_schema) ::
           WorkflowMetal.Storage.Adapter.on_create_workflow()
-  def create_workflow(application, workflow_id, workflow_params) do
-    {:ok, workflow} = Schema.Workflow.new(workflow_params)
-
-    WorkflowMetal.Storage.create_workflow(application, workflow_id, workflow)
+  def create_workflow(application, workflow_schema) do
+    WorkflowMetal.Storage.create_workflow(application, workflow_schema)
   end
 
   @doc """
