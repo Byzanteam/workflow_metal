@@ -17,10 +17,7 @@
           - Vertex.Task
 
 ## functions
-create_workflow(application, workflow_id)
-
-create_workflow_version(application, workflow_id)
-deploy_workflow_version(application, workflow_id)
+create_workflow(application, workflow_schema)
 
 create_workflow_case(application, workflow_id)
 

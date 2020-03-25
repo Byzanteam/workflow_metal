@@ -7,6 +7,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisorTest do
   end
 
   alias WorkflowMetal.Application.WorkflowsSupervisor
+  alias WorkflowMetal.Storage.Schema
 
   describe ".open_workflow/2" do
     test "failed to open a non-existing workflow" do
@@ -19,8 +20,10 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisorTest do
     test "open a workflow successfully" do
       start_supervised(DummyApplication)
 
-      assert {:ok, :created} = WorkflowsSupervisor.create_workflow(DummyApplication, 123, [])
-      assert {:ok, pid} = WorkflowsSupervisor.open_workflow(DummyApplication, 123)
+      workflow_schema = %Schema.Workflow{id: 123}
+
+      assert :ok = WorkflowsSupervisor.create_workflow(DummyApplication, workflow_schema)
+      assert {:ok, pid} = WorkflowsSupervisor.open_workflow(DummyApplication, workflow_schema.id)
       assert is_pid(pid)
     end
   end
