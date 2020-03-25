@@ -35,7 +35,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   end
 
   @doc """
-  Start a workflow supervisor.
+  Create a workflow.
   """
   @spec create_workflow(application, workflow_schema) ::
           WorkflowMetal.Storage.Adapter.on_create_workflow()

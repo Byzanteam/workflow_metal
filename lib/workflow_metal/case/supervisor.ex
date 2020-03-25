@@ -49,7 +49,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @doc """
-  Open a case.
+  Open a case(`GenServer').
   """
   @spec open_case(application, workflow_id, case_id) ::
           Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
