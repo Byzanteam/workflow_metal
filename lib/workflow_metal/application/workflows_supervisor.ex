@@ -39,7 +39,8 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   """
   @spec create_workflow(application, workflow_schema) ::
           WorkflowMetal.Storage.Adapter.on_create_workflow()
-  def create_workflow(application, workflow_schema) do
+  def create_workflow(application, %Schema.Workflow{} = workflow_schema) do
+    # TODO: do validation
     WorkflowMetal.Storage.create_workflow(application, workflow_schema)
   end
 
