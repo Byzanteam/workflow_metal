@@ -5,14 +5,12 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   use DynamicSupervisor
 
-  alias WorkflowMetal.Case.Case
   alias WorkflowMetal.Registration
-  alias WorkflowMetal.Workflow.Schemas
+  alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow_params :: WorkflowMetal.Workflow.Supervisor.workflow_params()
-  @type workflow_reference :: WorkflowMetal.Workflow.Supervisor.workflow_reference()
-  @type case_params :: WorkflowMetal.Case.Supervisor.case_params()
+  @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
   @doc """
   Start the workflows supervisor to supervise all workflows.
@@ -30,46 +28,43 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
 
   @impl true
   def init(application) do
-    DynamicSupervisor.init(strategy: :one_for_one, extra_arguments: [application])
-  end
-
-  @doc """
-  Start a workflow supervisor.
-  """
-  @spec create_workflow(application, workflow_params) :: DynamicSupervisor.on_start_child()
-  def create_workflow(application, workflow_params) do
-    {:ok, workflow} = Schemas.Workflow.new(workflow_params)
-
-    workflows_supervisor = supervisor_name(application)
-    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow: workflow}
-
-    Registration.start_child(
-      application,
-      WorkflowMetal.Workflow.Supervisor.name(workflow_params),
-      workflows_supervisor,
-      workflow_supervisor
+    DynamicSupervisor.init(
+      strategy: :one_for_one,
+      extra_arguments: [application]
     )
   end
 
   @doc """
-  Start a case supervisor
+  Create a workflow.
   """
-  @spec create_workflow_case(application, case_params) ::
-          DynamicSupervisor.on_start_child() | {:error, :invalid_workflow_reference}
-  def create_workflow_case(application, case_params) do
-    {workflow_reference, case_params} = Keyword.pop!(case_params, :workflow_reference)
+  @spec create_workflow(application, workflow_schema) ::
+          WorkflowMetal.Storage.Adapter.on_create_workflow()
+  def create_workflow(application, %Schema.Workflow{} = workflow_schema) do
+    # TODO: do validation
+    WorkflowMetal.Storage.create_workflow(application, workflow_schema)
+  end
 
-    case WorkflowMetal.Workflow.Workflow.whereis_version(application, workflow_reference) do
-      nil ->
-        {:error, :invalid_workflow_reference}
+  @doc """
+  Retrive the workflow from the storage and open it(start `Supervisor` and its children).
+  """
+  @spec open_workflow(application, workflow_id) ::
+          Supervisor.on_start() | {:error, :workflow_not_found}
+  def open_workflow(application, workflow_id) do
+    workflows_supervisor = supervisor_name(application)
+    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow_id: workflow_id}
 
-      workflow_addr ->
+    # FIXME: 这里是否应该让 storage 提供一个 exisiting? 的接口
+    case WorkflowMetal.Storage.fetch_workflow(application, workflow_id) do
+      {:ok, _} ->
         Registration.start_child(
           application,
-          Case.name(case_params),
-          WorkflowMetal.Case.Supervisor.via_name(application, workflow_reference),
-          {Case, [workflow_addr: workflow_addr, case_params: case_params]}
+          WorkflowMetal.Workflow.Supervisor.name(workflow_id),
+          workflows_supervisor,
+          workflow_supervisor
         )
+
+      error ->
+        error
     end
   end
 

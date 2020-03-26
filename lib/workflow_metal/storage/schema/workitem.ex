@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Workflow.Schemas.Workitem do
+defmodule WorkflowMetal.Storage.Schema.Workitem do
   @moduledoc false
 
   @enforce_keys [:id, :workflow_id, :case_id, :transition_id, :state]
@@ -15,13 +15,18 @@ defmodule WorkflowMetal.Workflow.Schemas.Workitem do
     workitem_assignments: []
   ]
 
-  alias WorkflowMetal.Workflow.Schemas.WorkitemAssignment
+  alias WorkflowMetal.Storage.Schema.WorkitemAssignment
+
+  @type id :: term()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+  @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
 
   @type t() :: %__MODULE__{
-          id: any(),
-          workflow_id: any(),
-          case_id: any(),
-          transition_id: any(),
+          id: id,
+          workflow_id: workflow_id,
+          case_id: case_id,
+          transition_id: transition_id,
           state: :enabled | :started | :canceled | :finished,
           enabled_at: NaiveDateTime.t(),
           started_at: NaiveDateTime.t(),

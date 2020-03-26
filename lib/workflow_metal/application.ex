@@ -10,7 +10,9 @@ defmodule WorkflowMetal.Application do
   @doc false
   defmacro __using__(opts) do
     quote bind_quoted: [opts: opts] do
-      @config WorkflowMetal.Application.Supervisor.compile_config(__MODULE__, opts)
+      alias WorkflowMetal.Application.WorkflowsSupervisor
+
+      @config WorkflowMetal.Application.Config.compile_config(__MODULE__, opts)
 
       def child_spec(_opts) do
         %{
@@ -45,17 +47,27 @@ defmodule WorkflowMetal.Application do
         @config
       end
 
-      @doc """
-      Start a workflow
-      """
-      defdelegate create_workflow(application, workflow_params),
-        to: WorkflowMetal.Application.WorkflowsSupervisor
+      # API
 
       @doc """
-      Start a case
+      Create a workflow, store it in the storage
       """
-      defdelegate create_workflow_case(application, workflow_reference),
-        to: WorkflowMetal.Application.WorkflowsSupervisor
+      def create_workflow(workflow_schema) do
+        WorkflowsSupervisor.create_workflow(
+          application(),
+          workflow_schema
+        )
+      end
+
+      @doc """
+      Open a workflow
+      """
+      def open_workflow(workflow_id) do
+        WorkflowsSupervisor.open_workflow(
+          application(),
+          workflow_id
+        )
+      end
 
       defp name(opts) do
         case Keyword.get(opts, :name) do
@@ -78,4 +90,8 @@ defmodule WorkflowMetal.Application do
   @doc false
   @spec registry_adapter(t) :: {module, map}
   def registry_adapter(application), do: Config.get(application, :registry)
+
+  @doc false
+  @spec storage_adapter(t) :: {module, map}
+  def storage_adapter(application), do: Config.get(application, :storage)
 end

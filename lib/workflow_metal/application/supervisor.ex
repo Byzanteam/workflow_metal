@@ -21,12 +21,14 @@ defmodule WorkflowMetal.Application.Supervisor do
   @impl true
   def init({application, config}) do
     {registry_child_spec, config} = registry_child_spec(application, config)
+    {storage_child_spec, config} = storage_child_spec(application, config)
 
     config_child_spec = config_child_spec(application, config)
 
     children = [
       config_child_spec,
       registry_child_spec,
+      storage_child_spec,
       {WorkflowMetal.Application.WorkflowsSupervisor, application}
     ]
 
@@ -50,10 +52,13 @@ defmodule WorkflowMetal.Application.Supervisor do
     {child_spec, config}
   end
 
-  @doc """
-  Retrieves the compile time configuration.
-  """
-  def compile_config(_application, config) do
-    Keyword.take(config, [:name])
+  defp storage_child_spec(application, config) do
+    {adapter, adapter_config} = WorkflowMetal.Storage.adapter(application, config)
+
+    {:ok, child_spec, adapter_meta} = adapter.child_spec(application, adapter_config)
+
+    config = Keyword.put(config, :storage, {adapter, adapter_meta})
+
+    {child_spec, config}
   end
 end

@@ -2,11 +2,15 @@ defmodule WorkflowMetal.ApplicationTest do
   use ExUnit.Case
 
   defmodule DummyApplication do
-    use WorkflowMetal.Application, name: __MODULE__.TestApplication
+    use WorkflowMetal.Application,
+      name: __MODULE__.TestApplication,
+      storage: WorkflowMetal.Storage.Adapters.InMemory
   end
 
-  alias DummyApplication.TestApplication
   alias WorkflowMetal.Application.Config
+  alias WorkflowMetal.Storage.Schema
+
+  alias DummyApplication.TestApplication
 
   test "build an application" do
     start_supervised(DummyApplication)
@@ -17,10 +21,7 @@ defmodule WorkflowMetal.ApplicationTest do
   test "create workflow" do
     start_supervised(DummyApplication)
 
-    assert {:ok, _pid} =
-             DummyApplication.create_workflow(TestApplication,
-               workflow_id: 123,
-               workflow_version: "1"
-             )
+    workflow_schema = %Schema.Workflow{id: 123}
+    assert :ok = DummyApplication.create_workflow(workflow_schema)
   end
 end

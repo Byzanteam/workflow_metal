@@ -4,6 +4,7 @@
 - WorkflowApplicationSupervisor(Supervisor)
   - Registry(Registry)
   - Config(Agent)
+  - Storage
   - WorkflowsSupervisor(DynamicSupervisor)
     - WorkflowSupervisor(Supervisor)
       - Workflow(GenServer)
@@ -16,12 +17,9 @@
           - Vertex.Task
 
 ## functions
-create_workflow(application, workflow_id)
+create_workflow(application, workflow_schema)
 
-create_workflow_version(application, workflow_id, version)
-deploy_workflow_version(application, workflow_id, version)
-
-create_workflow_case(application, workflow_id, version \\ :current)
+create_workflow_case(application, workflow_id)
 
 
 ## Lagecy
