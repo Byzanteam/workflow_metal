@@ -3,7 +3,7 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   Present a transition.
   """
 
-  @enforce_keys [:id, :workflow_id, :executer]
+  @enforce_keys [:id, :workflow_id]
   defstruct [
     :id,
     :workflow_id,

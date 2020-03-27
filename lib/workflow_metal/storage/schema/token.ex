@@ -19,10 +19,11 @@ defmodule WorkflowMetal.Storage.Schema.Token do
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
 
   @type t() :: %__MODULE__{
+          id: id,
           state: state,
           workflow_id: workflow_id,
-          place_id: place_id,
           case_id: case_id,
+          place_id: place_id,
           locked_workitem_id: workitem_id
         }
 end
