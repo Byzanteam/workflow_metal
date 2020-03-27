@@ -100,6 +100,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:fetch_case, workflow_id, case_id})
   end
 
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_tokens(adapter_meta, workflow_id, case_id, token_states) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_tokens, workflow_id, case_id, token_states})
+  end
+
   @impl GenServer
   def handle_call(
         {:create_workflow, workflow_id, workflow_schema},
@@ -187,6 +194,42 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           case Map.get(cases, {workflow_id, case_id}) do
             nil -> {:error, :case_not_found}
             case_schema -> {:ok, case_schema}
+          end
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_tokens, workflow_id, case_id, token_states},
+        _from,
+        %State{} = state
+      ) do
+    %State{workflows: workflows, cases: cases} = state
+
+    reply =
+      case Map.get(workflows, workflow_id) do
+        nil ->
+          {:error, :workflow_not_found}
+
+        _ ->
+          case {token_states, Map.get(cases, {workflow_id, case_id})} do
+            {_, nil} ->
+              {:error, :case_not_found}
+
+            {:all, %{tokens: tokens}} ->
+              {:ok, List.wrap(tokens)}
+
+            {token_states, %{tokens: [_ | _] = tokens}} ->
+              filter_func = fn token ->
+                Enum.member?(token_states, token.state)
+              end
+
+              {:ok, Enum.filter(tokens, filter_func)}
+
+            _ ->
+              {:ok, []}
           end
       end
 

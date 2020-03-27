@@ -1,8 +1,9 @@
 defmodule WorkflowMetal.Storage.Schema.Token do
   @moduledoc false
 
-  @enforce_keys [:state, :workflow_id, :case_id]
+  @enforce_keys [:id, :state, :workflow_id, :case_id, :place_id]
   defstruct [
+    :id,
     :state,
     :workflow_id,
     :case_id,
@@ -10,6 +11,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
     :locked_workitem_id
   ]
 
+  @type id :: term()
   @type state :: :free | :locked | :consumed
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
