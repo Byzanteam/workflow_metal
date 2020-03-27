@@ -131,7 +131,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
     transitions =
       :ets.select(
         arc_table,
-        [{{{place_id, :"$1", direction}, :"$2", :"$3"}, [], [:"$3"]}]
+        [{{{place_id, :_, direction}, :_, :"$1"}, [], [:"$1"]}]
       )
 
     {:reply, transitions, state}
@@ -151,7 +151,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
     places =
       :ets.select(
         arc_table,
-        [{{{:"$1", transition_id, reversed_direction}, :"$2", :"$3"}, [], [:"$2"]}]
+        [{{{:_, transition_id, reversed_direction}, :"$1", :_}, [], [:"$1"]}]
       )
 
     {:reply, places, state}
@@ -161,7 +161,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
     %{place_table: table} = state
 
     Enum.each(places, fn place ->
-      :ets.insert(table, {place.id, place})
+      :ets.insert(table, {place.id, place.type, place})
     end)
 
     {:ok, state}
@@ -186,7 +186,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
 
     get_place = fn place_id ->
       place_table
-      |> :ets.select([{{place_id, :"$1"}, [], [:"$1"]}])
+      |> :ets.select([{{place_id, :_, :"$1"}, [], [:"$1"]}])
       |> hd()
     end
 
