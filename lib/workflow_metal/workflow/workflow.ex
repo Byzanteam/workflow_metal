@@ -8,7 +8,9 @@ defmodule WorkflowMetal.Workflow.Workflow do
   defstruct [
     :application,
     :workflow_id,
-    :table
+    :place_table,
+    :transition_table,
+    :arc_table
   ]
 
   @type application :: WorkflowMetal.Application.t()
@@ -16,6 +18,16 @@ defmodule WorkflowMetal.Workflow.Workflow do
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_identifier :: {application, workflow_id}
+
+  @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
+  @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
+
+  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+  @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
+
+  @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
+
+  @arc_directions [:in, :out]
 
   @doc false
   @spec start_link(workflow_identifier) :: GenServer.on_start()
@@ -35,16 +47,46 @@ defmodule WorkflowMetal.Workflow.Workflow do
     {__MODULE__, workflow_id}
   end
 
+  @doc false
+  @spec via_name(application, workflow_identifier) :: term()
+  def via_name(application, workflow_id) do
+    WorkflowMetal.Registration.via_tuple(application, name(workflow_id))
+  end
+
+  @doc """
+  Retrive transistions of a place.
+  """
+  @spec fetch_transitions(GenServer.server(), place_id, arc_direction) ::
+          {:ok, [transition_schema]} | {:error, term()}
+  def fetch_transitions(workflow_server, place_id, direction) do
+    GenServer.call(workflow_server, {:fetch_transitions, place_id, direction})
+  end
+
+  @doc """
+  Retrive places of a transition.
+  """
+  @spec fetch_places(GenServer.server(), place_id, arc_direction) ::
+          {:ok, [place_schema]} | {:error, term()}
+  def fetch_places(workflow_server, transition_id, direction) do
+    GenServer.call(workflow_server, {:fetch_places, transition_id, direction})
+  end
+
+  # Server (callbacks)
+
   @impl true
   def init({application, workflow_id}) do
-    table = :ets.new(:storage, [:set, :private])
+    place_table = :ets.new(:place_table, [:set, :private])
+    transition_table = :ets.new(:transition_table, [:set, :private])
+    arc_table = :ets.new(:arc_table, [:bag, :private])
 
     {
       :ok,
       %__MODULE__{
         application: application,
         workflow_id: workflow_id,
-        table: table
+        place_table: place_table,
+        transition_table: transition_table,
+        arc_table: arc_table
       },
       {:continue, :rebuild_from_storage}
     }
@@ -52,17 +94,125 @@ defmodule WorkflowMetal.Workflow.Workflow do
 
   @impl true
   def handle_continue(:rebuild_from_storage, %__MODULE__{} = state) do
-    %{application: application, workflow_id: workflow_id, table: table} = state
+    %{
+      application: application,
+      workflow_id: workflow_id
+    } = state
 
     case WorkflowMetal.Storage.fetch_workflow(application, workflow_id) do
       {:ok, workflow_schema} ->
-        %{id: id} = workflow_schema
-        # TODO: insert the net
-        :ets.insert(table, {id, workflow_schema})
-        {:noreply, state}
+        %{
+          places: places,
+          transitions: transitions,
+          arcs: arcs
+        } = workflow_schema
+
+        with(
+          {:ok, state} <- insert_places(places, state),
+          {:ok, state} <- insert_transitions(transitions, state),
+          {:ok, state} <- insert_arcs(arcs, state)
+        ) do
+          {:noreply, state}
+        else
+          error ->
+            error
+        end
 
       {:error, reason} ->
         {:stop, reason, state}
     end
+  end
+
+  @impl true
+  def handle_call({:fetch_transitions, place_id, direction}, _from, %__MODULE__{} = state)
+      when direction in @arc_directions do
+    %{arc_table: arc_table} = state
+
+    transitions =
+      :ets.select(
+        arc_table,
+        [{{{place_id, :"$1", direction}, :"$2", :"$3"}, [], [:"$3"]}]
+      )
+
+    {:reply, transitions, state}
+  end
+
+  @impl true
+  def handle_call({:fetch_places, transition_id, direction}, _from, %__MODULE__{} = state)
+      when direction in @arc_directions do
+    reversed_direction =
+      case direction do
+        :in -> :out
+        :out -> :in
+      end
+
+    %{arc_table: arc_table} = state
+
+    places =
+      :ets.select(
+        arc_table,
+        [{{{:"$1", transition_id, reversed_direction}, :"$2", :"$3"}, [], [:"$2"]}]
+      )
+
+    {:reply, places, state}
+  end
+
+  defp insert_places(places, %__MODULE__{} = state) do
+    %{place_table: table} = state
+
+    Enum.each(places, fn place ->
+      :ets.insert(table, {place.id, place})
+    end)
+
+    {:ok, state}
+  end
+
+  defp insert_transitions(transitions, %__MODULE__{} = state) do
+    %{transition_table: table} = state
+
+    Enum.each(transitions, fn transition ->
+      :ets.insert(table, {transition.id, transition})
+    end)
+
+    {:ok, state}
+  end
+
+  defp insert_arcs(arcs, %__MODULE__{} = state) do
+    %{
+      arc_table: arc_table,
+      place_table: place_table,
+      transition_table: transition_table
+    } = state
+
+    get_place = fn place_id ->
+      place_table
+      |> :ets.select([{{place_id, :"$1"}, [], [:"$1"]}])
+      |> hd()
+    end
+
+    get_transition = fn transition_id ->
+      transition_table
+      |> :ets.select([{{transition_id, :"$1"}, [], [:"$1"]}])
+      |> hd()
+    end
+
+    Enum.each(arcs, fn arc ->
+      %{
+        place_id: place_id,
+        transition_id: transition_id,
+        direction: direction
+      } = arc
+
+      :ets.insert(
+        arc_table,
+        {
+          {place_id, transition_id, direction},
+          get_place.(place_id),
+          get_transition.(transition_id)
+        }
+      )
+    end)
+
+    {:ok, state}
   end
 end
