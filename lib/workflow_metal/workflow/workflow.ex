@@ -71,6 +71,15 @@ defmodule WorkflowMetal.Workflow.Workflow do
     GenServer.call(workflow_server, {:fetch_places, transition_id, direction})
   end
 
+  @doc """
+  Retrive the `:start` place.
+  """
+  @spec fetch_place(GenServer.server(), place_id | :start | :end) ::
+          {:ok, place_schema} | {:error, term()}
+  def fetch_place(workflow_server, place_id) do
+    GenServer.call(workflow_server, {:fetch_place, place_id})
+  end
+
   # Server (callbacks)
 
   @impl true
@@ -155,6 +164,30 @@ defmodule WorkflowMetal.Workflow.Workflow do
       )
 
     {:reply, {:ok, places}, state}
+  end
+
+  @impl true
+  def handle_call({:fetch_place, place_id}, _from, %__MODULE__{} = state) do
+    %{
+      place_table: place_table
+    } = state
+
+    match_spec =
+      if place_id in [:start, :end] do
+        [{{:_, place_id, :"$1"}, [], [:"$1"]}]
+      else
+        [{{place_id, :_, :"$1"}, [], [:"$1"]}]
+      end
+
+    place_table
+    |> :ets.select(match_spec)
+    |> case do
+      [place] ->
+        {:reply, {:ok, place}, state}
+
+      _ ->
+        {:reply, {:ok, nil}, state}
+    end
   end
 
   defp insert_places(places, %__MODULE__{} = state) do

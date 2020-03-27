@@ -10,7 +10,7 @@ defmodule WorkflowMetal.Workflow.WorkflowTest do
   alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Workflow.Workflow
 
-  describe ".fetch_transitions/3 and .fetch_places/3" do
+  describe ".fetch_transitions/3, .fetch_places/3 and fetch_place/2" do
     test "fetch successfully" do
       start_supervised(DummyApplication)
 
@@ -132,6 +132,11 @@ defmodule WorkflowMetal.Workflow.WorkflowTest do
       assert Workflow.fetch_places(workflow_server, a_transition.id, :in) === {:ok, [start_place]}
 
       assert Workflow.fetch_places(workflow_server, a_transition.id, :out) === {:ok, [b_place]}
+
+      # fetch_place
+      assert Workflow.fetch_place(workflow_server, :start) == {:ok, start_place}
+      assert Workflow.fetch_place(workflow_server, :end) == {:ok, end_place}
+      assert Workflow.fetch_place(workflow_server, "B") == {:ok, b_place}
     end
   end
 end
