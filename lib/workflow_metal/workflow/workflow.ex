@@ -134,7 +134,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
         [{{{place_id, :_, direction}, :_, :"$1"}, [], [:"$1"]}]
       )
 
-    {:reply, transitions, state}
+    {:reply, {:ok, transitions}, state}
   end
 
   @impl true
@@ -154,7 +154,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
         [{{{:_, transition_id, reversed_direction}, :"$1", :_}, [], [:"$1"]}]
       )
 
-    {:reply, places, state}
+    {:reply, {:ok, places}, state}
   end
 
   defp insert_places(places, %__MODULE__{} = state) do

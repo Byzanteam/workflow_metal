@@ -121,17 +121,17 @@ defmodule WorkflowMetal.Workflow.WorkflowTest do
       workflow_server = Workflow.via_name(DummyApplication, workflow_id)
 
       # fetch_transitions
-      assert Workflow.fetch_transitions(workflow_server, start_place.id, :in) === []
-      assert Workflow.fetch_transitions(workflow_server, start_place.id, :out) === [a_transition]
+      assert Workflow.fetch_transitions(workflow_server, start_place.id, :in) === {:ok, []}
+      assert Workflow.fetch_transitions(workflow_server, start_place.id, :out) === {:ok, [a_transition]}
 
-      assert Workflow.fetch_transitions(workflow_server, b_place.id, :in) === [a_transition]
-      assert Workflow.fetch_transitions(workflow_server, b_place.id, :out) === [c_transition]
-      assert Workflow.fetch_transitions(workflow_server, end_place.id, :out) === []
+      assert Workflow.fetch_transitions(workflow_server, b_place.id, :in) === {:ok, [a_transition]}
+      assert Workflow.fetch_transitions(workflow_server, b_place.id, :out) === {:ok, [c_transition]}
+      assert Workflow.fetch_transitions(workflow_server, end_place.id, :out) === {:ok, []}
 
       # fetch_places
-      assert Workflow.fetch_places(workflow_server, a_transition.id, :in) === [start_place]
+      assert Workflow.fetch_places(workflow_server, a_transition.id, :in) === {:ok, [start_place]}
 
-      assert Workflow.fetch_places(workflow_server, a_transition.id, :out) === [b_place]
+      assert Workflow.fetch_places(workflow_server, a_transition.id, :out) === {:ok, [b_place]}
     end
   end
 end
