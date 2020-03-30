@@ -115,6 +115,7 @@ defmodule WorkflowMetal.Task.Task do
   defp enabled?(%__MODULE__{} = state) do
     %{
       transition_id: transition_id,
+      transition: transition,
       token_table: token_table
     } = state
 
@@ -129,7 +130,13 @@ defmodule WorkflowMetal.Task.Task do
     Enum.all?(places, fn place ->
       # TODO: use select_count
       # :ets.select_count > 0
-      [] !== :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}])
+      case transition.join_type do
+        :none ->
+          [] !== :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}])
+
+        _ ->
+          false
+      end
     end)
   end
 
