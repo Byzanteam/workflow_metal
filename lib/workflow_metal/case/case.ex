@@ -135,7 +135,7 @@ defmodule WorkflowMetal.Case.Case do
       token_table: token_table
     } = state
 
-    workflow_server = WorkflowMetal.Workflow.Workflow.via_name(application, workflow_id)
+    workflow_server = workflow_server(state)
 
     {:ok, %{id: start_place_id}} =
       WorkflowMetal.Workflow.Workflow.fetch_place(workflow_server, :start)
@@ -165,20 +165,44 @@ defmodule WorkflowMetal.Case.Case do
     token_table
     |> :ets.select(match_spec)
     |> Enum.each(fn {place_id, token_id} ->
-      {:ok, transition_pid} = open_case_transition()
-
-      do_offer_token(transition_pid, {place_id, token_id})
+      do_offer_token(state, {place_id, token_id})
     end)
   end
 
   defp open_case_transition do
   end
 
-  defp do_offer_token(transition_server, {place_id, token_id}) do
-    GenServer.cast(transition_server, {:offer_token, place_id, token_id})
+  defp do_offer_token(%__MODULE__{} = state, {place_id, token_id}) do
+    %{
+      application: application,
+      workflow_id: workflow_id,
+      case_id: case_id
+    } = state
+
+    state
+    |> workflow_server()
+    |> WorkflowMetal.Workflow.Workflow.fetch_transitions(place_id, :out)
+    |> Enum.each(fn transition ->
+      {:ok, task_pid} =
+        WorkflowMetal.Task.Supervisor.open_task(
+          application,
+          workflow_id,
+          case_id,
+          transition.id
+        )
+
+      GenServer.cast(task_pid, {:offer_token, place_id, token_id})
+    end)
   end
 
   defp withdraw_tokens(%__MODULE__{} = state) do
+    # TODO:
     # withdraw_token(transition_pid, {place_id, token_id})
+  end
+
+  defp workflow_server(%__MODULE__{} = state) do
+    %{application: application, workflow_id: workflow_id} = state
+
+    WorkflowMetal.Workflow.Workflow.via_name(application, workflow_id)
   end
 end
