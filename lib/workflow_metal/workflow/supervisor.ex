@@ -35,7 +35,8 @@ defmodule WorkflowMetal.Workflow.Supervisor do
     children = [
       {WorkflowMetal.Workflow.Workflow, {application, workflow_id}},
       {WorkflowMetal.Case.Supervisor, {application, workflow_id}},
-      {WorkflowMetal.Task.Supervisor, {application, workflow_id}}
+      {WorkflowMetal.Task.Supervisor, {application, workflow_id}},
+      {WorkflowMetal.Workitem.Supervisor, {application, workflow_id}}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

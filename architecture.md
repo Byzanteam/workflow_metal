@@ -12,6 +12,8 @@
         - Task(GenServer)
       - CaseSupervisor(DynamicSupervisor)
         - Case(GenServer)
+      - WorkitemSupervisor(DynamicSupervisor)
+        - Workitem(GenServer)
       - VertexSupervisor(DynamicSupervisor)
         - Vertex(GenServer)
           - Vertex.Arc
