@@ -23,7 +23,12 @@ defmodule WorkflowMetal.Task.Task do
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
 
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
+  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
+
   @type options :: [name: term(), case_id: case_id, transition_id: transition_id]
+
+  alias WorkflowMetal.Storage.Schema
 
   @doc false
   @spec start_link(workflow_identifier, options) :: GenServer.on_start()
@@ -68,6 +73,14 @@ defmodule WorkflowMetal.Task.Task do
   @spec withdraw_token(GenServer.server(), place_id, token_id) :: :ok
   def withdraw_token(transition_server, place_id, token_id) do
     GenServer.cast(transition_server, {:withdraw_token, place_id, token_id})
+  end
+
+  @doc """
+  Retrive a workitem of the task.
+  """
+  @spec fetch_workitem(GenServer.server(), workitem_id) :: {:ok, workitem_schema} | {:error, term()}
+  def fetch_workitem(transition_server, workitem_id) do
+    GenServer.call(transition_server, {:fetch_tokens, workitem_id})
   end
 
   # callbacks
@@ -124,6 +137,26 @@ defmodule WorkflowMetal.Task.Task do
   @impl true
   def handle_cast({:withdraw_token, _place_id, _token_id}, %__MODULE__{} = _state) do
     # TODO: remove token from token_table
+  end
+
+  @impl true
+  def handle_call({:fetch_workitem, workitem_id}, _from, %__MODULE__{} = state) do
+    # TODO: find workitem by workitem_id
+    %{
+      workflow_id: workflow_id,
+      case_id: case_id,
+      transition_id: transition_id
+    } = state
+
+    workitem = %Schema.Workitem{
+      id: workitem_id,
+      state: :created,
+      workflow_id: workflow_id,
+      case_id: case_id,
+      transition_id: transition_id
+    }
+
+    {:reply, workitem, state}
   end
 
   defp enabled?(%__MODULE__{} = state) do
