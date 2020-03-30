@@ -108,7 +108,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
-  def handle_cast({:withdraw_token, place_id, token_id}, %__MODULE__{} = state) do
+  def handle_cast({:withdraw_token, _place_id, _token_id}, %__MODULE__{} = _state) do
     # TODO: remove token from token_table
   end
 

@@ -21,7 +21,7 @@ defmodule WorkflowMetal.Case.Case do
 
   @doc false
   @spec start_link(workflow_identifier, case_id) :: GenServer.on_start()
-  def start_link({application, workflow_id} = workflow_identifier, options) do
+  def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
     case_id = Keyword.fetch!(options, :case_id)
 
@@ -97,6 +97,12 @@ defmodule WorkflowMetal.Case.Case do
     {:noreply, state}
   end
 
+  @impl true
+  def handle_call({:lock, _token_id}, _from, %__MODULE__{} = state) do
+    # lock token
+    withdraw_tokens(state)
+  end
+
   defp rebuild_tokens(%__MODULE__{} = state) do
     %{
       application: application,
@@ -169,9 +175,6 @@ defmodule WorkflowMetal.Case.Case do
     end)
   end
 
-  defp open_case_transition do
-  end
-
   defp do_offer_token(%__MODULE__{} = state, {place_id, token_id}) do
     %{
       application: application,
@@ -195,7 +198,7 @@ defmodule WorkflowMetal.Case.Case do
     end)
   end
 
-  defp withdraw_tokens(%__MODULE__{} = state) do
+  defp withdraw_tokens(%__MODULE__{} = _state) do
     # TODO:
     # withdraw_token(transition_pid, {place_id, token_id})
   end

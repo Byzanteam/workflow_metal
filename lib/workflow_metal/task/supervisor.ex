@@ -6,7 +6,6 @@ defmodule WorkflowMetal.Task.Supervisor do
   use DynamicSupervisor
 
   alias WorkflowMetal.Registration
-  alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
