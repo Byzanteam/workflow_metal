@@ -54,6 +54,15 @@ defmodule WorkflowMetal.Workflow.Workflow do
   end
 
   @doc """
+  Retrive a transistion.
+  """
+  @spec fetch_transition(GenServer.server(), transition_id) ::
+          {:ok, transition_schema} | {:error, term()}
+  def fetch_transition(workflow_server, transition_id) do
+    GenServer.call(workflow_server, {:fetch_transition, transition_id})
+  end
+
+  @doc """
   Retrive transistions of a place.
   """
   @spec fetch_transitions(GenServer.server(), place_id, arc_direction) ::
@@ -130,6 +139,19 @@ defmodule WorkflowMetal.Workflow.Workflow do
       {:error, reason} ->
         {:stop, reason, state}
     end
+  end
+
+  @impl true
+  def handle_call({:fetch_transition, transition_id}, _from, %__MODULE__{} = state) do
+    %{transition_table: transition_table} = state
+
+    reply =
+      case :ets.select(transition_table, [{{transition_id, :"$1"}, [], [:"$1"]}]) do
+        [transition] -> {:ok, transition}
+        _ -> {:error, :transition_not_found}
+      end
+
+    {:reply, reply, state}
   end
 
   @impl true
