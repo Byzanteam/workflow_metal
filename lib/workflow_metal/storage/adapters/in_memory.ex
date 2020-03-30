@@ -209,28 +209,30 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     %State{workflows: workflows, cases: cases} = state
 
     reply =
-      case Map.get(workflows, workflow_id) do
-        nil ->
-          {:error, :workflow_not_found}
+      with(
+        {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
+          {:workflow, Map.get(workflows, workflow_id)},
+        {:case, case_schema} when not is_nil(case_schema) <-
+          {:case, Map.get(cases, {workflow_id, case_id})}
+      ) do
+        case {token_states, case_schema} do
+          {:all, %{tokens: tokens}} ->
+            {:ok, List.wrap(tokens)}
 
-        _ ->
-          case {token_states, Map.get(cases, {workflow_id, case_id})} do
-            {_, nil} ->
-              {:error, :case_not_found}
+          {token_states, %{tokens: [_ | _] = tokens}} ->
+            filter_func = fn token ->
+              Enum.member?(token_states, token.state)
+            end
 
-            {:all, %{tokens: tokens}} ->
-              {:ok, List.wrap(tokens)}
+            {:ok, Enum.filter(tokens, filter_func)}
 
-            {token_states, %{tokens: [_ | _] = tokens}} ->
-              filter_func = fn token ->
-                Enum.member?(token_states, token.state)
-              end
-
-              {:ok, Enum.filter(tokens, filter_func)}
-
-            _ ->
-              {:ok, []}
-          end
+          _ ->
+            # match on tokens is `nil`
+            {:ok, []}
+        end
+      else
+        {:workflow, nil} -> {:error, :workflow_not_found}
+        {:case, nil} -> {:error, :case_not_found}
       end
 
     {:reply, reply, state}

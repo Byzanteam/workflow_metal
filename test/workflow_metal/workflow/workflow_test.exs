@@ -122,10 +122,16 @@ defmodule WorkflowMetal.Workflow.WorkflowTest do
 
       # fetch_transitions
       assert Workflow.fetch_transitions(workflow_server, start_place.id, :in) === {:ok, []}
-      assert Workflow.fetch_transitions(workflow_server, start_place.id, :out) === {:ok, [a_transition]}
 
-      assert Workflow.fetch_transitions(workflow_server, b_place.id, :in) === {:ok, [a_transition]}
-      assert Workflow.fetch_transitions(workflow_server, b_place.id, :out) === {:ok, [c_transition]}
+      assert Workflow.fetch_transitions(workflow_server, start_place.id, :out) ===
+               {:ok, [a_transition]}
+
+      assert Workflow.fetch_transitions(workflow_server, b_place.id, :in) ===
+               {:ok, [a_transition]}
+
+      assert Workflow.fetch_transitions(workflow_server, b_place.id, :out) ===
+               {:ok, [c_transition]}
+
       assert Workflow.fetch_transitions(workflow_server, end_place.id, :out) === {:ok, []}
 
       # fetch_places
