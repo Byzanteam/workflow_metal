@@ -15,6 +15,7 @@ defmodule WorkflowMetal.Task.Task do
     :workitem_table
   ]
 
+  @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
@@ -22,22 +23,35 @@ defmodule WorkflowMetal.Task.Task do
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
 
-  @doc false
-  @spec start_link(workflow_identifier, case_id, transition_id) :: GenServer.on_start()
-  def start_link({application, workflow_id} = workflow_identifier, case_id, transition_id) do
-    via_name =
-      WorkflowMetal.Registration.via_tuple(
-        application,
-        name({workflow_id, case_id, transition_id})
-      )
+  @type options :: [name: term(), case_id: case_id, transition_id: transition_id]
 
-    GenServer.start_link(__MODULE__, {workflow_identifier, case_id, transition_id}, name: via_name)
+  @doc false
+  @spec start_link(workflow_identifier, options) :: GenServer.on_start()
+  def start_link(workflow_identifier, options) do
+    name = Keyword.fetch!(options, :name)
+    case_id = Keyword.fetch!(options, :case_id)
+    transition_id = Keyword.fetch!(options, :transition_id)
+
+    GenServer.start_link(
+      __MODULE__,
+      {workflow_identifier, case_id, transition_id},
+      name: name
+    )
   end
 
   @doc false
   @spec name({workflow_id, case_id, transition_id}) :: term()
   def name({workflow_id, case_id, transition_id}) do
     {__MODULE__, {workflow_id, case_id, transition_id}}
+  end
+
+  @doc false
+  @spec via_name(application, {workflow_id, case_id, transition_id}) :: term()
+  def via_name(application, {workflow_id, case_id, transition_id}) do
+    WorkflowMetal.Registration.via_tuple(
+      application,
+      name({workflow_id, case_id, transition_id})
+    )
   end
 
   @doc """
