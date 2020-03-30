@@ -26,4 +26,18 @@ defmodule WorkflowMetal.Storage.Schema.Token do
           place_id: place_id,
           locked_workitem_id: workitem_id
         }
+
+  defmodule Params do
+    @moduledoc false
+
+    @enforce_keys [:state, :workflow_id, :case_id, :place_id]
+    defstruct [:state, :workflow_id, :case_id, :place_id]
+
+    @type params() :: %{
+            state: Token.state(),
+            workflow_id: Token.workflow_id(),
+            case_id: Token.case_id(),
+            place_id: Token.place_id()
+          }
+  end
 end
