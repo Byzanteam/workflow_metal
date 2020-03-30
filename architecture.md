@@ -8,6 +8,8 @@
   - WorkflowsSupervisor(DynamicSupervisor)
     - WorkflowSupervisor(Supervisor)
       - Workflow(GenServer)
+      - TaskSupervisor(DynamicSupervisor)
+        - Task(GenServer)
       - CaseSupervisor(DynamicSupervisor)
         - Case(GenServer)
       - VertexSupervisor(DynamicSupervisor)
