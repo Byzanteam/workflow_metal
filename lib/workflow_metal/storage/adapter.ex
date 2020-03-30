@@ -13,6 +13,11 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
+  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
+  @type token_states :: nonempty_list(token_state)
+
   @type error :: term()
 
   @type on_create_workflow ::
@@ -32,6 +37,17 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, error}
   @type on_fetch_case ::
           {:ok, case_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, error}
+
+  @type on_create_token ::
+          {:ok, token_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, error}
+  @type on_fetch_token ::
+          {:ok, list(token_schema)}
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
           | {:error, error}
@@ -82,4 +98,23 @@ defmodule WorkflowMetal.Storage.Adapter do
               workflow_id,
               case_id
             ) :: on_fetch_case
+
+  # Token
+  @doc """
+  Create a token.
+  """
+  @callback create_token(
+              adapter_meta,
+              token_params
+            ) :: on_create_token
+
+  @doc """
+  Retrive tokens of a case.
+  """
+  @callback fetch_tokens(
+              adapter_meta,
+              workflow_id,
+              case_id,
+              token_states
+            ) :: on_fetch_token
 end

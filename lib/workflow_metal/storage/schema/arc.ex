@@ -36,6 +36,7 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   ]
 
   @type id :: term()
+  @type direction :: :in | :out
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
@@ -47,7 +48,7 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
           workflow_id: workflow_id,
           place_id: place_id,
           transition_id: transition_id,
-          direction: :in | :out,
+          direction: direction,
           guards: [Guard.t()]
         }
 end

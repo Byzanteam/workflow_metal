@@ -43,9 +43,10 @@ defmodule WorkflowMetal.Case.Supervisor do
   Create a case.
   """
   @spec create_case(application, case_schema) ::
-          WorkflowMetal.Storage.Adapter.on_create_case()
+          Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
   def create_case(application, %Schema.Case{} = case_schema) do
-    WorkflowMetal.Storage.create_case(application, case_schema)
+    :ok = WorkflowMetal.Storage.create_case(application, case_schema)
+    open_case(application, case_schema.workflow_id, case_schema.id)
   end
 
   @doc """
@@ -60,7 +61,7 @@ defmodule WorkflowMetal.Case.Supervisor do
         case WorkflowMetal.Storage.fetch_case(application, workflow_id, case_id) do
           {:ok, _} ->
             case_supervisor = via_name(application, workflow_id)
-            case_spec = {WorkflowMetal.Case.Case, [case_id]}
+            case_spec = {WorkflowMetal.Case.Case, [case_id: case_id]}
 
             Registration.start_child(
               application,

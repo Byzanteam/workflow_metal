@@ -32,7 +32,7 @@ defmodule WorkflowMetal.Case.SupervisorTest do
       case_schema = %Schema.Case{id: 123, workflow_id: 123}
 
       assert :ok = WorkflowsSupervisor.create_workflow(DummyApplication, workflow_schema)
-      assert :ok = CaseSupervisor.create_case(DummyApplication, case_schema)
+      assert {:ok, _pid} = CaseSupervisor.create_case(DummyApplication, case_schema)
 
       assert {:ok, pid} =
                CaseSupervisor.open_case(DummyApplication, case_schema.workflow_id, case_schema.id)
