@@ -101,6 +101,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def create_token(adapter_meta, token_params) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:create_token, token_params})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_tokens(adapter_meta, workflow_id, case_id, token_states) do
     storage = storage_name(adapter_meta)
 
@@ -195,6 +202,44 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
             nil -> {:error, :case_not_found}
             case_schema -> {:ok, case_schema}
           end
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:create_token, token_params},
+        _from,
+        %State{} = state
+      ) do
+    %State{workflows: workflows, cases: cases} = state
+
+    %{
+      workflow_id: workflow_id,
+      case_id: case_id
+    } = token_params
+
+    reply =
+      with(
+        {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
+          {:workflow, Map.get(workflows, workflow_id)},
+        {:case, case_schema} when not is_nil(case_schema) <-
+          {:case, Map.get(cases, {workflow_id, case_id})}
+      ) do
+        token_schema =
+          Schema.Token
+          |> struct(Map.from_struct(token_params))
+          # TODO: use uuid
+          |> Map.put(:id, make_ref())
+
+        %{tokens: tokens} = case_schema
+        tokens = [token_schema | tokens || []]
+
+        {:ok, %{case_schema | tokens: tokens}}
+      else
+        {:workflow, nil} -> {:error, :workflow_not_found}
+        {:case, nil} -> {:error, :case_not_found}
       end
 
     {:reply, reply, state}
