@@ -5,7 +5,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   require Logger
 
-  use GenServer
+  use GenServer, restart: :temporary
 
   defstruct [
     :application,
@@ -26,6 +26,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
+  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
   @type options :: [
           name: term(),
@@ -137,16 +138,18 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
     {:ok, workitem} = persist_workitem_state(state)
 
-    {:noreply, %{state | workitem: workitem}}
+    task_server(state).fail_workitem(workitem.id, error)
+
+    {:stop, :normal, %{state | workitem: workitem}}
   end
 
   @impl true
-  def handle_continue({:complete_workitem, _token_params}, %__MODULE__{} = state) do
+  def handle_continue({:complete_workitem, token_params}, %__MODULE__{} = state) do
     {:ok, workitem} = persist_workitem_state(state)
 
-    {:noreply, %{state | workitem: workitem}}
+    task_server(state).complete_workitem(workitem.id, token_params)
 
-    # TODO: issue tokens
+    {:stop, :normal, %{state | workitem: workitem}}
   end
 
   @impl true
