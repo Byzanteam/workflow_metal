@@ -154,7 +154,9 @@ defmodule WorkflowMetal.Task.Task do
       state: :created,
       workflow_id: workflow_id,
       case_id: case_id,
-      transition_id: transition_id
+      transition_id: transition_id,
+      # TODO:
+      task_id: make_ref()
     }
 
     {:reply, workitem, state}
