@@ -22,6 +22,7 @@ defmodule WorkflowMetal.Task.Task do
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
@@ -84,6 +85,20 @@ defmodule WorkflowMetal.Task.Task do
     GenServer.call(transition_server, {:fetch_tokens, workitem_id})
   end
 
+  @doc """
+  """
+  @spec complete_workitem(GenServer.server(), workitem_id, token_params) :: :ok
+  def complete_workitem(task_server, workitem_id, token_params) do
+    GenServer.cast(task_server, {:complete_workitem, workitem_id, token_params})
+  end
+
+  @doc """
+  """
+  @spec fail_workitem(GenServer.server(), workitem_id, error) :: :ok
+  def fail_workitem(task_server, workitem_id, error) do
+    GenServer.cast(task_server, {:fail_workitem, workitem_id, error})
+  end
+
   # callbacks
 
   @impl true
@@ -128,6 +143,16 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
+  def handle_continue(:complete_task, %__MODULE__{} = state) do
+    if completed?(state) do
+      # TODO: lock token
+      # TODO: generate workitem
+    else
+      {:noreply, state}
+    end
+  end
+
+  @impl true
   def handle_cast({:offer_token, place_id, token_id}, %__MODULE__{} = state) do
     %{token_table: token_table} = state
     :ets.insert(token_table, {token_id, place_id, :free})
@@ -160,6 +185,24 @@ defmodule WorkflowMetal.Task.Task do
     }
 
     {:reply, workitem, state}
+  end
+
+  @impl true
+  def handle_cast({:complete_workitem, place_id, token_params}, %__MODULE__{} = state) do
+    # TODO:
+    # - update workitem state
+    # - issue tokens
+
+    {:noreply, state, {:continue, :complete_task}}
+  end
+
+  @impl true
+  def handle_cast({:fail_workitem, place_id, error}, %__MODULE__{} = state) do
+    # TODO:
+    # - update workitem state
+    # - issue tokens
+
+    {:noreply, state}
   end
 
   defp enabled?(%__MODULE__{} = state) do
