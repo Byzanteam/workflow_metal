@@ -103,23 +103,24 @@ defmodule WorkflowMetal.Workitem.Workitem do
   Update its workitem_state in the storage.
   """
   @impl true
-  def handle_continue(:update_workitem_state, %__MODULE__{} = _state) do
-    # TODO: update in the Storage
-    # %{workitem_state: workitem_state} = state
+  def handle_continue(:update_workitem_state, %__MODULE__{} = state) do
+    {:ok, workitem} = persist_workitem_state(state)
+
+    {:noreply, %{state | workitem: workitem}}
   end
 
   @impl true
-  def handle_continue({:fail_workitem, error}, %__MODULE__{} = _state) do
-    # TODO: update in the Storage
-    # %{workitem_state: workitem_state} = state
-    #
-    # TODO: fail
+  def handle_continue({:fail_workitem, _error}, %__MODULE__{} = state) do
+    {:ok, workitem} = persist_workitem_state(state)
+
+    {:noreply, %{state | workitem: workitem}}
   end
 
   @impl true
-  def handle_continue({:complete_workitem, token_params}, %__MODULE__{} = state) do
-    # TODO: update workitem_state and tokens in the Storage
-    # %{workitem_state: workitem_state} = state
+  def handle_continue({:complete_workitem, _token_params}, %__MODULE__{} = state) do
+    {:ok, workitem} = persist_workitem_state(state)
+
+    {:noreply, %{state | workitem: workitem}}
 
     # TODO: issue tokens
   end
@@ -147,6 +148,15 @@ defmodule WorkflowMetal.Workitem.Workitem do
     end
   end
 
+  defp persist_workitem_state(%__MODULE__{} = state) do
+    %{
+      workitem: workitem,
+      workitem_state: workitem_state
+    } = state
+
+    storage(state).update_workitem(%{workitem | state: workitem_state})
+  end
+
   defp workflow_server(%__MODULE__{} = state) do
     %{application: application, workflow_id: workflow_id} = state
 
@@ -162,5 +172,10 @@ defmodule WorkflowMetal.Workitem.Workitem do
     } = state
 
     WorkflowMetal.Task.Task.via_name(application, {workflow_id, case_id, transition_id})
+  end
+
+  defp storage(%__MODULE__{} = state) do
+    %{application: application} = state
+    WorkflowMetal.Application.storage_adapter(application)
   end
 end
