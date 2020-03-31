@@ -78,7 +78,8 @@ defmodule WorkflowMetal.Task.Task do
   @doc """
   Retrive a workitem of the task.
   """
-  @spec fetch_workitem(GenServer.server(), workitem_id) :: {:ok, workitem_schema} | {:error, term()}
+  @spec fetch_workitem(GenServer.server(), workitem_id) ::
+          {:ok, workitem_schema} | {:error, term()}
   def fetch_workitem(transition_server, workitem_id) do
     GenServer.call(transition_server, {:fetch_tokens, workitem_id})
   end
