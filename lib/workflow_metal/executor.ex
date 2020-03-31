@@ -17,7 +17,7 @@ defmodule WorkflowMetal.Executor do
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
-        def execute(%Schema.Workitem{}, _tokens) do
+        def execute(%Schema.Workitem{}, _tokens, _options) do
           {:completed, %Schema.Token.Params{}}
         end
       end
@@ -28,18 +28,19 @@ defmodule WorkflowMetal.Executor do
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
-        def execute(%Schema.Workitem{} = workitem, tokens) do
-          Task.async(__MODULE__, :run, [workitem, tokens])
+        def execute(%Schema.Workitem{} = workitem, tokens, options) do
+          Task.async(__MODULE__, :run, [workitem, tokens, options])
           :started
         end
 
-        def run(%Schema.Workitem{} = workitem, _tokens) do
+        def run(%Schema.Workitem{} = workitem, _tokens, _options) do
           WorkflowMetal.WorkitemSupervisor.complete(workitem, %Schema.Token.Params{})
         end
       end
   """
 
   @type error :: term()
+  @type options :: keyword()
   @type workitem :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type token :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
@@ -47,7 +48,7 @@ defmodule WorkflowMetal.Executor do
   @doc """
   Run an executor and return its state to the `workitem` process.
   """
-  @callback execute(workitem, nonempty_list(token)) ::
+  @callback execute(workitem, nonempty_list(token), options) ::
               :started
               | {:completed, token_params}
               | {:failed, error}
