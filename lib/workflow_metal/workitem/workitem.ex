@@ -3,6 +3,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
   A `GenServer` to run a workitem.
   """
 
+  require Logger
+
   use GenServer
 
   defstruct [
@@ -51,6 +53,22 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @spec name({workflow_id, case_id, transition_id}) :: term()
   def name({workflow_id, case_id, transition_id}) do
     {__MODULE__, {workflow_id, case_id, transition_id}}
+  end
+
+  @doc """
+  Complete a workitem.
+  """
+  @spec complete(GenServer.server(), token_params) :: :ok
+  def complete(workitem_server, token_params) do
+    GenServer.call(workitem_server, {:complet, token_params})
+  end
+
+  @doc """
+  Fail a workitem.
+  """
+  @spec fail(GenServer.server(), error) :: :ok
+  def fail(workitem_server, error) do
+    GenServer.call(workitem_server, {:fail, error})
   end
 
   # callbacks
@@ -110,7 +128,13 @@ defmodule WorkflowMetal.Workitem.Workitem do
   end
 
   @impl true
-  def handle_continue({:fail_workitem, _error}, %__MODULE__{} = state) do
+  def handle_continue({:fail_workitem, error}, %__MODULE__{} = state) do
+    Logger.error(fn ->
+      """
+      The workitem fail to execute, due to: #{inspect(error)}.
+      """
+    end)
+
     {:ok, workitem} = persist_workitem_state(state)
 
     {:noreply, %{state | workitem: workitem}}
@@ -123,6 +147,33 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {:noreply, %{state | workitem: workitem}}
 
     # TODO: issue tokens
+  end
+
+  @impl true
+  def handle_call({:complete, token_params}, _from, %__MODULE__{workitem_state: :started} = state) do
+    {
+      :reply,
+      :ok,
+      %{state | workitem_state: :completed},
+      {:continue, :complete_workitem, token_params}
+    }
+  end
+
+  def handle_call({:complete, token_params}, _from, %__MODULE__{} = state) do
+    {:reply, {:error, :invalid_state}, state}
+  end
+
+  def handle_call({:fail, error}, _from, %__MODULE__{workitem_state: :started} = state) do
+    {
+      :reply,
+      :ok,
+      %{state | workitem_state: :failed},
+      {:continue, {:fail_workitem, error}}
+    }
+  end
+
+  def handle_call({:fail, error}, _from, %__MODULE__{} = state) do
+    {:reply, {:error, :invalid_state}, state}
   end
 
   defp start_workitem(%__MODULE__{} = state) do
@@ -140,10 +191,10 @@ defmodule WorkflowMetal.Workitem.Workitem do
         {:noreply, %{state | workitem_state: :started}, {:continue, :update_workitem_state}}
 
       {:completed, token_params} ->
-        {:noreply, state, {:continue, :complete_workitem, token_params}}
+        {:noreply, %{state | workitem_state: :completed},
+         {:continue, :complete_workitem, token_params}}
 
       {:failed, error} ->
-        # TODO: logger
         {:noreply, %{state | workitem_state: :failed}, {:continue, {:fail_workitem, error}}}
     end
   end
