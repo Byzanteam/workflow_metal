@@ -69,6 +69,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @doc """
   Retrive a workflow.
   """
+  # TODO: 用 retrieve_workflow？
   @callback fetch_workflow(
               adapter_meta,
               workflow_id
