@@ -186,7 +186,7 @@ defmodule WorkflowMetal.Case.Case do
     |> workflow_server()
     |> WorkflowMetal.Workflow.Workflow.fetch_transitions(place_id, :out)
     |> Enum.each(fn transition ->
-      {:ok, task_pid} =
+      {:ok, task_server} =
         WorkflowMetal.Task.Supervisor.open_task(
           application,
           workflow_id,
@@ -194,7 +194,7 @@ defmodule WorkflowMetal.Case.Case do
           transition.id
         )
 
-      GenServer.cast(task_pid, {:offer_token, place_id, token_id})
+      WorkflowMetal.Task.Task.offer_token(task_server, place_id, token_id)
     end)
   end
 
