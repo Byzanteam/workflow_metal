@@ -114,6 +114,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:fetch_tokens, workflow_id, case_id, token_states})
   end
 
+  @impl WorkflowMetal.Storage.Adapter
+  def create_workitem(adapter_meta, workitem_params) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:create_workitem, workitem_params})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def update_workitem(adapter_meta, workitem_schema) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:update_workitem, workitem_schema})
+  end
+
   @impl GenServer
   def handle_call(
         {:create_workflow, workflow_id, workflow_schema},
@@ -278,6 +292,88 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       else
         {:workflow, nil} -> {:error, :workflow_not_found}
         {:case, nil} -> {:error, :case_not_found}
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:create_workitem, workitem_params},
+        _from,
+        %State{} = state
+      ) do
+    %State{workflows: workflows, cases: cases} = state
+
+    %{
+      workflow_id: workflow_id,
+      case_id: case_id
+    } = workitem_params
+
+    with(
+      {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
+        {:workflow, Map.get(workflows, workflow_id)},
+      {:case, case_schema} when not is_nil(case_schema) <-
+        {:case, Map.get(cases, {workflow_id, case_id})}
+    ) do
+      workitem_schema =
+        Schema.Workitem
+        |> struct(Map.from_struct(workitem_params))
+        |> Map.put(:id, make_ref())
+
+      %{workitems: workitems} = case_schema
+      workitems = [workitem_schema | workitems || []]
+
+      cases = Map.put(cases, {workflow_id, case_id}, %{case_schema | workitems: workitems})
+
+      {:reply, {:ok, workitem_schema}, %{state | cases: cases}}
+    else
+      {:workflow, nil} -> {:reply, {:error, :workflow_not_found}, state}
+      {:case, nil} -> {:reply, {:error, :case_not_found}, state}
+    end
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:update_workitem, workitem_schema},
+        _from,
+        %State{} = state
+      ) do
+    %State{workflows: workflows, cases: cases} = state
+
+    %{
+      workflow_id: workflow_id,
+      case_id: case_id
+    } = workitem_schema
+
+    reply =
+      with(
+        {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
+          {:workflow, Map.get(workflows, workflow_id)},
+        {:case, case_schema} when not is_nil(case_schema) <-
+          {:case, Map.get(cases, {workflow_id, case_id})}
+      ) do
+        case case_schema do
+          %{workitems: [_ | _] = workitems} ->
+            case Enum.find_index(workitems, &(&1.id === workitem_schema.id)) do
+              nil ->
+                {:reply, {:error, :workitem_not_found}, state}
+
+              index ->
+                workitems = List.replace_at(workitems, index, workitem_schema)
+
+                cases =
+                  Map.put(cases, {workflow_id, case_id}, %{case_schema | workitems: workitems})
+
+                {:reply, workitem_schema, %{state | cases: cases}}
+            end
+        end
+      else
+        {:workflow, nil} ->
+          {:reply, {:error, :workflow_not_found}, state}
+
+        {:case, nil} ->
+          {:reply, {:error, :case_not_found}, state}
       end
 
     {:reply, reply, state}

@@ -16,6 +16,9 @@ defmodule WorkflowMetal.Storage do
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_states :: nonempty_list(token_state)
 
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
+  @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+
   @type config :: keyword()
 
   @doc """
@@ -129,6 +132,30 @@ defmodule WorkflowMetal.Storage do
       workflow_id,
       case_id,
       token_states
+    )
+  end
+
+  @doc false
+  @spec create_workitem(application, workitem_params) ::
+          WorkflowMetal.Storage.Adapter.on_create_workitem()
+  def create_workitem(application, workitem_params) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.create_workitem(
+      adapter_meta,
+      workitem_params
+    )
+  end
+
+  @doc false
+  @spec update_workitem(application, workitem_schema) ::
+          WorkflowMetal.Storage.Adapter.on_update_workitem()
+  def update_workitem(application, workitem_schema) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.update_workitem(
+      adapter_meta,
+      workitem_schema
     )
   end
 end
