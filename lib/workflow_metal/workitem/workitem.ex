@@ -13,7 +13,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
     :transition,
     :workitem_id,
     :workitem,
-    :tokens
+    :tokens,
+    :workitem_state
   ]
 
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
@@ -84,7 +85,66 @@ defmodule WorkflowMetal.Workitem.Workitem do
     task_server = task_server(state)
     {:ok, workitem} = WorkflowMetal.Task.Task.fetch_workitem(task_server, workitem_id)
 
-    {:noreply, %{state | transition: transition, workitem: workitem}}
+    {
+      :noreply,
+      %{state | transition: transition, workitem: workitem, workitem_state: workitem.state},
+      {:continue, :start_workitem}
+    }
+  end
+
+  @impl true
+  def handle_continue(:start_workitem, %__MODULE__{workitem_state: :created} = state) do
+    start_workitem(state)
+  end
+
+  def handle_continue(:start_workitem, %__MODULE__{} = state), do: {:noreply, state}
+
+  @doc """
+  Update its workitem_state in the storage.
+  """
+  @impl true
+  def handle_continue(:update_workitem_state, %__MODULE__{} = _state) do
+    # TODO: update in the Storage
+    # %{workitem_state: workitem_state} = state
+  end
+
+  @impl true
+  def handle_continue({:fail_workitem, error}, %__MODULE__{} = _state) do
+    # TODO: update in the Storage
+    # %{workitem_state: workitem_state} = state
+    #
+    # TODO: fail
+  end
+
+  @impl true
+  def handle_continue({:complete_workitem, token_params}, %__MODULE__{} = state) do
+    # TODO: update workitem_state and tokens in the Storage
+    # %{workitem_state: workitem_state} = state
+
+    # TODO: issue tokens
+  end
+
+  defp start_workitem(%__MODULE__{} = state) do
+    %{
+      workitem: workitem,
+      tokens: tokens,
+      transition: %{
+        executer: executer,
+        executer_params: executer_params
+      }
+    } = state
+
+    case executer.execute(workitem, tokens, executer_params: executer_params) do
+      :started ->
+        {:noreply, %{state | workitem_state: :started}, {:continue, :update_workitem_state}}
+
+      {:completed, token_params} ->
+        {:noreply, state, {:continue, :complete_workitem, token_params}}
+
+      {:failed, error} ->
+        # TODO: logger
+        {:noreply, %{state | workitem_state: :failed}, {:continue, {:fail_workitem, error}}}
+    end
   end
 
   defp workflow_server(%__MODULE__{} = state) do
