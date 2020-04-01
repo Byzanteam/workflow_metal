@@ -34,14 +34,16 @@ defmodule WorkflowMetal.Storage.Schema.Place do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:type]
+    @enforce_keys [:rid, :type]
     defstruct [
-      :workflow_id,
+      :rid,
       :type
     ]
 
+    @type reference_id :: term()
+
     @type t() :: %__MODULE__{
-            workflow_id: Place.workflow_id(),
+            rid: reference_id(),
             type: Place.type()
           }
   end

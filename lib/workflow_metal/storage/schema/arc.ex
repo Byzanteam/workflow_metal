@@ -57,19 +57,19 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:place_id, :transition_id, :direction]
+    @enforce_keys [:place_rid, :transition_rid, :direction]
     defstruct [
-      :workflow_id,
-      :place_id,
-      :transition_id,
+      :place_rid,
+      :transition_rid,
       :direction,
       guards: []
     ]
 
+    @type reference_id :: term()
+
     @type t() :: %__MODULE__{
-            workflow_id: Arc.workflow_id(),
-            place_id: Arc.place_id(),
-            transition_id: Arc.transition_id(),
+            place_rid: reference_id,
+            transition_rid: reference_id,
             direction: Arc.direction(),
             guards: [Arc.guard()]
           }

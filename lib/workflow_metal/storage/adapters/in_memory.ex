@@ -490,34 +490,42 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
     :ets.insert(workflow_table, {workflow_schema.id, workflow_schema})
 
-    persist_places(
-      Map.get(workflow_params, :places),
-      state,
-      workflow_id: workflow_schema.id
-    )
+    place_schemas =
+      persist_places(
+        Map.get(workflow_params, :places),
+        state,
+        workflow_id: workflow_schema.id
+      )
 
-    persist_transitions(
-      Map.get(workflow_params, :transitions),
-      state,
-      workflow_id: workflow_schema.id
-    )
+    transition_schemas =
+      persist_transitions(
+        Map.get(workflow_params, :transitions),
+        state,
+        workflow_id: workflow_schema.id
+      )
 
     persist_arcs(
       Map.get(workflow_params, :arcs),
       state,
-      workflow_id: workflow_schema.id
+      workflow_id: workflow_schema.id,
+      place_schemas: place_schemas,
+      transition_schemas: transition_schemas
     )
 
     {:ok, workflow_schema}
   end
 
-  defp persist_place(place_params, %State{} = state) do
+  defp persist_place(place_params, %State{} = state, options) do
     place_table = get_table(:place, state)
+    workflow_id = Keyword.fetch!(options, :workflow_id)
 
     place_schema =
       struct(
         Schema.Place,
-        place_params |> Map.from_struct() |> Map.put(:id, make_id())
+        place_params
+        |> Map.from_struct()
+        |> Map.put(:id, make_id())
+        |> Map.put(:workflow_id, workflow_id)
       )
 
     :ets.insert(
@@ -534,25 +542,24 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp persist_places(places_params, %State{} = state, options) do
-    workflow_id = Keyword.fetch!(options, :workflow_id)
+    Enum.into(places_params, %{}, fn place_params ->
+      {:ok, place_schema} = persist_place(place_params, state, options)
 
-    Enum.map(places_params, fn place_params ->
-      {:ok, place_schema} =
-        place_params
-        |> Map.put(:workflow_id, workflow_id)
-        |> persist_place(state)
-
-      place_schema
+      {place_params.rid, place_schema}
     end)
   end
 
-  defp persist_transition(transition_params, %State{} = state) do
+  defp persist_transition(transition_params, %State{} = state, options) do
     transition_table = get_table(:transition, state)
+    workflow_id = Keyword.fetch!(options, :workflow_id)
 
     transition_schema =
       struct(
         Schema.Transition,
-        transition_params |> Map.from_struct() |> Map.put(:id, make_id())
+        transition_params
+        |> Map.from_struct()
+        |> Map.put(:id, make_id())
+        |> Map.put(:workflow_id, workflow_id)
       )
 
     :ets.insert(
@@ -568,25 +575,33 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp persist_transitions(transitions_params, %State{} = state, options) do
-    workflow_id = Keyword.fetch!(options, :workflow_id)
+    Enum.into(transitions_params, %{}, fn transition_params ->
+      {:ok, transition_schema} = persist_transition(transition_params, state, options)
 
-    Enum.map(transitions_params, fn transition_params ->
-      {:ok, transition_schema} =
-        transition_params
-        |> Map.put(:workflow_id, workflow_id)
-        |> persist_transition(state)
-
-      transition_schema
+      {transition_params.rid, transition_schema}
     end)
   end
 
-  defp persist_arc(arc_params, %State{} = state) do
+  defp persist_arc(arc_params, %State{} = state, options) do
     arc_table = get_table(:arc, state)
+    workflow_id = Keyword.fetch!(options, :workflow_id)
+    place_schemas = Keyword.fetch!(options, :place_schemas)
+    transition_schemas = Keyword.fetch!(options, :transition_schemas)
+
+    %{
+      place_rid: place_rid,
+      transition_rid: transition_rid
+    } = arc_params
 
     arc_schema =
       struct(
         Schema.Arc,
-        arc_params |> Map.from_struct() |> Map.put(:id, make_id())
+        arc_params
+        |> Map.from_struct()
+        |> Map.put(:id, make_id())
+        |> Map.put(:workflow_id, workflow_id)
+        |> Map.put(:place_id, place_schemas[place_rid].id)
+        |> Map.put(:transition_id, transition_schemas[transition_rid].id)
       )
 
     :ets.insert(
@@ -607,13 +622,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp persist_arcs(arcs_params, %State{} = state, options) do
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-
     Enum.map(arcs_params, fn arc_params ->
-      {:ok, arc_schema} =
-        arc_params
-        |> Map.put(:workflow_id, workflow_id)
-        |> persist_arc(state)
+      {:ok, arc_schema} = persist_arc(arc_params, state, options)
 
       arc_schema
     end)
@@ -638,7 +648,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp find_place(place_id, %State{} = state) do
     :place
     |> get_table(state)
-    |> :ets.select([{{place_id, :"$1", :_}, [], [:"$1"]}])
+    |> :ets.select([{{place_id, :"$1", :_, :_}, [], [:"$1"]}])
     |> case do
       [place] -> {:ok, place}
       _ -> {:error, :place_not_found}
