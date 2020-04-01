@@ -11,7 +11,7 @@ defmodule WorkflowMetal.Case.Case do
     :case_id,
     :state,
     :token_table,
-    free_token_ids: []
+    :free_token_ids
   ]
 
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
@@ -62,7 +62,8 @@ defmodule WorkflowMetal.Case.Case do
             workflow_id: workflow_id,
             case_id: case_id,
             state: state,
-            token_table: token_table
+            token_table: token_table,
+            free_token_ids: MapSet.new()
           },
           {:continue, :rebuild_from_storage}
         }
@@ -126,7 +127,7 @@ defmodule WorkflowMetal.Case.Case do
       {:ok, tokens} ->
         free_token_ids = Enum.map(tokens, &upsert_token(token_table, &1))
 
-        {:ok, %{state | free_token_ids: MapSet.new(free_token_ids)}}
+        {:ok, Map.update!(state, :free_token_ids, &MapSet.union(&1, MapSet.new(free_token_ids)))}
 
       {:error, _reason} = reply ->
         reply
