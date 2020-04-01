@@ -115,7 +115,7 @@ defmodule WorkflowMetal.Task.Task do
       :ok,
       %__MODULE__{
         application: application,
-        workflow_id: task.workflow_id,
+        workflow_id: workflow_id,
         case_id: task.case_id,
         transition_id: task.transition_id,
         task_state: task.state,
@@ -141,8 +141,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl true
   def handle_continue(:fire_transition, %__MODULE__{} = state) do
     if enabled?(state) do
-      # TODO: lock token
-      # TODO: generate workitem
+      {:ok, _} = generate_workitem(state)
     else
       {:noreply, state}
     end
@@ -208,6 +207,31 @@ defmodule WorkflowMetal.Task.Task do
     # - issue tokens
 
     {:noreply, state}
+  end
+
+  defp generate_workitem(%__MODULE__{} = state) do
+    %{
+      application: application,
+      workflow_id: workflow_id,
+      case_id: case_id,
+      task_id: task_id
+    } = state
+
+    workitem_params =
+      %Schema.Workitem.Params{
+        workflow_id: workflow_id,
+        case_id: case_id,
+        task_id: task_id,
+        state: :created
+      }
+
+    {:ok, workitem_schema} = WorkflowMetal.Storage.create_workitem(application, workitem_params)
+
+    {:ok, _} =
+      WorkflowMetal.Workitem.Supervisor.open_workitem(
+        application,
+        workitem_schema
+      )
   end
 
   defp enabled?(%__MODULE__{} = state) do

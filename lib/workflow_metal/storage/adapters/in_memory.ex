@@ -350,6 +350,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       {:case, case_schema} when not is_nil(case_schema) <-
         {:case, Map.get(cases, {workflow_id, case_id})}
     ) do
+      # TODO: fetch task and put transition_id
       workitem_schema =
         Schema.Workitem
         |> struct(Map.from_struct(workitem_params))
