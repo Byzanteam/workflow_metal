@@ -15,6 +15,7 @@ defmodule WorkflowMetal.Task.Task do
     :workitem_table
   ]
 
+  @type task_id :: term()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
@@ -44,16 +45,16 @@ defmodule WorkflowMetal.Task.Task do
   Offer a token.
   """
   @spec offer_token(GenServer.server(), place_id, token_id) :: :ok
-  def offer_token(transition_server, place_id, token_id) do
-    GenServer.cast(transition_server, {:offer_token, place_id, token_id})
+  def offer_token(task_server, place_id, token_id) do
+    GenServer.cast(task_server, {:offer_token, place_id, token_id})
   end
 
   @doc """
   Withdraw a token.
   """
   @spec withdraw_token(GenServer.server(), place_id, token_id) :: :ok
-  def withdraw_token(transition_server, place_id, token_id) do
-    GenServer.cast(transition_server, {:withdraw_token, place_id, token_id})
+  def withdraw_token(task_server, place_id, token_id) do
+    GenServer.cast(task_server, {:withdraw_token, place_id, token_id})
   end
 
   # callbacks

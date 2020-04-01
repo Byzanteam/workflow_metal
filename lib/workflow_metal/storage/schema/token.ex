@@ -33,7 +33,9 @@ defmodule WorkflowMetal.Storage.Schema.Token do
     @enforce_keys [:state, :workflow_id, :case_id, :place_id]
     defstruct [:state, :workflow_id, :case_id, :place_id]
 
-    @type params() :: %{
+    alias WorkflowMetal.Storage.Schema.Token
+
+    @type t() :: %{
             state: Token.state(),
             workflow_id: Token.workflow_id(),
             case_id: Token.case_id(),
