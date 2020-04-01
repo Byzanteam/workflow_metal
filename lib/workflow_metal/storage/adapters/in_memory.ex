@@ -3,6 +3,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   An in-memory storage adapter useful for testing as no persistence provided.
   """
 
+  alias WorkflowMetal.Storage.Schema
+
   @behaviour WorkflowMetal.Storage.Adapter
 
   use GenServer
@@ -12,6 +14,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
     defstruct [
       :name,
+      :workflow_table,
+      :arc_table,
+      :place_table,
+      :transition_table,
       workflows: %{},
       cases: %{}
     ]
@@ -30,7 +36,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def init(%State{} = state) do
-    {:ok, state}
+    {
+      :ok,
+      %{
+        state
+        | workflow_table: :ets.new(:workflow_table, [:set, :private]),
+          place_table: :ets.new(:place_table, [:set, :private]),
+          transition_table: :ets.new(:transition_table, [:set, :private]),
+          arc_table: :ets.new(:arc_table, [:set, :private])
+      }
+    }
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -64,11 +79,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_workflow(adapter_meta, workflow_schema) do
+  def create_workflow(adapter_meta, workflow_params) do
     storage = storage_name(adapter_meta)
-    %{id: workflow_id} = workflow_schema
 
-    GenServer.call(storage, {:create_workflow, workflow_id, workflow_schema})
+    GenServer.call(storage, {:create_workflow, workflow_params})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -130,19 +144,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create_workflow, workflow_id, workflow_schema},
+        {:create_workflow, workflow_params},
         _from,
         %State{} = state
       ) do
-    %{workflows: workflows} = state
+    {:ok, workflow_schema} = persist_workflow(workflow_params, state)
 
-    if Map.has_key?(workflows, workflow_id) do
-      {:reply, {:error, :duplicate_workflow}, state}
-    else
-      {reply, state} = persist_workflow({workflow_id, workflow_schema}, state)
-
-      {:reply, reply, state}
-    end
+    {:reply, {:ok, workflow_schema}, state}
   end
 
   @impl GenServer
@@ -379,10 +387,139 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:reply, reply, state}
   end
 
-  defp persist_workflow({workflow_id, workflow_schema}, %State{} = state) do
-    %{workflows: workflows} = state
+  defp persist_workflow(workflow_params, %State{} = state) do
+    workflow_table = get_table(:workflow, state)
 
-    {:ok, %{state | workflows: Map.put(workflows, workflow_id, workflow_schema)}}
+    workflow_schema =
+      struct(
+        Schema.Workflow,
+        workflow_params |> Map.from_struct() |> Map.put(:id, make_id())
+      )
+
+    :ets.insert(workflow_table, {workflow_schema.id, workflow_schema})
+
+    persist_places(
+      Map.get(workflow_params, :places),
+      state,
+      workflow_id: workflow_schema.id
+    )
+
+    persist_transitions(
+      Map.get(workflow_params, :transitions),
+      state,
+      workflow_id: workflow_schema.id
+    )
+
+    persist_arcs(
+      Map.get(workflow_params, :arcs),
+      state,
+      workflow_id: workflow_schema.id
+    )
+
+    {:ok, workflow_schema}
+  end
+
+  defp persist_place(place_params, %State{} = state) do
+    place_table = get_table(:place, state)
+
+    place_schema =
+      struct(
+        Schema.Place,
+        place_params |> Map.from_struct() |> Map.put(:id, make_id())
+      )
+
+    :ets.insert(
+      place_table,
+      {
+        place_schema.id,
+        place_schema,
+        place_schema.type,
+        place_schema.workflow_id
+      }
+    )
+
+    {:ok, place_schema}
+  end
+
+  defp persist_places(places_params, %State{} = state, options) do
+    workflow_id = Keyword.fetch!(options, :workflow_id)
+
+    Enum.map(places_params, fn place_params ->
+      {:ok, place_schema} =
+        place_params
+        |> Map.put(:workflow_id, workflow_id)
+        |> persist_place(state)
+
+      place_schema
+    end)
+  end
+
+  defp persist_transition(transition_params, %State{} = state) do
+    transition_table = get_table(:transition, state)
+
+    transition_schema =
+      struct(
+        Schema.Transition,
+        transition_params |> Map.from_struct() |> Map.put(:id, make_id())
+      )
+
+    :ets.insert(
+      transition_table,
+      {
+        transition_schema.id,
+        transition_schema,
+        transition_schema.workflow_id
+      }
+    )
+
+    {:ok, transition_schema}
+  end
+
+  defp persist_transitions(transitions_params, %State{} = state, options) do
+    workflow_id = Keyword.fetch!(options, :workflow_id)
+
+    Enum.map(transitions_params, fn transition_params ->
+      {:ok, transition_schema} =
+        transition_params
+        |> Map.put(:workflow_id, workflow_id)
+        |> persist_transition(state)
+
+      transition_schema
+    end)
+  end
+
+  defp persist_arc(arc_params, %State{} = state) do
+    arc_table = get_table(:arc, state)
+
+    arc_schema =
+      struct(
+        Schema.Arc,
+        arc_params |> Map.from_struct() |> Map.put(:id, make_id())
+      )
+
+    :ets.insert(
+      arc_table,
+      {
+        arc_schema.id,
+        arc_schema,
+        {arc_schema.place_id, arc_schema.transition_id, arc_schema.direction}
+      }
+    )
+
+    {:ok, arc_schema}
+  end
+
+  defp persist_arcs(arcs_params, %State{} = state, options) do
+    workflow_id = Keyword.fetch!(options, :workflow_id)
+
+    Enum.map(arcs_params, fn arc_params ->
+      {:ok, arc_schema} =
+        arc_params
+        |> Map.put(:workflow_id, workflow_id)
+        |> persist_arc(state)
+
+      arc_schema
+    end)
   end
 
   defp persist_case({case_key, case_schema}, %State{} = state) do
@@ -391,6 +528,23 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, %{state | cases: Map.put(cases, case_key, case_schema)}}
   end
 
+  defp find_workflow(workflow_id, %State{} = state) do
+    :workflow
+    |> get_table(state)
+    |> :ets.select([{{workflow_id, :"$1"}, [], [:"$1"]}])
+    |> case do
+      [workflow] -> {:ok, workflow}
+      _ -> {:error, :workflow_not_found}
+    end
+  end
+
+  defp get_table(table_type, %State{} = state) do
+    table_name = String.to_existing_atom("#{table_type}_table")
+    Map.fetch!(state, table_name)
+  end
+
   defp storage_name(adapter_meta) when is_map(adapter_meta),
     do: Map.get(adapter_meta, :name)
+
+  defp make_id, do: :erlang.unique_integer()
 end

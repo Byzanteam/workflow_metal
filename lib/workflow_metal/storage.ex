@@ -7,7 +7,8 @@ defmodule WorkflowMetal.Storage do
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
+
+  @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
@@ -48,15 +49,18 @@ defmodule WorkflowMetal.Storage do
     end
   end
 
+  # API
+  ## Workflow
+
   @doc false
-  @spec create_workflow(application, workflow_schema) ::
+  @spec create_workflow(application, workflow_params) ::
           WorkflowMetal.Storage.Adapter.on_create_workflow()
-  def create_workflow(application, workflow_schema) do
+  def create_workflow(application, workflow_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.create_workflow(
       adapter_meta,
-      workflow_schema
+      workflow_params
     )
   end
 
@@ -84,6 +88,8 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  ## Case
+
   @doc false
   @spec create_case(application, case_schema) ::
           WorkflowMetal.Storage.Adapter.on_create_case()
@@ -108,6 +114,8 @@ defmodule WorkflowMetal.Storage do
       case_id
     )
   end
+
+  ## Token
 
   @doc false
   @spec create_token(application, token_params) ::
@@ -134,6 +142,8 @@ defmodule WorkflowMetal.Storage do
       token_states
     )
   end
+
+  ## Workitem
 
   @doc false
   @spec create_workitem(application, workitem_params) ::

@@ -25,16 +25,16 @@ defmodule WorkflowMetal.Storage.Schema.Workflow do
     @enforce_keys [:state]
     defstruct [
       :state,
-      :places,
-      :transitions,
-      :arc
+      places: [],
+      transitions: [],
+      arcs: []
     ]
 
     @type t() :: %__MODULE__{
             state: Workflow.state(),
             places: [Schema.Place.Params.t()],
             transitions: [Schema.Transition.Params.t()],
-            arc: [Schema.Arc.Params.t()]
+            arcs: [Schema.Arc.Params.t()]
           }
   end
 end

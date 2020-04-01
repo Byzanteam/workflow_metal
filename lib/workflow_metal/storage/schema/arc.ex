@@ -57,7 +57,7 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:workflow_id, :place_id, :transition_id, :direction]
+    @enforce_keys [:place_id, :transition_id, :direction]
     defstruct [
       :workflow_id,
       :place_id,
