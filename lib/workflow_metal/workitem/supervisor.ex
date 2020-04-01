@@ -48,9 +48,6 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   def open_workitem(application, workflow_id, case_id, transition_id, workitem_id) do
     with(
       {:ok, _} <-
-        WorkflowMetal.Application.WorkflowsSupervisor.open_workflow(application, workflow_id),
-      {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, workflow_id, case_id),
-      {:ok, _} <-
         WorkflowMetal.Task.Supervisor.open_task(application, workflow_id, case_id, transition_id)
     ) do
       workitem_supervisor = via_name(application, workflow_id)
