@@ -18,6 +18,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :arc_table,
       :place_table,
       :transition_table,
+      :case_table,
       workflows: %{},
       cases: %{}
     ]
@@ -43,7 +44,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         | workflow_table: :ets.new(:workflow_table, [:set, :private]),
           place_table: :ets.new(:place_table, [:set, :private]),
           transition_table: :ets.new(:transition_table, [:set, :private]),
-          arc_table: :ets.new(:arc_table, [:set, :private])
+          arc_table: :ets.new(:arc_table, [:set, :private]),
+          case_table: :ets.new(:case_table, [:set, :private])
       }
     }
   end
@@ -121,18 +123,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_case(adapter_meta, case_schema) do
+  def create_case(adapter_meta, case_params) do
     storage = storage_name(adapter_meta)
-    %{workflow_id: workflow_id, id: case_id} = case_schema
 
-    GenServer.call(storage, {:create_case, workflow_id, case_id, case_schema})
+    GenServer.call(storage, {:create_case, case_params})
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def fetch_case(adapter_meta, workflow_id, case_id) do
+  def fetch_case(adapter_meta, case_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:fetch_case, workflow_id, case_id})
+    GenServer.call(storage, {:fetch_case, case_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -275,48 +276,27 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create_case, workflow_id, case_id, workflow_schema},
+        {:create_case, case_params},
         _from,
         %State{} = state
       ) do
-    %{workflows: workflows, cases: cases} = state
+    %{workflow_id: workflow_id} = case_params
 
-    case Map.get(workflows, workflow_id) do
-      nil ->
-        {:reply, {:error, :workflow_not_found}, state}
-
-      _ ->
-        case_key = {workflow_id, case_id}
-
-        if Map.has_key?(cases, case_key) do
-          {:reply, {:error, :duplicate_case}, state}
-        else
-          {reply, state} = persist_case({case_key, workflow_schema}, state)
-
-          {:reply, reply, state}
-        end
+        reply =
+    with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
+      persist_case(case_params, state, workflow_id: workflow_schema.id)
     end
+        {:reply, reply, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:fetch_case, workflow_id, case_id},
+        {:fetch_case, case_id},
         _from,
         %State{} = state
       ) do
-    %State{workflows: workflows, cases: cases} = state
 
-    reply =
-      case Map.get(workflows, workflow_id) do
-        nil ->
-          {:error, :workflow_not_found}
-
-        _ ->
-          case Map.get(cases, {workflow_id, case_id}) do
-            nil -> {:error, :case_not_found}
-            case_schema -> {:ok, case_schema}
-          end
-      end
+    reply = find_case(case_id, state)
 
     {:reply, reply, state}
   end
@@ -629,10 +609,30 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end)
   end
 
-  defp persist_case({case_key, case_schema}, %State{} = state) do
-    %{cases: cases} = state
+  defp persist_case(case_params, %State{} = state, options) do
+    case_table = get_table(:case, state)
+    workflow_id = Keyword.fetch!(options, :workflow_id)
 
-    {:ok, %{state | cases: Map.put(cases, case_key, case_schema)}}
+    case_schema =
+      struct(
+        Schema.Case,
+        case_params
+        |> Map.from_struct()
+        |> Map.put(:id, make_id())
+        |> Map.put(:workflow_id, workflow_id)
+      )
+
+    :ets.insert(
+      case_table,
+      {
+        case_schema.id,
+        case_schema,
+        case_schema.state,
+        case_schema.workflow_id
+      }
+    )
+
+    {:ok, case_schema}
   end
 
   defp find_workflow(workflow_id, %State{} = state) do
@@ -662,6 +662,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     |> case do
       [transition] -> {:ok, transition}
       _ -> {:error, :transition_not_found}
+    end
+  end
+
+  defp find_case(case_id, %State{} = state) do
+    :case
+    |> get_table(state)
+    |> :ets.select([{{case_id, :"$1", :_, :_}, [], [:"$1"]}])
+    |> case do
+      [case_schema] -> {:ok, case_schema}
+      _ -> {:error, :case_not_found}
     end
   end
 

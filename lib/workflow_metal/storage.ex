@@ -15,6 +15,7 @@ defmodule WorkflowMetal.Storage do
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
@@ -133,26 +134,25 @@ defmodule WorkflowMetal.Storage do
   ## Case
 
   @doc false
-  @spec create_case(application, case_schema) ::
+  @spec create_case(application, case_params) ::
           WorkflowMetal.Storage.Adapter.on_create_case()
-  def create_case(application, case_schema) do
+  def create_case(application, case_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.create_case(
       adapter_meta,
-      case_schema
+      case_params
     )
   end
 
   @doc false
-  @spec fetch_case(application, workflow_id, case_id) ::
+  @spec fetch_case(application, case_id) ::
           WorkflowMetal.Storage.Adapter.on_fetch_case()
-  def fetch_case(application, workflow_id, case_id) do
+  def fetch_case(application, case_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.fetch_case(
       adapter_meta,
-      workflow_id,
       case_id
     )
   end

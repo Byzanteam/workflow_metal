@@ -20,6 +20,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
@@ -51,13 +52,10 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :place_not_found}
 
   @type on_create_case ::
-          :ok
-          | {:error, :workflow_not_found}
-          | {:error, :duplicate_case}
-          | {:error, error}
-  @type on_fetch_case ::
           {:ok, case_schema}
           | {:error, :workflow_not_found}
+  @type on_fetch_case ::
+          {:ok, case_schema}
           | {:error, :case_not_found}
           | {:error, error}
 
@@ -144,7 +142,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback create_case(
               adapter_meta,
-              case_schema
+              case_params
             ) :: on_create_case
 
   @doc """
@@ -152,7 +150,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback fetch_case(
               adapter_meta,
-              workflow_id,
               case_id
             ) :: on_fetch_case
 
