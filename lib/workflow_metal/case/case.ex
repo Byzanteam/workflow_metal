@@ -174,6 +174,29 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, %{state | free_token_ids: MapSet.put(free_token_ids, token_id)}}
   end
 
+  defp fetch_or_create_task(%__MODULE__{} = state, transition) do
+    %{
+      application: application,
+      workflow_id: workflow_id,
+      case_id: case_id
+    } = state
+    %{id: transition_id} = transition
+
+    case WorkflowMetal.Storage.fetch_task(application, workflow_id, case_id, transition_id) do
+      {:ok, task} ->
+        {:ok, task}
+      {:error, _} ->
+        task_params = %Schema.Task.Params{
+          workflow_id: workflow_id,
+          case_id: case_id,
+          transition_id: transition_id,
+          state: :created
+        }
+
+        {:ok, _} = WorkflowMetal.Storage.create_task(application, task_params)
+    end
+  end
+
   defp offer_tokens(%__MODULE__{} = state) do
     %{token_table: token_table} = state
 
@@ -192,26 +215,22 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   defp do_offer_token(%__MODULE__{} = state, {place_id, token_id}) do
-    %{
-      application: application,
-      workflow_id: workflow_id,
-      case_id: case_id
-    } = state
+    %{application: application} = state
 
     state
     |> workflow_server()
     |> WorkflowMetal.Workflow.Workflow.fetch_transitions(place_id, :out)
-    |> Enum.each(fn transition ->
+    |> Stream.map(fn transition -> fetch_or_create_task(state, transition) end)
+    |> Stream.each(fn task ->
       {:ok, task_server} =
         WorkflowMetal.Task.Supervisor.open_task(
           application,
-          workflow_id,
-          case_id,
-          transition.id
+          task
         )
 
       WorkflowMetal.Task.Task.offer_token(task_server, place_id, token_id)
     end)
+    |> Stream.run()
   end
 
   @state_position 1
