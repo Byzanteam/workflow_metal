@@ -13,6 +13,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
+  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
@@ -42,6 +46,20 @@ defmodule WorkflowMetal.Storage.Adapter do
           {:ok, case_schema}
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
+          | {:error, error}
+
+  @type on_create_task ::
+          {:ok, task_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, :transition_not_found}
+          | {:error, :duplicate_task}
+          | {:error, error}
+  @type on_fetch_task ::
+          {:ok, task_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, :transition_not_found}
           | {:error, error}
 
   @type on_create_token ::
@@ -113,6 +131,24 @@ defmodule WorkflowMetal.Storage.Adapter do
               workflow_id,
               case_id
             ) :: on_fetch_case
+
+  @doc """
+  Create a task.
+  """
+  @callback create_task(
+              adapter_meta,
+              task_params
+            ) :: on_create_task
+
+  @doc """
+  Retrive a task.
+  """
+  @callback fetch_task(
+              adapter_meta,
+              workflow_id,
+              case_id,
+              transition_id
+            ) :: on_fetch_task
 
   # Token
   @doc """
