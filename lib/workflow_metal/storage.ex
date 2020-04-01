@@ -10,6 +10,10 @@ defmodule WorkflowMetal.Storage do
 
   @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
 
+  @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
+  @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
+  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
@@ -85,6 +89,44 @@ defmodule WorkflowMetal.Storage do
     adapter.delete_workflow(
       adapter_meta,
       workflow_id
+    )
+  end
+
+  @doc false
+  @spec fetch_arcs(application, workflow_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_arcs()
+  def fetch_arcs(application, workflow_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_arcs(
+      adapter_meta,
+      workflow_id
+    )
+  end
+
+  @doc false
+  @spec fetch_places(application, transition_id, arc_direction) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_places()
+  def fetch_places(application, transition_id, arc_direction) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_places(
+      adapter_meta,
+      transition_id,
+      arc_direction
+    )
+  end
+
+  @doc false
+  @spec fetch_transitions(application, place_id, arc_direction) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_transitions()
+  def fetch_transitions(application, place_id, arc_direction) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_transitions(
+      adapter_meta,
+      place_id,
+      arc_direction
     )
   end
 

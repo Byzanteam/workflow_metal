@@ -11,6 +11,14 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
+  @type arc_schema :: WorkflowMetal.Storage.Schema.Arc.t()
+  @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
+  @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
+
+  @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
+  @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
+  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
@@ -31,6 +39,16 @@ defmodule WorkflowMetal.Storage.Adapter do
           {:ok, workflow_schema}
           | {:error, :workflow_not_found}
   @type on_delete_workflow :: :ok
+
+  @type on_fetch_arcs ::
+          {:ok, [arc_schema]}
+          | {:error, :workflow_not_found}
+  @type on_fetch_places ::
+          {:ok, [place_schema]}
+          | {:error, :transition_not_found}
+  @type on_fetch_transitions ::
+          {:ok, [transition_schema]}
+          | {:error, :place_not_found}
 
   @type on_create_case ::
           :ok
@@ -82,7 +100,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @doc """
   Retrive a workflow.
   """
-  # TODO: 用 retrieve_workflow？
   @callback fetch_workflow(
               adapter_meta,
               workflow_id
@@ -95,6 +112,32 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               workflow_id
             ) :: on_delete_workflow
+
+  @doc """
+  Retrive arcs of a workflow.
+  """
+  @callback fetch_arcs(
+              adapter_meta,
+              workflow_id
+            ) :: on_fetch_arcs
+
+  @doc """
+  Retrive in/out places of a transition.
+  """
+  @callback fetch_places(
+              adapter_meta,
+              transition_id,
+              arc_direction
+            ) :: on_fetch_places
+
+  @doc """
+  Retrive in/out transitions of a place.
+  """
+  @callback fetch_transitions(
+              adapter_meta,
+              place_id,
+              arc_direction
+            ) :: on_fetch_transitions
 
   @doc """
   Create a case.

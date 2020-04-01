@@ -100,6 +100,27 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_arcs(adapter_meta, workflow_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_arcs, workflow_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_places(adapter_meta, transition_id, arc_direction) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_places, transition_id, arc_direction})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_transitions(adapter_meta, place_id, arc_direction) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_transitions, place_id, arc_direction})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def create_case(adapter_meta, case_schema) do
     storage = storage_name(adapter_meta)
     %{workflow_id: workflow_id, id: case_id} = case_schema
@@ -177,6 +198,76 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         |> :ets.delete(workflow_schema.id)
 
         :ok
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_arcs, workflow_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
+        :arc
+        |> get_table(state)
+        |> :ets.select([{{:_, :"$1", {workflow_schema.id, :_, :_, :_}}, [], [:"$1"]}])
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_places, transition_id, arc_direction},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, transition_schema} <- find_transition(transition_id, state)) do
+        direction = reversed_arc_direction(arc_direction)
+
+        :arc
+        |> get_table(state)
+        |> :ets.select([
+          {
+            {:_, :_, {transition_schema.workflow_id, :"$1", transition_schema.id, direction}},
+            [],
+            [:"$1"]
+          }
+        ])
+        |> Enum.reduce({:ok, []}, fn place_id, {:ok, places} ->
+          {:ok, place_schema} = find_place(place_id, state)
+          {:ok, [place_schema | places]}
+        end)
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_transitions, place_id, arc_direction},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, place_schema} <- find_place(place_id, state)) do
+        :arc
+        |> get_table(state)
+        |> :ets.select([
+          {
+            {:_, :_, {place_schema.workflow_id, place_schema.id, :"$1", arc_direction}},
+            [],
+            [:"$1"]
+          }
+        ])
+        |> Enum.reduce({:ok, []}, fn transition_id, {:ok, transitions} ->
+          {:ok, transition_schema} = find_transition(transition_id, state)
+          {:ok, [transition_schema | transitions]}
+        end)
       end
 
     {:reply, reply, state}
@@ -503,7 +594,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       {
         arc_schema.id,
         arc_schema,
-        {arc_schema.place_id, arc_schema.transition_id, arc_schema.direction}
+        {
+          arc_schema.workflow_id,
+          arc_schema.place_id,
+          arc_schema.transition_id,
+          arc_schema.direction
+        }
       }
     )
 
@@ -539,6 +635,26 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
+  defp find_place(place_id, %State{} = state) do
+    :place
+    |> get_table(state)
+    |> :ets.select([{{place_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [place] -> {:ok, place}
+      _ -> {:error, :place_not_found}
+    end
+  end
+
+  defp find_transition(transition_id, %State{} = state) do
+    :transition
+    |> get_table(state)
+    |> :ets.select([{{transition_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [transition] -> {:ok, transition}
+      _ -> {:error, :transition_not_found}
+    end
+  end
+
   defp get_table(table_type, %State{} = state) do
     table_name = String.to_existing_atom("#{table_type}_table")
     Map.fetch!(state, table_name)
@@ -548,4 +664,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     do: Map.get(adapter_meta, :name)
 
   defp make_id, do: :erlang.unique_integer()
+
+  defp reversed_arc_direction(:in), do: :out
+  defp reversed_arc_direction(:out), do: :in
 end
