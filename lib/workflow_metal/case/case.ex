@@ -42,6 +42,7 @@ defmodule WorkflowMetal.Case.Case do
   """
   @spec lock_tokens(GenServer.server(), [token_id], task_id) :: :ok | {:error, :failed}
   def lock_tokens(_case_server, [], _task_id), do: {:ok, []}
+
   def lock_tokens(case_server, [_ | _] = token_ids, task_id) when is_list(token_ids) do
     GenServer.call(case_server, {:lock_tokens, token_ids, task_id})
   end
@@ -123,8 +124,7 @@ defmodule WorkflowMetal.Case.Case do
 
     case WorkflowMetal.Storage.fetch_tokens(application, workflow_id, case_id, [:free]) do
       {:ok, tokens} ->
-        free_token_ids =
-          Enum.map(tokens, &upsert_token(token_table, &1))
+        free_token_ids = Enum.map(tokens, &upsert_token(token_table, &1))
 
         {:ok, %{state | free_token_ids: MapSet.new(free_token_ids)}}
 
@@ -222,7 +222,14 @@ defmodule WorkflowMetal.Case.Case do
     ms_token_ids = MapSet.new(token_ids)
 
     if MapSet.subset?(ms_token_ids, free_token_ids) do
-      Enum.each(token_ids, &:ets.update_element(token_table, &1, [{@state_position, :locked}, {@locked_task_id_position, task_id}]))
+      Enum.each(
+        token_ids,
+        &:ets.update_element(token_table, &1, [
+          {@state_position, :locked},
+          {@locked_task_id_position, task_id}
+        ])
+      )
+
       free_token_ids = MapSet.difference(free_token_ids, token_ids)
       {:ok, %{state | free_token_ids: free_token_ids}}
     else
