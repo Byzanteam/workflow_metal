@@ -3,20 +3,25 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   Present a transition.
   """
 
-  @enforce_keys [:id, :workflow_id]
+  alias WorkflowMetal.Storage.Schema
+
+  @enforce_keys [:id, :workflow_id, :join_type, :split_type, :executer]
   defstruct [
     :id,
     :workflow_id,
     :join_type,
     :split_type,
     :executer,
-    executer_params: %{}
+    :executer_params
   ]
 
   @type id :: term()
-  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type join_type :: :none | :and
   @type split_type :: :none | :and
+  @type executer :: module()
+  @type executer_params :: term()
+
+  @type workflow_id :: Schema.Workflow.id()
 
   @type t() :: %__MODULE__{
           id: id,
@@ -26,4 +31,26 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
           executer: module(),
           executer_params: map()
         }
+
+  defmodule Params do
+    @moduledoc false
+
+    @enforce_keys [:workflow_id, :executer]
+    defstruct [
+      :workflow_id,
+      :executer,
+      :executer_params,
+      join_type: :none,
+      split_type: :none
+    ]
+
+    @type t() :: %__MODULE__{
+            id: id,
+            workflow_id: Transition.workflow_id(),
+            join_type: Transition.join_type(),
+            split_type: Transition.split_type(),
+            executer: Transition.executer(),
+            executer_params: Transition.executer_params()
+          }
+  end
 end
