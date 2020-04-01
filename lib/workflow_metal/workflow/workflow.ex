@@ -94,10 +94,10 @@ defmodule WorkflowMetal.Workflow.Workflow do
   @doc """
   Retrieve arcs of a transition
   """
-  @spec fetch_arcs(GenServer.server(), transition_id, arc_direction) ::
-          {:ok, [arc_schema]} | {:error, term()}
-  def fetch_arcs(workflow_server, transition_id, direction) do
-    GenServer.call(workflow_server, {:fetch_arcs, transition_id, direction})
+  @spec fetch_arcs_with_places(GenServer.server(), transition_id, arc_direction) ::
+          {:ok, [{arc_schema, place_schema}]} | {:error, term()}
+  def fetch_arcs_with_places(workflow_server, transition_id, direction) do
+    GenServer.call(workflow_server, {:fetch_arcs_with_places, transition_id, direction})
   end
 
   # Server (callbacks)
@@ -182,18 +182,14 @@ defmodule WorkflowMetal.Workflow.Workflow do
   @impl true
   def handle_call({:fetch_places, transition_id, direction}, _from, %__MODULE__{} = state)
       when direction in @arc_directions do
-    reversed_direction =
-      case direction do
-        :in -> :out
-        :out -> :in
-      end
+    direction = reversed_direction(direction)
 
     %{arc_table: arc_table} = state
 
     places =
       :ets.select(
         arc_table,
-        [{{{:_, transition_id, reversed_direction}, :"$1", :_, :_}, [], [:"$1"]}]
+        [{{{:_, transition_id, direction}, :"$1", :_, :_}, [], [:"$1"]}]
       )
 
     {:reply, {:ok, places}, state}
@@ -224,14 +220,19 @@ defmodule WorkflowMetal.Workflow.Workflow do
   end
 
   @impl true
-  def handle_call({:fetch_arcs, transition_id, direction}, _from, %__MODULE__{} = state)
+  def handle_call(
+        {:fetch_arcs_with_places, transition_id, direction},
+        _from,
+        %__MODULE__{} = state
+      )
       when direction in @arc_directions do
     %{arc_table: arc_table} = state
+    direction = reversed_direction(direction)
 
     arcs =
       :ets.select(
         arc_table,
-        [{{{:_, transition_id, direction}, :_, :_, :"$1"}, [], [:"$1"]}]
+        [{{{:_, transition_id, direction}, :"$1", :_, :"$2"}, [], [{:"$2", :"$1"}]}]
       )
 
     {:reply, {:ok, arcs}, state}
@@ -296,4 +297,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
 
     {:ok, state}
   end
+
+  defp reversed_direction(:in), do: :out
+  defp reversed_direction(:out), do: :in
 end
