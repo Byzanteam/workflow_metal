@@ -17,7 +17,7 @@ defmodule WorkflowMetal.Case.Case do
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type task_id :: WorkflowMetal.Task.Task.task_id()
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
 
   alias WorkflowMetal.Storage.Schema

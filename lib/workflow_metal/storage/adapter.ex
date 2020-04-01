@@ -18,6 +18,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_states :: nonempty_list(token_state)
 
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
+  @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+
   @type error :: term()
 
   @type on_create_workflow ::
@@ -50,6 +53,17 @@ defmodule WorkflowMetal.Storage.Adapter do
           {:ok, list(token_schema)}
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
+          | {:error, error}
+
+  @type on_create_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, :task_not_found}
+          | {:error, error}
+  @type on_update_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workitem_not_found}
           | {:error, error}
 
   @doc """
@@ -118,4 +132,20 @@ defmodule WorkflowMetal.Storage.Adapter do
               case_id,
               token_states
             ) :: on_fetch_tokens
+
+  @doc """
+  Create a workitem of a task.
+  """
+  @callback create_workitem(
+              adapter_meta,
+              workitem_params
+            ) :: on_create_workitem
+
+  @doc """
+  Update a workitem of a task.
+  """
+  @callback update_workitem(
+              adapter_meta,
+              workitem_schema
+            ) :: on_update_workitem
 end

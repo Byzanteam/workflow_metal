@@ -1,6 +1,6 @@
-defmodule WorkflowMetal.Task.Supervisor do
+defmodule WorkflowMetal.Workitem.Supervisor do
   @moduledoc """
-  `DynamicSupervisor` to supervise all tasks of a workflow.
+  `DynamicSupervisor` to supervise all workitems of a workflow.
   """
 
   use DynamicSupervisor
@@ -13,6 +13,7 @@ defmodule WorkflowMetal.Task.Supervisor do
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.t()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -37,24 +38,34 @@ defmodule WorkflowMetal.Task.Supervisor do
   end
 
   @doc """
-  Open a task(`GenServer').
+  Open a workitem(`GenServer').
   """
-  @spec open_task(application, workflow_id, case_id, transition_id) ::
-          Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
-  def open_task(application, workflow_id, case_id, transition_id) do
+  @spec open_workitem(application, workflow_id, case_id, transition_id, workitem_id) ::
+          Supervisor.on_start()
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, :workitem_not_found}
+  def open_workitem(application, workflow_id, case_id, transition_id, workitem_id) do
     with(
       {:ok, _} <-
-        WorkflowMetal.Application.WorkflowsSupervisor.open_workflow(application, workflow_id),
-      {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, workflow_id, case_id)
+        WorkflowMetal.Task.Supervisor.open_task(application, workflow_id, case_id, transition_id)
     ) do
-      task_supervisor = via_name(application, workflow_id)
-      task_spec = {WorkflowMetal.Task.Task, [case_id: case_id, transition_id: transition_id]}
+      workitem_supervisor = via_name(application, workflow_id)
+
+      workitem_spec = {
+        WorkflowMetal.Workitem.Workitem,
+        [
+          case_id: case_id,
+          transition_id: transition_id,
+          workitem_id: workitem_id
+        ]
+      }
 
       Registration.start_child(
         application,
-        WorkflowMetal.Task.Task.name({workflow_id, case_id, transition_id}),
-        task_supervisor,
-        task_spec
+        WorkflowMetal.Workitem.Workitem.name({workflow_id, case_id, transition_id, workitem_id}),
+        workitem_supervisor,
+        workitem_spec
       )
     end
   end
