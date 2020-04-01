@@ -17,7 +17,7 @@ defmodule WorkflowMetal.Case.Case do
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
+  @type task_id :: WorkflowMetal.Task.Task.task_id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
 
   alias WorkflowMetal.Storage.Schema
@@ -92,7 +92,7 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl true
   def handle_continue(:offer_tokens, %__MODULE__{} = state) do
-    {:ok, state} = offer_tokens(state)
+    :ok = offer_tokens(state)
     {:noreply, state}
   end
 
@@ -186,6 +186,8 @@ defmodule WorkflowMetal.Case.Case do
     |> Enum.each(fn {place_id, token_id} ->
       do_offer_token(state, {place_id, token_id})
     end)
+
+    :ok
   end
 
   defp do_offer_token(%__MODULE__{} = state, {place_id, token_id}) do
@@ -237,9 +239,10 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
-  defp withdraw_tokens(%__MODULE__{} = _state) do
+  defp withdraw_tokens(%__MODULE__{} = state) do
     # TODO:
     # withdraw_token(transition_pid, {place_id, token_id})
+    {:ok, state}
   end
 
   defp workflow_server(%__MODULE__{} = state) do

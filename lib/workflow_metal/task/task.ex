@@ -15,6 +15,7 @@ defmodule WorkflowMetal.Task.Task do
     :workitem_table
   ]
 
+  @type task_id :: term()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
