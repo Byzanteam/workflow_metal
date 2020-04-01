@@ -49,7 +49,7 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
           | {:error, error}
-  @type on_fetch_token ::
+  @type on_fetch_tokens ::
           {:ok, list(token_schema)}
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
@@ -83,6 +83,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @doc """
   Retrive a workflow.
   """
+  # TODO: 用 retrieve_workflow？
   @callback fetch_workflow(
               adapter_meta,
               workflow_id
@@ -130,7 +131,7 @@ defmodule WorkflowMetal.Storage.Adapter do
               workflow_id,
               case_id,
               token_states
-            ) :: on_fetch_token
+            ) :: on_fetch_tokens
 
   @doc """
   Create a workitem of a task.

@@ -55,25 +55,21 @@ defmodule WorkflowMetal.Case.Supervisor do
   @spec open_case(application, workflow_id, case_id) ::
           Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
   def open_case(application, workflow_id, case_id) do
-    case WorkflowsSupervisor.open_workflow(application, workflow_id) do
-      {:ok, _} ->
-        # TODO: .has_ccase? ?
-        case WorkflowMetal.Storage.fetch_case(application, workflow_id, case_id) do
-          {:ok, _} ->
-            case_supervisor = via_name(application, workflow_id)
-            case_spec = {WorkflowMetal.Case.Case, [case_id: case_id]}
+    with(
+      {:ok, _} <- WorkflowsSupervisor.open_workflow(application, workflow_id),
+      # TODO: 提供 case_exists?
+      {:ok, _} <- WorkflowMetal.Storage.fetch_case(application, workflow_id, case_id)
+    ) do
+      case_supervisor = via_name(application, workflow_id)
+      case_spec = {WorkflowMetal.Case.Case, [case_id: case_id]}
 
-            Registration.start_child(
-              application,
-              WorkflowMetal.Case.Case.name({workflow_id, case_id}),
-              case_supervisor,
-              case_spec
-            )
-
-          error ->
-            error
-        end
-
+      Registration.start_child(
+        application,
+        WorkflowMetal.Case.Case.name({workflow_id, case_id}),
+        case_supervisor,
+        case_spec
+      )
+    else
       error ->
         error
     end
