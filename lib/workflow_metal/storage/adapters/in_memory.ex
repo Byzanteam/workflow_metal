@@ -96,7 +96,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   def delete_workflow(adapter_meta, workflow_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:delete, workflow_id})
+    GenServer.call(storage, {:delete_workflow, workflow_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -159,26 +159,27 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
-    %State{workflows: workflows} = state
-
-    reply =
-      case Map.get(workflows, workflow_id, nil) do
-        nil -> {:error, :workflow_not_found}
-        workflow_schema -> {:ok, workflow_schema}
-      end
+    reply = find_workflow(workflow_id, state)
 
     {:reply, reply, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:delete, workflow_id},
+        {:delete_workflow, workflow_id},
         _from,
         %State{} = state
       ) do
-    %State{workflows: workflows} = state
+    reply =
+      with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
+        :workflow
+        |> get_table(state)
+        |> :ets.delete(workflow_schema.id)
 
-    {:reply, :ok, %{state | workflows: Map.delete(workflows, workflow_id)}}
+        :ok
+      end
+
+    {:reply, reply, state}
   end
 
   @impl GenServer
