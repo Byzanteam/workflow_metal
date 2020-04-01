@@ -14,7 +14,6 @@ Airbase.ProjectWorkflow.start_link()
   WorkflowMetal.Storage.Adapters.InMemory.create_workflow(
     storage,
     %Schema.Workflow.Params{
-      state: :drafted,
       places: [
         %Schema.Place.Params{rid: 1, type: :start},
         %Schema.Place.Params{rid: 2, type: :normal},

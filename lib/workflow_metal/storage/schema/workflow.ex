@@ -8,11 +8,11 @@ defmodule WorkflowMetal.Storage.Schema.Workflow do
   @enforce_keys [:id, :state]
   defstruct [
     :id,
-    :state
+    state: :active
   ]
 
   @type id :: term()
-  @type state :: :drafted | :active | :discarded
+  @type state :: :active | :discarded
 
   @type t() :: %__MODULE__{
           id: id,
@@ -22,16 +22,13 @@ defmodule WorkflowMetal.Storage.Schema.Workflow do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:state]
     defstruct [
-      :state,
       places: [],
       transitions: [],
       arcs: []
     ]
 
     @type t() :: %__MODULE__{
-            state: Workflow.state(),
             places: [Schema.Place.Params.t()],
             transitions: [Schema.Transition.Params.t()],
             arcs: [Schema.Arc.Params.t()]
