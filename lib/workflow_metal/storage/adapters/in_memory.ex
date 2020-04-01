@@ -19,6 +19,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :place_table,
       :transition_table,
       :case_table,
+      :task_table,
       workflows: %{},
       cases: %{}
     ]
@@ -45,7 +46,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           place_table: :ets.new(:place_table, [:set, :private]),
           transition_table: :ets.new(:transition_table, [:set, :private]),
           arc_table: :ets.new(:arc_table, [:set, :private]),
-          case_table: :ets.new(:case_table, [:set, :private])
+          case_table: :ets.new(:case_table, [:set, :private]),
+          task_table: :ets.new(:task_table, [:set, :private]),
       }
     }
   end
@@ -137,10 +139,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_token(adapter_meta, token_params) do
+  def create_task(adapter_meta, task_params) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_token, token_params})
+    GenServer.call(storage, {:create_task, task_params})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -303,32 +305,33 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create_token, token_params},
+        {:create_task, task_params},
         _from,
         %State{} = state
       ) do
-    %State{workflows: workflows, cases: cases} = state
-
     %{
       workflow_id: workflow_id,
+      transition_id: transition_id,
       case_id: case_id
-    } = token_params
+    } = task_params
 
     reply =
       with(
-        {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
-          {:workflow, Map.get(workflows, workflow_id)},
-        {:case, case_schema} when not is_nil(case_schema) <-
-          {:case, Map.get(cases, {workflow_id, case_id})}
+        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
+        {:ok, transition_schema} <- find_transition(transition_id, state),
+        {:ok, case_schema} <- find_case(case_id, state)
       ) do
-        token_schema =
-          Schema.Token
-          |> struct(Map.from_struct(token_params))
-          # TODO: use uuid
-          |> Map.put(:id, make_ref())
+        persist_task(
+          task_params,
+          state,
+          workflow_id: workflow_schema.id,
+          transition_id: transition_schema.id,
+          case_id: case_schema.id
+        )
+      end
 
-        %{tokens: tokens} = case_schema
-        tokens = [token_schema | tokens || []]
+    {:reply, reply, state}
+  end
 
         {:ok, %{case_schema | tokens: tokens}}
       else
@@ -672,6 +675,49 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     |> case do
       [case_schema] -> {:ok, case_schema}
       _ -> {:error, :case_not_found}
+    end
+  end
+
+  defp persist_task(task_params, %State{} = state, options) do
+    task_table = get_table(:task, state)
+    workflow_id = Keyword.fetch!(options, :workflow_id)
+    transition_id = Keyword.fetch!(options, :transition_id)
+    case_id = Keyword.fetch!(options, :case_id)
+
+    task_schema =
+      struct(
+        Schema.Task,
+        task_params
+        |> Map.from_struct()
+        |> Map.put(:id, make_id())
+        |> Map.put(:workflow_id, workflow_id)
+        |> Map.put(:transition_id, transition_id)
+        |> Map.put(:case_id, case_id)
+      )
+
+    :ets.insert(
+      task_table,
+      {
+        task_schema.id,
+        task_schema,
+        {
+          task_schema.workflow_id,
+          task_schema.transition_id,
+          task_schema.case_id
+        }
+      }
+    )
+
+    {:ok, task_schema}
+  end
+
+  defp find_task(task_id, %State{} = state) do
+    :task
+    |> get_table(state)
+    |> :ets.select([{{task_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [task_schema] -> {:ok, task_schema}
+      _ -> {:error, :task_not_found}
     end
   end
 
