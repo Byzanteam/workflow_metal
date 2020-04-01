@@ -28,6 +28,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
+  @type error :: term()
   @type options :: [
           name: term(),
           case_id: case_id,
@@ -162,7 +163,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     }
   end
 
-  def handle_call({:complete, token_params}, _from, %__MODULE__{} = state) do
+  def handle_call({:complete, _token_params}, _from, %__MODULE__{} = state) do
     {:reply, {:error, :invalid_state}, state}
   end
 
@@ -175,7 +176,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     }
   end
 
-  def handle_call({:fail, error}, _from, %__MODULE__{} = state) do
+  def handle_call({:fail, _error}, _from, %__MODULE__{} = state) do
     {:reply, {:error, :invalid_state}, state}
   end
 

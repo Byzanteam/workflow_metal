@@ -27,7 +27,12 @@ defmodule WorkflowMetal.Task.Task do
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
 
-  @type options :: [name: term(), case_id: case_id, transition_id: transition_id]
+  @type error :: term()
+  @type options :: [
+          name: term(),
+          case_id: case_id,
+          transition_id: transition_id
+        ]
 
   alias WorkflowMetal.Storage.Schema
 
@@ -145,24 +150,10 @@ defmodule WorkflowMetal.Task.Task do
   @impl true
   def handle_continue(:complete_task, %__MODULE__{} = state) do
     if completed?(state) do
-      # TODO: lock token
-      # TODO: generate workitem
+      # TODO: consume token
     else
       {:noreply, state}
     end
-  end
-
-  @impl true
-  def handle_cast({:offer_token, place_id, token_id}, %__MODULE__{} = state) do
-    %{token_table: token_table} = state
-    :ets.insert(token_table, {token_id, place_id, :free})
-
-    {:noreply, state, {:continue, :fire_transition}}
-  end
-
-  @impl true
-  def handle_cast({:withdraw_token, _place_id, _token_id}, %__MODULE__{} = _state) do
-    # TODO: remove token from token_table
   end
 
   @impl true
@@ -188,7 +179,20 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
-  def handle_cast({:complete_workitem, place_id, token_params}, %__MODULE__{} = state) do
+  def handle_cast({:offer_token, place_id, token_id}, %__MODULE__{} = state) do
+    %{token_table: token_table} = state
+    :ets.insert(token_table, {token_id, place_id, :free})
+
+    {:noreply, state, {:continue, :fire_transition}}
+  end
+
+  @impl true
+  def handle_cast({:withdraw_token, _place_id, _token_id}, %__MODULE__{} = _state) do
+    # TODO: remove token from token_table
+  end
+
+  @impl true
+  def handle_cast({:complete_workitem, _place_id, _token_params}, %__MODULE__{} = state) do
     # TODO:
     # - update workitem state
     # - issue tokens
@@ -197,7 +201,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
-  def handle_cast({:fail_workitem, place_id, error}, %__MODULE__{} = state) do
+  def handle_cast({:fail_workitem, _place_id, _error}, %__MODULE__{} = state) do
     # TODO:
     # - update workitem state
     # - issue tokens
@@ -231,6 +235,10 @@ defmodule WorkflowMetal.Task.Task do
           false
       end
     end)
+  end
+
+  defp completed?(%__MODULE__{} = _state) do
+    true
   end
 
   defp workflow_server(%__MODULE__{} = state) do
