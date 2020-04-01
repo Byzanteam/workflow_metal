@@ -7,12 +7,11 @@ defmodule Airbase.ProjectWorkflow do
 end
 
 Airbase.ProjectWorkflow.start_link()
-{adapter, storage} = WorkflowMetal.Application.storage_adapter(Airbase.ProjectWorkflow)
 
 # (1) -> [1] -> (2) -> [2] -> (3)
 {:ok, workflow_schema} =
-  WorkflowMetal.Storage.Adapters.InMemory.create_workflow(
-    storage,
+  WorkflowMetal.Storage.create_workflow(
+    Airbase.ProjectWorkflow,
     %Schema.Workflow.Params{
       places: [
         %Schema.Place.Params{rid: 1, type: :start},
