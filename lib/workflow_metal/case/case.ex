@@ -17,18 +17,21 @@ defmodule WorkflowMetal.Case.Case do
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+
+  @type options :: [name: term(), case: case_schema()]
 
   alias WorkflowMetal.Storage.Schema
 
   @doc false
-  @spec start_link(workflow_identifier, case_id) :: GenServer.on_start()
+  @spec start_link(workflow_identifier, options) :: GenServer.on_start()
   def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
-    case_id = Keyword.fetch!(options, :case_id)
+    case_schema = Keyword.fetch!(options, :case)
 
-    GenServer.start_link(__MODULE__, {workflow_identifier, case_id}, name: name)
+    GenServer.start_link(__MODULE__, {workflow_identifier, case_schema}, name: name)
   end
 
   @doc false
@@ -48,29 +51,21 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl true
-  def init({{application, workflow_id}, case_id}) do
+  def init({{application, workflow_id}, case_schema}) do
     token_table = :ets.new(:token_table, [:set, :private])
 
-    case WorkflowMetal.Storage.fetch_case(application, workflow_id, case_id) do
-      {:ok, %Schema.Case{} = case_schema} ->
-        %{state: state} = case_schema
-
-        {
-          :ok,
-          %__MODULE__{
-            application: application,
-            workflow_id: workflow_id,
-            case_id: case_id,
-            state: state,
-            token_table: token_table,
-            free_token_ids: MapSet.new()
-          },
-          {:continue, :rebuild_from_storage}
-        }
-
-      {:error, _reason} = reply ->
-        reply
-    end
+    {
+      :ok,
+      %__MODULE__{
+        application: application,
+        workflow_id: workflow_id,
+        case_id: case_schema.id,
+        state: case_schema.state,
+        token_table: token_table,
+        free_token_ids: MapSet.new()
+      },
+      {:continue, :rebuild_from_storage}
+    }
   end
 
   @impl true

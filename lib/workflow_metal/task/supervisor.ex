@@ -48,7 +48,8 @@ defmodule WorkflowMetal.Task.Supervisor do
     } = task
 
     with(
-      {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, workflow_id, case_id)
+      {:ok, case_schema} <- WorkflowMetal.Storage.fetch_case(application, case_id),
+      {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, case_schema)
     ) do
       task_supervisor = via_name(application, workflow_id)
       task_spec = {WorkflowMetal.Task.Task, [task: task]}

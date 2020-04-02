@@ -46,22 +46,25 @@ defmodule WorkflowMetal.Case.Supervisor do
           Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
   def create_case(application, %Schema.Case{} = case_schema) do
     :ok = WorkflowMetal.Storage.create_case(application, case_schema)
-    open_case(application, case_schema.workflow_id, case_schema.id)
+    open_case(application, case_schema)
   end
 
   @doc """
   Open a case(`GenServer').
   """
-  @spec open_case(application, workflow_id, case_id) ::
-          Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
-  def open_case(application, workflow_id, case_id) do
+  @spec open_case(application, case_schema) ::
+          Supervisor.on_start() | {:error, :workflow_not_found}
+  def open_case(application, case_schema) when is_map(case_schema) do
+    %{
+      id: case_id,
+      workflow_id: workflow_id
+    } = case_schema
+
     with(
-      {:ok, _} <- WorkflowsSupervisor.open_workflow(application, workflow_id),
-      # TODO: 提供 case_exists?
-      {:ok, _} <- WorkflowMetal.Storage.fetch_case(application, workflow_id, case_id)
+      {:ok, _} <- WorkflowsSupervisor.open_workflow(application, workflow_id)
     ) do
       case_supervisor = via_name(application, workflow_id)
-      case_spec = {WorkflowMetal.Case.Case, [case_id: case_id]}
+      case_spec = {WorkflowMetal.Case.Case, [case: case_schema]}
 
       Registration.start_child(
         application,
@@ -69,9 +72,6 @@ defmodule WorkflowMetal.Case.Supervisor do
         case_supervisor,
         case_spec
       )
-    else
-      error ->
-        error
     end
   end
 
