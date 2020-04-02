@@ -92,7 +92,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_complete_workitem ::
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
-          | {:error, :workitem_not_available
+          | {:error, :workitem_not_available}
 
   @doc """
   Return a child spec for the storage 

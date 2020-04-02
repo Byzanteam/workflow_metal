@@ -481,7 +481,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       with(
         {:ok, workflow_schema} <- find_workflow(workflow_id, state),
         {:ok, case_schema} <- find_case(case_id, state),
-        {:ok, task} <- find_task(task_id, state)
+        {:ok, task_schema} <- find_task(task_id, state)
       ) do
         persist_workitem(
           workitem_params,
@@ -502,7 +502,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         %State{} = state
       ) do
     reply =
-      with({:ok, workitem_schema} <- find_worktem(workitem_schema.id, state)) do
+      with({:ok, workitem_schema} <- find_workitem(workitem_schema.id, state)) do
         do_complete_workitem(
           workitem_schema,
           state
@@ -884,9 +884,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   defp persist_workitem(workitem_params, %State{} = state, options) do
     workitem_table = get_table(:workitem, state)
-    workflow_id = Keyword.fetch!(options: :workflow_id)
-    case_id = Keyword.fetch!(options: :case_id)
-    task_id = Keyword.fetch!(options: :task_id)
+    workflow_id = Keyword.fetch!(options, :workflow_id)
+    case_id = Keyword.fetch!(options, :case_id)
+    task_id = Keyword.fetch!(options, :task_id)
 
     workitem_schema =
       struct(
