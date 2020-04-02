@@ -511,8 +511,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       {
         place_schema.id,
         place_schema,
-        place_schema.type,
-        place_schema.workflow_id
+        {
+          place_schema.type,
+          place_schema.workflow_id
+        }
       }
     )
 
@@ -625,8 +627,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       {
         case_schema.id,
         case_schema,
-        case_schema.state,
-        case_schema.workflow_id
+        {
+          case_schema.state,
+          case_schema.workflow_id
+        }
       }
     )
 
@@ -682,7 +686,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp find_place(place_id, %State{} = state) do
     :place
     |> get_table(state)
-    |> :ets.select([{{place_id, :"$1", :_, :_}, [], [:"$1"]}])
+    |> :ets.select([{{place_id, :"$1", :_}, [], [:"$1"]}])
     |> case do
       [place] -> {:ok, place}
       _ -> {:error, :place_not_found}
@@ -702,7 +706,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp find_case(case_id, %State{} = state) do
     :case
     |> get_table(state)
-    |> :ets.select([{{case_id, :"$1", :_, :_}, [], [:"$1"]}])
+    |> :ets.select([{{case_id, :"$1", :_}, [], [:"$1"]}])
     |> case do
       [case_schema] -> {:ok, case_schema}
       _ -> {:error, :case_not_found}
