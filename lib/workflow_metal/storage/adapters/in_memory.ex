@@ -122,6 +122,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_transition(adapter_meta, transition_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_transition, transition_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_transitions(adapter_meta, place_id, arc_direction) do
     storage = storage_name(adapter_meta)
 
@@ -274,6 +281,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           {:ok, place_schema} = find_place(place_id, state)
           {:ok, [place_schema | places]}
         end)
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_transition, transition_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, transition_schema} <- find_transition(transition_id, state)) do
+        {:ok, transition_schema}
       end
 
     {:reply, reply, state}

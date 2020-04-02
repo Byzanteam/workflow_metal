@@ -124,6 +124,18 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec fetch_transition(application, transition_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_transition()
+  def fetch_transition(application, transition_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_transition(
+      adapter_meta,
+      transition_id
+    )
+  end
+
+  @doc false
   @spec fetch_transitions(application, place_id, arc_direction) ::
           WorkflowMetal.Storage.Adapter.on_fetch_transitions()
   def fetch_transitions(application, place_id, arc_direction) do

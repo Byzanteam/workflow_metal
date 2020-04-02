@@ -50,6 +50,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_places ::
           {:ok, [place_schema]}
           | {:error, :transition_not_found}
+  @type on_fetch_transition ::
+          {:ok, transition_schema}
+          | {:error, :transition_not_found}
   @type on_fetch_transitions ::
           {:ok, [transition_schema]}
           | {:error, :place_not_found}
@@ -137,6 +140,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               transition_id,
               arc_direction
             ) :: on_fetch_places
+
+  @doc """
+  Retrive a transition of the workflow.
+  """
+  @callback fetch_transition(
+              adapter_meta,
+              transition_id
+            ) :: on_fetch_transition
 
   @doc """
   Retrive in/out transitions of a place.
