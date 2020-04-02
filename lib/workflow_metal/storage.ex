@@ -175,28 +175,14 @@ defmodule WorkflowMetal.Storage do
   ## Token
 
   @doc false
-  @spec create_token(application, token_params) ::
-          WorkflowMetal.Storage.Adapter.on_create_token()
-  def create_token(application, token_params) do
+  @spec issue_token(application, token_params) ::
+          WorkflowMetal.Storage.Adapter.on_issue_token()
+  def issue_token(application, token_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_token(
+    adapter.issue_token(
       adapter_meta,
       token_params
-    )
-  end
-
-  @doc false
-  @spec fetch_tokens(application, workflow_id, case_id, token_states) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_tokens()
-  def fetch_tokens(application, workflow_id, case_id, token_states) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.fetch_tokens(
-      adapter_meta,
-      workflow_id,
-      case_id,
-      token_states
     )
   end
 

@@ -20,6 +20,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :transition_table,
       :case_table,
       :task_table,
+      :token_table,
       workflows: %{},
       cases: %{}
     ]
@@ -48,6 +49,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           arc_table: :ets.new(:arc_table, [:set, :private]),
           case_table: :ets.new(:case_table, [:set, :private]),
           task_table: :ets.new(:task_table, [:set, :private]),
+          token_table: :ets.new(:token_table, [:set, :private])
       }
     }
   end
@@ -145,11 +147,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:create_task, task_params})
   end
 
+  # TODO: issue genesis token
   @impl WorkflowMetal.Storage.Adapter
-  def fetch_tokens(adapter_meta, workflow_id, case_id, token_states) do
+  def issue_token(adapter_meta, token_params) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:fetch_tokens, workflow_id, case_id, token_states})
+    GenServer.call(storage, {:issue_token, token_params})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -284,11 +287,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       ) do
     %{workflow_id: workflow_id} = case_params
 
-        reply =
-    with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
-      persist_case(case_params, state, workflow_id: workflow_schema.id)
-    end
-        {:reply, reply, state}
+    reply =
+      with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
+        persist_case(case_params, state, workflow_id: workflow_schema.id)
+      end
+
+    {:reply, reply, state}
   end
 
   @impl GenServer
@@ -297,7 +301,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
-
     reply = find_case(case_id, state)
 
     {:reply, reply, state}
@@ -333,48 +336,40 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:reply, reply, state}
   end
 
-        {:ok, %{case_schema | tokens: tokens}}
-      else
-        {:workflow, nil} -> {:error, :workflow_not_found}
-        {:case, nil} -> {:error, :case_not_found}
-      end
-
-    {:reply, reply, state}
-  end
-
   @impl GenServer
   def handle_call(
-        {:fetch_tokens, workflow_id, case_id, token_states},
+        {:issue_token, token_params},
         _from,
         %State{} = state
       ) do
-    %State{workflows: workflows, cases: cases} = state
+    %{
+      workflow_id: workflow_id,
+      case_id: case_id,
+      place_id: place_id,
+      produced_by_task_id: produced_by_task_id
+    } = token_params
 
     reply =
       with(
-        {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
-          {:workflow, Map.get(workflows, workflow_id)},
-        {:case, case_schema} when not is_nil(case_schema) <-
-          {:case, Map.get(cases, {workflow_id, case_id})}
+        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
+        {:ok, case_schema} <- find_case(case_id, state),
+        {:ok, place_schema} <- find_place(place_id, state),
+        {:ok, produced_by_task} <- find_task(produced_by_task_id, state)
       ) do
-        case {token_states, case_schema} do
-          {:all, %{tokens: tokens}} ->
-            {:ok, List.wrap(tokens)}
-
-          {token_states, %{tokens: [_ | _] = tokens}} ->
-            filter_func = fn token ->
-              Enum.member?(token_states, token.state)
-            end
-
-            {:ok, Enum.filter(tokens, filter_func)}
-
-          _ ->
-            # match on tokens is `nil`
-            {:ok, []}
-        end
+        persist_token(
+          token_params,
+          state,
+          workflow_id: workflow_schema.id,
+          case_id: case_schema.id,
+          place_id: place_schema.id,
+          produced_by_task_id: produced_by_task.id
+        )
       else
-        {:workflow, nil} -> {:error, :workflow_not_found}
-        {:case, nil} -> {:error, :case_not_found}
+        {:error, :task_not_found} ->
+          {:error, :produced_by_task_not_found}
+
+        reply ->
+          reply
       end
 
     {:reply, reply, state}
@@ -636,6 +631,42 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     )
 
     {:ok, case_schema}
+  end
+
+  defp persist_token(token_params, %State{} = state, options) do
+    token_table = get_table(:token, state)
+    workflow_id = Keyword.fetch!(options, :workflow_id)
+    case_id = Keyword.fetch!(options, :case_id)
+    place_id = Keyword.fetch!(options, :place_id)
+    produced_by_task_id = Keyword.fetch!(options, :produced_by_task_id)
+
+    token_schema =
+      struct(
+        Schema.Token,
+        token_params
+        |> Map.from_struct()
+        |> Map.put(:id, make_id())
+        |> Map.put(:workflow_id, workflow_id)
+        |> Map.put(:case_id, case_id)
+        |> Map.put(:place_id, place_id)
+        |> Map.put(:produced_by_task_id, produced_by_task_id)
+      )
+
+    :ets.insert(
+      token_table,
+      {
+        token_schema.id,
+        token_schema,
+        {
+          token_schema.workflow_id,
+          token_schema.case_id,
+          token_schema.place_id,
+          token_schema.produced_by_task_id
+        }
+      }
+    )
+
+    {:ok, token_schema}
   end
 
   defp find_workflow(workflow_id, %State{} = state) do
