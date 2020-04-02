@@ -9,6 +9,7 @@ defmodule WorkflowMetal.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       build_per_environment: is_nil(System.get_env("GITHUB_ACTIONS")),
+      elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
@@ -31,6 +32,9 @@ defmodule WorkflowMetal.MixProject do
       {:doctor, "~> 0.11.0", only: [:dev]}
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp aliases do
     [
