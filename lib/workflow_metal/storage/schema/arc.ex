@@ -25,6 +25,8 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   ```
   """
 
+  alias WorkflowMetal.Storage.Schema
+
   @enforce_keys [:id, :workflow_id, :place_id, :transition_id, :direction]
   defstruct [
     :id,
@@ -37,11 +39,11 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
 
   @type id :: term()
   @type direction :: :in | :out
-  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
-  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
 
-  alias WorkflowMetal.Storage.Schema.Guard
+  @type workflow_id :: Schema.Workflow.id()
+  @type place_id :: Schema.Place.id()
+  @type transition_id :: Schema.Transition.id()
+  @type guard :: Schema.Guard.t()
 
   @type t() :: %__MODULE__{
           id: id,
@@ -49,6 +51,29 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
           place_id: place_id,
           transition_id: transition_id,
           direction: direction,
-          guards: [Guard.t()]
+          guards: [guard]
         }
+
+  alias __MODULE__
+
+  defmodule Params do
+    @moduledoc false
+
+    @enforce_keys [:place_rid, :transition_rid, :direction]
+    defstruct [
+      :place_rid,
+      :transition_rid,
+      :direction,
+      guards: []
+    ]
+
+    @type reference_id :: term()
+
+    @type t() :: %__MODULE__{
+            place_rid: reference_id,
+            transition_rid: reference_id,
+            direction: Arc.direction(),
+            guards: [Arc.guard()]
+          }
+  end
 end

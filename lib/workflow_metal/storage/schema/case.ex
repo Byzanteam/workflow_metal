@@ -11,22 +11,32 @@ defmodule WorkflowMetal.Storage.Schema.Case do
   defstruct [
     :id,
     :workflow_id,
-    :state,
-    tokens: [],
-    workitems: []
+    state: :created
   ]
 
   @type id :: term()
   @type state :: :created | :active | :canceled | :finished
+
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type case_schema :: WorkflowMetal.Storage.Schema.Token.t()
-  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
 
   @type t() :: %__MODULE__{
           id: id,
           workflow_id: workflow_id,
-          state: state,
-          tokens: [case_schema],
-          workitems: [workitem_schema]
+          state: state
         }
+
+  alias __MODULE__
+
+  defmodule Params do
+    @moduledoc false
+
+    @enforce_keys [:workflow_id]
+    defstruct [
+      :workflow_id
+    ]
+
+    @type t() :: %__MODULE__{
+            workflow_id: Case.workflow_id()
+          }
+  end
 end

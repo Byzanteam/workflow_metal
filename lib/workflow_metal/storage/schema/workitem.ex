@@ -27,6 +27,8 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
           state: state
         }
 
+  alias __MODULE__
+
   defmodule Params do
     @moduledoc false
 

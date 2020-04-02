@@ -3,26 +3,33 @@ defmodule WorkflowMetal.Storage.Schema.Workflow do
   Present a workflow.
   """
 
-  @enforce_keys [:id]
+  alias WorkflowMetal.Storage.Schema
+
+  @enforce_keys [:id, :state]
   defstruct [
     :id,
-    places: [],
-    transitions: [],
-    arcs: []
+    state: :active
   ]
 
-  alias WorkflowMetal.Storage.Schema.{
-    Arc,
-    Place,
-    Transition
-  }
-
   @type id :: term()
+  @type state :: :active | :discarded
 
   @type t() :: %__MODULE__{
           id: id,
-          places: [Place.t()],
-          transitions: [Transition.t()],
-          arcs: [Arc.t()]
+          state: state
         }
+
+  defmodule Params do
+    @moduledoc false
+
+    defstruct places: [],
+              transitions: [],
+              arcs: []
+
+    @type t() :: %__MODULE__{
+            places: [Schema.Place.Params.t()],
+            transitions: [Schema.Transition.Params.t()],
+            arcs: [Schema.Arc.Params.t()]
+          }
+  end
 end
