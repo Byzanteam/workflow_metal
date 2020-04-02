@@ -86,7 +86,6 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
           | {:error, :task_not_found}
-          | {:error, error}
   @type on_update_workitem ::
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}

@@ -21,6 +21,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :case_table,
       :task_table,
       :token_table,
+      :workitem_table,
       workflows: %{},
       cases: %{}
     ]
@@ -49,7 +50,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           arc_table: :ets.new(:arc_table, [:set, :private]),
           case_table: :ets.new(:case_table, [:set, :private]),
           task_table: :ets.new(:task_table, [:set, :private]),
-          token_table: :ets.new(:token_table, [:set, :private])
+          token_table: :ets.new(:token_table, [:set, :private]),
+          workitem_table: :ets.new(:workitem_table, [:set, :private])
       }
     }
   end
@@ -448,35 +450,28 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
-    %State{workflows: workflows, cases: cases} = state
-
     %{
       workflow_id: workflow_id,
-      case_id: case_id
+      case_id: case_id,
+      task_id: task_id
     } = workitem_params
 
-    with(
-      {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
-        {:workflow, Map.get(workflows, workflow_id)},
-      {:case, case_schema} when not is_nil(case_schema) <-
-        {:case, Map.get(cases, {workflow_id, case_id})}
-    ) do
-      # TODO: fetch task and put transition_id
-      workitem_schema =
-        Schema.Workitem
-        |> struct(Map.from_struct(workitem_params))
-        |> Map.put(:id, make_ref())
+    reply =
+      with(
+        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
+        {:ok, case_schema} <- find_case(case_id, state),
+        {:ok, task} <- find_task(task_id, state)
+      ) do
+        persist_workitem(
+          workitem_params,
+          state,
+          workflow_id: workflow_schema.id,
+          case_id: case_schema.id,
+          task_id: task_schema.id
+        )
+      end
 
-      %{workitems: workitems} = case_schema
-      workitems = [workitem_schema | workitems || []]
-
-      cases = Map.put(cases, {workflow_id, case_id}, %{case_schema | workitems: workitems})
-
-      {:reply, {:ok, workitem_schema}, %{state | cases: cases}}
-    else
-      {:workflow, nil} -> {:reply, {:error, :workflow_not_found}, state}
-      {:case, nil} -> {:reply, {:error, :case_not_found}, state}
-    end
+    {:reply, reply, state}
   end
 
   @impl GenServer
@@ -892,6 +887,49 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     |> case do
       [task_schema] -> {:ok, task_schema}
       _ -> {:error, :task_not_found}
+    end
+  end
+
+  defp persist_workitem(workitem_params, %State{} = state, options) do
+    workitem_table = get_table(:workitem, state)
+    workflow_id = Keyword.fetch!(options: :workflow_id)
+    case_id = Keyword.fetch!(options: :case_id)
+    task_id = Keyword.fetch!(options: :task_id)
+
+    workitem_schema =
+      struct(
+        Schema.Workitem,
+        workitem_params
+        |> Map.from_struct()
+        |> Map.put(:id, make_id())
+        |> Map.put(:workflow_id, workflow_id)
+        |> Map.put(:case_id, case_id)
+        |> Map.put(:task_id, task_id)
+      )
+
+    :ets.insert(
+      workitem_table,
+      {
+        workitem_schema.id,
+        workitem_schema,
+        {
+          workitem_schema.workflow_id,
+          workitem_schema.case_id,
+          workitem_schema.task_id
+        }
+      }
+    )
+
+    {:ok, workitem_schema}
+  end
+
+  defp find_workitem(workitem_id, %State{} = state) do
+    :workitem
+    |> get_table(state)
+    |> :ets.select([{{workitem_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [workitem_schema] -> {:ok, workitem_schema}
+      _ -> {:error, :workitem_not_found}
     end
   end
 
