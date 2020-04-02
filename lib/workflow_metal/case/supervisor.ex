@@ -13,7 +13,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
+  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
 
   alias WorkflowMetal.Application.WorkflowsSupervisor
 
@@ -42,25 +42,22 @@ defmodule WorkflowMetal.Case.Supervisor do
   @doc """
   Create a case.
   """
-  @spec create_case(application, case_schema) ::
+  @spec create_case(application, case_params) ::
           Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
-  def create_case(application, %Schema.Case{} = case_schema) do
-    :ok = WorkflowMetal.Storage.create_case(application, case_schema)
-    open_case(application, case_schema)
+  def create_case(application, %Schema.Case.Params{} = case_params) do
+    {:ok, case_schema} = WorkflowMetal.Storage.create_case(application, case_params)
+    open_case(application, case_schema.id)
   end
 
   @doc """
   Open a case(`GenServer').
   """
-  @spec open_case(application, case_schema) ::
+  @spec open_case(application, case_id) ::
           Supervisor.on_start() | {:error, :workflow_not_found}
-  def open_case(application, case_schema) when is_map(case_schema) do
-    %{
-      id: case_id,
-      workflow_id: workflow_id
-    } = case_schema
-
+  def open_case(application, case_id) do
     with(
+      {:ok, case_schema} <- WorkflowMetal.Storage.fetch_case(application, case_id),
+      %{id: case_id, workflow_id: workflow_id} = case_schema,
       {:ok, _} <- WorkflowsSupervisor.open_workflow(application, workflow_id)
     ) do
       case_supervisor = via_name(application, workflow_id)
