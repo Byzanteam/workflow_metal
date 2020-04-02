@@ -186,6 +186,19 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec fetch_tokens(application, case_id, token_states) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_tokens()
+  def fetch_tokens(application, case_id, token_states) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_tokens(
+      adapter_meta,
+      case_id,
+      token_states
+    )
+  end
+
   ## Workitem
 
   @doc false

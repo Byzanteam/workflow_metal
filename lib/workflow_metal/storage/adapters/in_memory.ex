@@ -156,6 +156,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_tokens(adapter_meta, case_id, token_states) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_tokens, case_id, token_states})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def create_workitem(adapter_meta, workitem_params) do
     storage = storage_name(adapter_meta)
 
@@ -371,6 +378,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         reply ->
           reply
       end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_tokens, case_id, token_states},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_tokens(case_id, token_states, state)
 
     {:reply, reply, state}
   end
@@ -712,6 +730,18 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     )
 
     {:ok, token_schema}
+  end
+
+  defp find_tokens(case_id, token_states, %State{} = state) do
+    tokens =
+      :token
+      |> get_table(state)
+      |> :ets.select([{{:_, :"$1", {:_, case_id, :_, :_}}, [], ["$1"]}])
+      |> Enum.filter(fn %{state: state} ->
+        Enum.member?(token_states, state)
+      end)
+
+    {:ok, tokens}
   end
 
   defp persist_task(task_params, %State{} = state, options) do

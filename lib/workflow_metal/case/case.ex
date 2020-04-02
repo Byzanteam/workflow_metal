@@ -113,12 +113,11 @@ defmodule WorkflowMetal.Case.Case do
   defp rebuild_tokens(%__MODULE__{} = state) do
     %{
       application: application,
-      workflow_id: workflow_id,
       case_id: case_id,
       token_table: token_table
     } = state
 
-    case WorkflowMetal.Storage.fetch_tokens(application, workflow_id, case_id, [:free]) do
+    case WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free]) do
       {:ok, tokens} ->
         free_token_ids = Enum.map(tokens, &upsert_token(token_table, &1))
 
@@ -163,7 +162,7 @@ defmodule WorkflowMetal.Case.Case do
       produced_by_task_id: make_ref()
     }
 
-    {:ok, token_schema} = WorkflowMetal.Storage.create_token(application, start_token_params)
+    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, start_token_params)
 
     token_id = upsert_token(token_table, token_schema)
 
