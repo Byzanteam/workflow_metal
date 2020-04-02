@@ -186,6 +186,18 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec fetch_locked_tokens(application, task_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_locked_tokens()
+  def fetch_locked_tokens(application, task_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_locked_tokens(
+      adapter_meta,
+      task_id
+    )
+  end
+
   ## Workitem
 
   @doc false

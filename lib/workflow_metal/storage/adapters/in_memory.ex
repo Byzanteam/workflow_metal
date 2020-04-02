@@ -156,6 +156,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_locked_tokens(adapter_meta, task_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_locked_tokens, task_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def create_workitem(adapter_meta, workitem_params) do
     storage = storage_name(adapter_meta)
 
@@ -380,6 +387,28 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
         reply ->
           reply
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_locked_tokens, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, task_schema} <- find_task(task_id, state)) do
+        :token
+        |> get_table(state)
+        |> :ets.select([
+          {
+            {:_, :"$1", {task_schema.workflow_id, :_, :_, :_, task_schema.id, :locked}},
+            [],
+            [:"$1"]
+          }
+        ])
       end
 
     {:reply, reply, state}
@@ -732,7 +761,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           token_schema.workflow_id,
           token_schema.case_id,
           token_schema.place_id,
-          token_schema.produced_by_task_id
+          token_schema.produced_by_task_id,
+          token_schema.locked_by_task_id,
+          token_schema.state
         }
       }
     )

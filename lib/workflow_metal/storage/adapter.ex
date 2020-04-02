@@ -72,6 +72,9 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :case_not_found}
           | {:error, :place_not_found}
           | {:error, :produced_by_task_not_found}
+  @type on_fetch_locked_tokens ::
+          {:ok, [token_schema]}
+          | {:error, :task_not_found}
 
   @type on_create_workitem ::
           {:ok, workitem_schema}
@@ -173,7 +176,15 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               token_params
             ) :: on_issue_token
+  @doc """
+  Retrive tokens locked by the task.
+  """
+  @callback fetch_locked_tokens(
+              adapter_meta,
+              task_id
+            ) :: on_fetch_locked_tokens
 
+  # Workitem
   @doc """
   Create a workitem of a task.
   """
