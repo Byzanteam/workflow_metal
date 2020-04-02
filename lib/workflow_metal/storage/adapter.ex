@@ -175,7 +175,6 @@ defmodule WorkflowMetal.Storage.Adapter do
               token_params
             ) :: on_issue_token
 
-
   @doc """
   Create a workitem of a task.
   """

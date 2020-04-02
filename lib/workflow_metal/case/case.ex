@@ -160,10 +160,11 @@ defmodule WorkflowMetal.Case.Case do
       WorkflowMetal.Workflow.Workflow.fetch_place(workflow_server, :start)
 
     start_token_params = %Schema.Token.Params{
-      state: :free,
       workflow_id: workflow_id,
       case_id: case_id,
-      place_id: start_place_id
+      place_id: start_place_id,
+      # TODO
+      produced_by_task_id: make_ref()
     }
 
     {:ok, token_schema} = WorkflowMetal.Storage.create_token(application, start_token_params)
