@@ -89,6 +89,10 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
           | {:error, :task_not_found}
+  @type on_start_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workitem_not_found}
+          | {:error, :workitem_not_available}
   @type on_complete_workitem ::
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
@@ -217,7 +221,18 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_create_workitem
 
   @doc """
-  Complete a workitem of a task.
+  Start to execute a `created` workitem of a task.
+
+  Return `{:ok, workitem_schema}` if it is already `started`.
+  """
+  @callback start_workitem(
+              adapter_meta,
+              workitem_schema
+            ) :: on_start_workitem
+
+  @doc """
+  Complete a `started` workitem of a task.
+  Return `{:ok, workitem_schema}` if it is already `completed`.
   """
   @callback complete_workitem(
               adapter_meta,

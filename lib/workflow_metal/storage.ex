@@ -241,6 +241,18 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec start_workitem(application, workitem_schema) ::
+          WorkflowMetal.Storage.Adapter.on_start_workitem()
+  def start_workitem(application, workitem_schema) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.start_workitem(
+      adapter_meta,
+      workitem_schema
+    )
+  end
+
+  @doc false
   @spec complete_workitem(application, workitem_schema) ::
           WorkflowMetal.Storage.Adapter.on_complete_workitem()
   def complete_workitem(application, workitem_schema) do
