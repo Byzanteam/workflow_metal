@@ -23,8 +23,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
-  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
@@ -72,6 +73,10 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :case_not_found}
           | {:error, :place_not_found}
           | {:error, :produced_by_task_not_found}
+  @type on_lock_token ::
+          {:ok, token_schema}
+          | {:error, :token_not_found}
+          | {:error, :token_not_available}
   @type on_fetch_locked_tokens ::
           {:ok, [token_schema]}
           | {:error, :task_not_found}
@@ -176,6 +181,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               token_params
             ) :: on_issue_token
+  @doc """
+  Lock a token.
+  """
+  @callback lock_token(
+              adapter_meta,
+              token_schema,
+              task_id
+            ) :: on_lock_token
   @doc """
   Retrive tokens locked by the task.
   """

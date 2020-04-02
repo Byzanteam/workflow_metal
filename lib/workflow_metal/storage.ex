@@ -18,10 +18,13 @@ defmodule WorkflowMetal.Storage do
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_states :: nonempty_list(token_state)
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
@@ -183,6 +186,19 @@ defmodule WorkflowMetal.Storage do
     adapter.issue_token(
       adapter_meta,
       token_params
+    )
+  end
+
+  @doc false
+  @spec lock_token(application, token_schema, task_id) ::
+          WorkflowMetal.Storage.Adapter.on_lock_token()
+  def lock_token(application, token_schema, task_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.lock_token(
+      adapter_meta,
+      token_schema,
+      task_id
     )
   end
 

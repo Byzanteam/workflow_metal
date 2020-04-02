@@ -156,6 +156,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def lock_token(adapter_meta, token_schema, task_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:lock_token, token_schema, task_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_locked_tokens(adapter_meta, task_id) do
     storage = storage_name(adapter_meta)
 
@@ -387,6 +394,27 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
         reply ->
           reply
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:lock_token, token_schema, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with(
+        {:ok, task_schema} <- find_task(task_id, state),
+        {:ok, token_schema} <- find_token(token_schema.id, state)
+      ) do
+        do_lock_token(
+          token_schema,
+          task_schema,
+          state
+        )
       end
 
     {:reply, reply, state}
@@ -769,6 +797,59 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     )
 
     {:ok, token_schema}
+  end
+
+  defp do_lock_token(
+         %{state: :locked, locked_by_task_id: task_id} = token_schema,
+         %{id: task_id},
+         _state
+       ) do
+    {:ok, token_schema}
+  end
+
+  defp do_lock_token(%{state: :free} = token_schema, task_schema, %State{} = state) do
+    token_schema = %{
+      token_schema
+      | state: :locked,
+        locked_by_task_id: task_schema.id
+    }
+
+    token_table =
+      :token
+      |> get_table(state)
+
+    :ets.update_element(
+      token_table,
+      token_schema.id,
+      [
+        {1, token_schema},
+        {2,
+         {
+           token_schema.workflow_id,
+           token_schema.case_id,
+           token_schema.place_id,
+           token_schema.produced_by_task_id,
+           token_schema.locked_by_task_id,
+           token_schema.state
+         }}
+      ]
+    )
+
+    {:ok, :token_schema}
+  end
+
+  defp do_lock_token(_token_params, _task_schema, %State{} = _state) do
+    {:error, :token_not_available}
+  end
+
+  defp find_token(token_id, %State{} = state) do
+    :token
+    |> get_table(state)
+    |> :ets.select([{{token_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [token_schema] -> {:ok, token_schema}
+      _ -> {:error, :token_not_found}
+    end
   end
 
   defp persist_task(task_params, %State{} = state, options) do
