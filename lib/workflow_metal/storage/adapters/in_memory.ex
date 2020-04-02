@@ -169,6 +169,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:update_workitem, workitem_schema})
   end
 
+  @doc """
+  Reset state.
+  """
+  def reset!(application) do
+    {_adapter, adapter_meta} = WorkflowMetal.Application.storage_adapter(application)
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, :reset!)
+  end
+
   @impl GenServer
   def handle_call(
         {:create_workflow, workflow_params},
@@ -456,6 +466,22 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       end
 
     {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(:reset!, _from, %State{} = state) do
+    state
+    |> Map.keys()
+    |> Stream.filter(fn key ->
+      key
+      |> to_string()
+      |> String.ends_with?("_table")
+    end)
+    |> Stream.map(&Map.get(state, &1))
+    |> Stream.each(&:ets.delete_all_objects/1)
+    |> Stream.run()
+
+    {:reply, :ok, state}
   end
 
   defp persist_workflow(workflow_params, %State{} = state) do

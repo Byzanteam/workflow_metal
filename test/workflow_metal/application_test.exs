@@ -1,5 +1,5 @@
 defmodule WorkflowMetal.ApplicationTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   defmodule DummyApplication do
     use WorkflowMetal.Application,
@@ -8,7 +8,6 @@ defmodule WorkflowMetal.ApplicationTest do
   end
 
   alias WorkflowMetal.Application.Config
-  alias WorkflowMetal.Storage.Schema
 
   alias DummyApplication.TestApplication
 
@@ -16,12 +15,5 @@ defmodule WorkflowMetal.ApplicationTest do
     start_supervised(DummyApplication)
 
     assert Config.get(TestApplication, :registry)
-  end
-
-  test "create workflow" do
-    start_supervised(DummyApplication)
-
-    workflow_schema = %Schema.Workflow{id: 123}
-    assert :ok = DummyApplication.create_workflow(workflow_schema)
   end
 end

@@ -50,22 +50,18 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   @spec open_workflow(application, workflow_id) ::
           Supervisor.on_start() | {:error, :workflow_not_found}
   def open_workflow(application, workflow_id) do
-    workflows_supervisor = supervisor_name(application)
-    workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow_id: workflow_id}
+    with(
+      {:ok, workflow_schema} <- WorkflowMetal.Storage.fetch_workflow(application, workflow_id)
+    ) do
+      workflows_supervisor = supervisor_name(application)
+      workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow_id: workflow_schema.id}
 
-    # FIXME: 这里是否应该让 storage 提供一个 exisiting? 的接口
-    # REPLY: 应该提供，可以命名为 workflow_exists?
-    case WorkflowMetal.Storage.fetch_workflow(application, workflow_id) do
-      {:ok, _} ->
-        Registration.start_child(
-          application,
-          WorkflowMetal.Workflow.Supervisor.name(workflow_id),
-          workflows_supervisor,
-          workflow_supervisor
-        )
-
-      error ->
-        error
+      Registration.start_child(
+        application,
+        WorkflowMetal.Workflow.Supervisor.name(workflow_schema.id),
+        workflows_supervisor,
+        workflow_supervisor
+      )
     end
   end
 
