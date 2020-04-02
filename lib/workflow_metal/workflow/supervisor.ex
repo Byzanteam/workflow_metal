@@ -7,11 +7,10 @@ defmodule WorkflowMetal.Workflow.Supervisor do
 
   @type application :: WorkflowMetal.Application.t()
 
-  @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
 
-  @type options :: [name: term, workflow: workflow]
+  @type options :: [name: term, workflow_id: workflow_id]
 
   @doc false
   @spec start_link(application, options) :: Supervisor.on_start()
