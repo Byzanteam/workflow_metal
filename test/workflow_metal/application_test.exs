@@ -17,11 +17,4 @@ defmodule WorkflowMetal.ApplicationTest do
 
     assert Config.get(TestApplication, :registry)
   end
-
-  test "create workflow" do
-    start_supervised(DummyApplication)
-
-    workflow_schema = %Schema.Workflow{id: 123}
-    assert :ok = DummyApplication.create_workflow(workflow_schema)
-  end
 end
