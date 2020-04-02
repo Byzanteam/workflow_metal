@@ -22,11 +22,9 @@ defmodule WorkflowMetal.Storage.Schema.Workflow do
   defmodule Params do
     @moduledoc false
 
-    defstruct [
-      places: [],
-      transitions: [],
-      arcs: []
-    ]
+    defstruct places: [],
+              transitions: [],
+              arcs: []
 
     @type t() :: %__MODULE__{
             places: [Schema.Place.Params.t()],
