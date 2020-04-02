@@ -40,6 +40,8 @@ defmodule WorkflowMetal.Storage.Schema.Token do
           locked_task_id: task_id
         }
 
+  alias __MODULE__
+
   defmodule Params do
     @moduledoc false
 

@@ -33,6 +33,8 @@ defmodule WorkflowMetal.Storage.Schema.Task do
           state: state
         }
 
+  alias __MODULE__
+
   defmodule Params do
     @moduledoc false
 

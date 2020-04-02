@@ -31,6 +31,8 @@ defmodule WorkflowMetal.Storage.Schema.Place do
           type: type
         }
 
+  alias __MODULE__
+
   defmodule Params do
     @moduledoc false
 

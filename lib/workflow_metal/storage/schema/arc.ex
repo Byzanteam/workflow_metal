@@ -54,6 +54,8 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
           guards: [guard]
         }
 
+  alias __MODULE__
+
   defmodule Params do
     @moduledoc false
 

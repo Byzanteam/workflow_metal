@@ -32,6 +32,8 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
           executer_params: map()
         }
 
+  alias __MODULE__
+
   defmodule Params do
     @moduledoc false
 
