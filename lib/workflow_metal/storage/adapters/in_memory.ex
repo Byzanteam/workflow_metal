@@ -101,6 +101,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def create_task(adapter_meta, task_schema) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:create_task, task_schema})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_task(adapter_meta, workflow_id, case_id, transition_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_task, workflow_id, case_id, transition_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def create_token(adapter_meta, token_params) do
     storage = storage_name(adapter_meta)
 
@@ -223,6 +237,26 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
+        {:create_task, _task_params},
+        _from,
+        %State{} = state
+      ) do
+    # TODO: implement me
+    {:reploy, {:ok, :dummy_task}, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_task, _workflow_id, _case_id, _transition_id},
+        _from,
+        %State{} = state
+      ) do
+    # TODO: implement me
+    {:reply, {:ok, :dummy_task}, state}
+  end
+
+  @impl GenServer
+  def handle_call(
         {:create_token, token_params},
         _from,
         %State{} = state
@@ -316,6 +350,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       {:case, case_schema} when not is_nil(case_schema) <-
         {:case, Map.get(cases, {workflow_id, case_id})}
     ) do
+      # TODO: fetch task and put transition_id
       workitem_schema =
         Schema.Workitem
         |> struct(Map.from_struct(workitem_params))

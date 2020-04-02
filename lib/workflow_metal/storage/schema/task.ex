@@ -23,4 +23,25 @@ defmodule WorkflowMetal.Storage.Schema.Task do
           transition_id: transition_id,
           state: state
         }
+
+  defmodule Params do
+    @moduledoc false
+
+    @enforce_keys [:state, :workflow_id, :case_id, :transition_id]
+    defstruct [
+      :workflow_id,
+      :case_id,
+      :transition_id,
+      :state
+    ]
+
+    alias WorkflowMetal.Storage.Schema.Task
+
+    @type t() :: %__MODULE__{
+            workflow_id: Task.workflow_id(),
+            case_id: Task.case_id(),
+            transition_id: Task.transition_id(),
+            state: Task.state()
+          }
+  end
 end

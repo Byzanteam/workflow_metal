@@ -10,6 +10,7 @@ defmodule WorkflowMetal.Task.Task do
     :workflow_id,
     :case_id,
     :transition_id,
+    :task_state,
     :transition,
     :token_table,
     :workitem_table
@@ -24,14 +25,14 @@ defmodule WorkflowMetal.Task.Task do
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
 
   @type error :: term()
   @type options :: [
           name: term(),
-          case_id: case_id,
-          transition_id: transition_id
+          task: task_schema()
         ]
 
   alias WorkflowMetal.Storage.Schema
@@ -40,12 +41,11 @@ defmodule WorkflowMetal.Task.Task do
   @spec start_link(workflow_identifier, options) :: GenServer.on_start()
   def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
-    case_id = Keyword.fetch!(options, :case_id)
-    transition_id = Keyword.fetch!(options, :transition_id)
+    task = Keyword.fetch!(options, :task)
 
     GenServer.start_link(
       __MODULE__,
-      {workflow_identifier, case_id, transition_id},
+      {workflow_identifier, task},
       name: name
     )
   end
@@ -107,7 +107,7 @@ defmodule WorkflowMetal.Task.Task do
   # callbacks
 
   @impl true
-  def init({{application, workflow_id}, case_id, transition_id}) do
+  def init({{application, workflow_id}, task}) do
     token_table = :ets.new(:token_table, [:set, :private])
     workitem_table = :ets.new(:workitem_table, [:set, :private])
 
@@ -116,8 +116,9 @@ defmodule WorkflowMetal.Task.Task do
       %__MODULE__{
         application: application,
         workflow_id: workflow_id,
-        case_id: case_id,
-        transition_id: transition_id,
+        case_id: task.case_id,
+        transition_id: task.transition_id,
+        task_state: task.state,
         token_table: token_table,
         workitem_table: workitem_table
       },
@@ -140,8 +141,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl true
   def handle_continue(:fire_transition, %__MODULE__{} = state) do
     if enabled?(state) do
-      # TODO: lock token
-      # TODO: generate workitem
+      {:ok, _} = generate_workitem(state)
     else
       {:noreply, state}
     end
@@ -207,6 +207,30 @@ defmodule WorkflowMetal.Task.Task do
     # - issue tokens
 
     {:noreply, state}
+  end
+
+  defp generate_workitem(%__MODULE__{} = state) do
+    %{
+      application: application,
+      workflow_id: workflow_id,
+      case_id: case_id,
+      task_id: task_id
+    } = state
+
+    workitem_params = %Schema.Workitem.Params{
+      workflow_id: workflow_id,
+      case_id: case_id,
+      task_id: task_id,
+      state: :created
+    }
+
+    {:ok, workitem_schema} = WorkflowMetal.Storage.create_workitem(application, workitem_params)
+
+    {:ok, _} =
+      WorkflowMetal.Workitem.Supervisor.open_workitem(
+        application,
+        workitem_schema
+      )
   end
 
   defp enabled?(%__MODULE__{} = state) do
