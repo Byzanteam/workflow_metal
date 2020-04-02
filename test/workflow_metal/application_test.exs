@@ -1,5 +1,5 @@
 defmodule WorkflowMetal.ApplicationTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   defmodule DummyApplication do
     use WorkflowMetal.Application,
@@ -8,7 +8,6 @@ defmodule WorkflowMetal.ApplicationTest do
   end
 
   alias WorkflowMetal.Application.Config
-  alias WorkflowMetal.Storage.Schema
 
   alias DummyApplication.TestApplication
 
