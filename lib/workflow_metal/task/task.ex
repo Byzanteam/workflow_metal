@@ -32,7 +32,7 @@ defmodule WorkflowMetal.Task.Task do
   @type error :: term()
   @type options :: [
           name: term(),
-          task: task_schema(),
+          task: task_schema()
         ]
 
   alias WorkflowMetal.Storage.Schema
@@ -217,13 +217,12 @@ defmodule WorkflowMetal.Task.Task do
       task_id: task_id
     } = state
 
-    workitem_params =
-      %Schema.Workitem.Params{
-        workflow_id: workflow_id,
-        case_id: case_id,
-        task_id: task_id,
-        state: :created
-      }
+    workitem_params = %Schema.Workitem.Params{
+      workflow_id: workflow_id,
+      case_id: case_id,
+      task_id: task_id,
+      state: :created
+    }
 
     {:ok, workitem_schema} = WorkflowMetal.Storage.create_workitem(application, workitem_params)
 

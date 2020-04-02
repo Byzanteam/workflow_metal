@@ -180,11 +180,13 @@ defmodule WorkflowMetal.Case.Case do
       workflow_id: workflow_id,
       case_id: case_id
     } = state
+
     %{id: transition_id} = transition
 
     case WorkflowMetal.Storage.fetch_task(application, workflow_id, case_id, transition_id) do
       {:ok, task} ->
         {:ok, task}
+
       {:error, _} ->
         task_params = %Schema.Task.Params{
           workflow_id: workflow_id,
