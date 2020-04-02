@@ -41,7 +41,6 @@ defmodule WorkflowMetal.Task.Supervisor do
   @spec open_task(application, task_id) ::
           Supervisor.on_start() | {:error, :case_not_found} | {:error, :task_not_found}
   def open_task(application, task_id) do
-
     with(
       {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
       %{

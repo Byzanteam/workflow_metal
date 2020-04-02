@@ -12,12 +12,14 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @type arc_schema :: WorkflowMetal.Storage.Schema.Arc.t()
-  @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
-  @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
-
   @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
+
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
+  @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
+  @type special_place_type :: WorkflowMetal.Storage.Schema.Place.special_type()
+
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+  @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
@@ -48,6 +50,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_arcs ::
           {:ok, [arc_schema]}
           | {:error, :workflow_not_found}
+  @type on_fetch_place ::
+          {:ok, place_schema}
+          | {:error, :place_not_found}
   @type on_fetch_places ::
           {:ok, [place_schema]}
           | {:error, :transition_not_found}
@@ -141,6 +146,15 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               workflow_id
             ) :: on_fetch_arcs
+
+  @doc """
+  Retrive in/out places of a transition.
+  """
+  @callback fetch_special_place(
+              adapter_meta,
+              workflow_id,
+              special_place_type
+            ) :: on_fetch_place
 
   @doc """
   Retrive in/out places of a transition.

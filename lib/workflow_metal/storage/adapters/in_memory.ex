@@ -122,6 +122,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_special_place(adapter_meta, workflow_id, place_type) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_place, workflow_id, place_type})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_transition(adapter_meta, transition_id) do
     storage = storage_name(adapter_meta)
 
@@ -310,6 +317,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           {:ok, [place_schema | places]}
         end)
       end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_place, workflow_id, place_type},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_place_by_type(workflow_id, place_type, state)
 
     {:reply, reply, state}
   end
@@ -684,6 +702,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     :place
     |> get_table(state)
     |> :ets.select([{{place_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [place] -> {:ok, place}
+      _ -> {:error, :place_not_found}
+    end
+  end
+
+  defp find_place_by_type(workflow_id, place_type, %State{} = state) do
+    :place
+    |> get_table(state)
+    |> :ets.select([{{:_, :"$1", {place_type, workflow_id}}, [], [:"$1"]}])
     |> case do
       [place] -> {:ok, place}
       _ -> {:error, :place_not_found}

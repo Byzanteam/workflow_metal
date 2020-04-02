@@ -12,6 +12,7 @@ defmodule WorkflowMetal.Storage do
 
   @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
+  @type special_place_type :: WorkflowMetal.Storage.Schema.Place.special_type()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
@@ -124,6 +125,19 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec fetch_special_place(application, workflow_id, special_place_type) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_place()
+  def fetch_special_place(application, workflow_id, place_type) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_special_place(
+      adapter_meta,
+      workflow_id,
+      place_type
+    )
+  end
+
+  @doc false
   @spec fetch_transition(application, transition_id) ::
           WorkflowMetal.Storage.Adapter.on_fetch_transition()
   def fetch_transition(application, transition_id) do
@@ -198,6 +212,7 @@ defmodule WorkflowMetal.Storage do
       task_id
     )
   end
+
   @spec fetch_task(application, case_id, transition_id) ::
           WorkflowMetal.Storage.Adapter.on_fetch_task()
   def fetch_task(application, case_id, transition_id) do

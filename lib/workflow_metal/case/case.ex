@@ -149,10 +149,8 @@ defmodule WorkflowMetal.Case.Case do
       free_token_ids: free_token_ids
     } = state
 
-    workflow_server = workflow_server(state)
-
     {:ok, %{id: start_place_id}} =
-      WorkflowMetal.Workflow.Workflow.fetch_place(workflow_server, :start)
+      WorkflowMetal.Storage.fetch_special_place(application, workflow_id, :start)
 
     start_token_params = %Schema.Token.Params{
       workflow_id: workflow_id,
@@ -214,9 +212,8 @@ defmodule WorkflowMetal.Case.Case do
   defp do_offer_token(%__MODULE__{} = state, {place_id, token_id}) do
     %{application: application} = state
 
-    state
-    |> workflow_server()
-    |> WorkflowMetal.Workflow.Workflow.fetch_transitions(place_id, :out)
+    application
+    |> WorkflowMetal.Storage.fetch_transitions(place_id, :out)
     |> Stream.map(fn transition -> fetch_or_create_task(state, transition) end)
     |> Stream.each(fn task ->
       {:ok, task_server} =
@@ -260,11 +257,5 @@ defmodule WorkflowMetal.Case.Case do
     # TODO:
     # withdraw_token(transition_pid, {place_id, token_id})
     {:ok, state}
-  end
-
-  defp workflow_server(%__MODULE__{} = state) do
-    %{application: application, workflow_id: workflow_id} = state
-
-    WorkflowMetal.Workflow.Workflow.via_name(application, workflow_id)
   end
 end
