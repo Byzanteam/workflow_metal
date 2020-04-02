@@ -493,6 +493,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, workflow_schema}
   end
 
+  defp find_workflow(workflow_id, %State{} = state) do
+    :workflow
+    |> get_table(state)
+    |> :ets.select([{{workflow_id, :"$1"}, [], [:"$1"]}])
+    |> case do
+      [workflow] -> {:ok, workflow}
+      _ -> {:error, :workflow_not_found}
+    end
+  end
+
   defp persist_place(place_params, %State{} = state, options) do
     place_table = get_table(:place, state)
     workflow_id = Keyword.fetch!(options, :workflow_id)
@@ -519,6 +529,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     )
 
     {:ok, place_schema}
+  end
+
+  defp find_place(place_id, %State{} = state) do
+    :place
+    |> get_table(state)
+    |> :ets.select([{{place_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [place] -> {:ok, place}
+      _ -> {:error, :place_not_found}
+    end
   end
 
   defp persist_places(places_params, %State{} = state, options) do
@@ -552,6 +572,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     )
 
     {:ok, transition_schema}
+  end
+
+  defp find_transition(transition_id, %State{} = state) do
+    :transition
+    |> get_table(state)
+    |> :ets.select([{{transition_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [transition] -> {:ok, transition}
+      _ -> {:error, :transition_not_found}
+    end
   end
 
   defp persist_transitions(transitions_params, %State{} = state, options) do
@@ -637,6 +667,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, case_schema}
   end
 
+  defp find_case(case_id, %State{} = state) do
+    :case
+    |> get_table(state)
+    |> :ets.select([{{case_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [case_schema] -> {:ok, case_schema}
+      _ -> {:error, :case_not_found}
+    end
+  end
+
   defp persist_token(token_params, %State{} = state, options) do
     token_table = get_table(:token, state)
     workflow_id = Keyword.fetch!(options, :workflow_id)
@@ -671,46 +711,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     )
 
     {:ok, token_schema}
-  end
-
-  defp find_workflow(workflow_id, %State{} = state) do
-    :workflow
-    |> get_table(state)
-    |> :ets.select([{{workflow_id, :"$1"}, [], [:"$1"]}])
-    |> case do
-      [workflow] -> {:ok, workflow}
-      _ -> {:error, :workflow_not_found}
-    end
-  end
-
-  defp find_place(place_id, %State{} = state) do
-    :place
-    |> get_table(state)
-    |> :ets.select([{{place_id, :"$1", :_}, [], [:"$1"]}])
-    |> case do
-      [place] -> {:ok, place}
-      _ -> {:error, :place_not_found}
-    end
-  end
-
-  defp find_transition(transition_id, %State{} = state) do
-    :transition
-    |> get_table(state)
-    |> :ets.select([{{transition_id, :"$1", :_}, [], [:"$1"]}])
-    |> case do
-      [transition] -> {:ok, transition}
-      _ -> {:error, :transition_not_found}
-    end
-  end
-
-  defp find_case(case_id, %State{} = state) do
-    :case
-    |> get_table(state)
-    |> :ets.select([{{case_id, :"$1", :_}, [], [:"$1"]}])
-    |> case do
-      [case_schema] -> {:ok, case_schema}
-      _ -> {:error, :case_not_found}
-    end
   end
 
   defp persist_task(task_params, %State{} = state, options) do
