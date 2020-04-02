@@ -8,11 +8,8 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   alias WorkflowMetal.Registration
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
-  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
-  @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
 
   @doc false
