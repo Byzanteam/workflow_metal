@@ -147,6 +147,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:create_task, task_params})
   end
 
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_task(adapter_meta, task_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_task, task_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_task(adapter_meta, case_id, transition_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_task, case_id, transition_id})
+  end
+
   # TODO: issue genesis token
   @impl WorkflowMetal.Storage.Adapter
   def issue_token(adapter_meta, token_params) do
@@ -339,6 +353,28 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           case_id: case_schema.id
         )
       end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_task, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_task(task_id, state)
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_task, case_id, transition_id},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_task_by(case_id, transition_id, state)
 
     {:reply, reply, state}
   end
@@ -781,6 +817,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     :task
     |> get_table(state)
     |> :ets.select([{{task_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [task_schema] -> {:ok, task_schema}
+      _ -> {:error, :task_not_found}
+    end
+  end
+
+  defp find_task_by(case_id, transition_id, %State{} = state) do
+    :task
+    |> get_table(state)
+    |> :ets.select([{{:_, :"$1", {:_, transition_id, case_id}}, [], [:"$1"]}])
     |> case do
       [task_schema] -> {:ok, task_schema}
       _ -> {:error, :task_not_found}

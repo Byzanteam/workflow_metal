@@ -178,7 +178,7 @@ defmodule WorkflowMetal.Case.Case do
 
     %{id: transition_id} = transition
 
-    case WorkflowMetal.Storage.fetch_task(application, workflow_id, case_id, transition_id) do
+    case WorkflowMetal.Storage.fetch_task(application, case_id, transition_id) do
       {:ok, task} ->
         {:ok, task}
 
@@ -186,8 +186,8 @@ defmodule WorkflowMetal.Case.Case do
         task_params = %Schema.Task.Params{
           workflow_id: workflow_id,
           case_id: case_id,
-          transition_id: transition_id
-          # state: :created
+          transition_id: transition_id,
+          state: :created
         }
 
         {:ok, _} = WorkflowMetal.Storage.create_task(application, task_params)
@@ -222,7 +222,7 @@ defmodule WorkflowMetal.Case.Case do
       {:ok, task_server} =
         WorkflowMetal.Task.Supervisor.open_task(
           application,
-          task
+          task.id
         )
 
       WorkflowMetal.Task.Task.offer_token(task_server, place_id, token_id)

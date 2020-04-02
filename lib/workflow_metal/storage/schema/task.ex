@@ -41,18 +41,21 @@ defmodule WorkflowMetal.Storage.Schema.Task do
     @enforce_keys [
       :workflow_id,
       :transition_id,
-      :case_id
+      :case_id,
+      :state
     ]
     defstruct [
       :workflow_id,
       :transition_id,
-      :case_id
+      :case_id,
+      :state
     ]
 
     @type t() :: %__MODULE__{
             workflow_id: Task.workflow_id(),
             transition_id: Task.transition_id(),
-            case_id: Task.case_id()
+            case_id: Task.case_id(),
+            state: Task.state()
           }
   end
 end

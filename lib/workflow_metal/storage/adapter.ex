@@ -23,6 +23,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
 
@@ -66,6 +67,9 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
           | {:error, :transition_not_found}
           | {:error, :case_not_found}
+  @type on_fetch_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
 
   @type on_issue_token ::
           {:ok, token_schema}
@@ -167,6 +171,19 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               task_params
             ) :: on_create_task
+
+  @doc """
+  Retrive a task.
+  """
+  @callback fetch_task(
+              adapter_meta,
+              task_id
+            ) :: on_fetch_task
+  @callback fetch_task(
+              adapter_meta,
+              case_id,
+              transition_id
+            ) :: on_fetch_task
 
   # Token
   @doc """
