@@ -18,10 +18,13 @@ defmodule WorkflowMetal.Storage do
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_states :: nonempty_list(token_state)
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
@@ -121,6 +124,18 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec fetch_transition(application, transition_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_transition()
+  def fetch_transition(application, transition_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_transition(
+      adapter_meta,
+      transition_id
+    )
+  end
+
+  @doc false
   @spec fetch_transitions(application, place_id, arc_direction) ::
           WorkflowMetal.Storage.Adapter.on_fetch_transitions()
   def fetch_transitions(application, place_id, arc_direction) do
@@ -186,6 +201,31 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec lock_token(application, token_schema, task_id) ::
+          WorkflowMetal.Storage.Adapter.on_lock_token()
+  def lock_token(application, token_schema, task_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.lock_token(
+      adapter_meta,
+      token_schema,
+      task_id
+    )
+  end
+
+  @doc false
+  @spec fetch_locked_tokens(application, task_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_locked_tokens()
+  def fetch_locked_tokens(application, task_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_locked_tokens(
+      adapter_meta,
+      task_id
+    )
+  end
+
   ## Workitem
 
   @doc false
@@ -201,12 +241,24 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec update_workitem(application, workitem_schema) ::
-          WorkflowMetal.Storage.Adapter.on_update_workitem()
-  def update_workitem(application, workitem_schema) do
+  @spec start_workitem(application, workitem_schema) ::
+          WorkflowMetal.Storage.Adapter.on_start_workitem()
+  def start_workitem(application, workitem_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.update_workitem(
+    adapter.start_workitem(
+      adapter_meta,
+      workitem_schema
+    )
+  end
+
+  @doc false
+  @spec complete_workitem(application, workitem_schema) ::
+          WorkflowMetal.Storage.Adapter.on_complete_workitem()
+  def complete_workitem(application, workitem_schema) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.complete_workitem(
       adapter_meta,
       workitem_schema
     )
