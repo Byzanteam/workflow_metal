@@ -12,10 +12,10 @@ defmodule WorkflowMetal.Storage.Schema.Task do
   ]
   defstruct [
     :id,
-    :state,
     :workflow_id,
     :transition_id,
-    :case_id
+    :case_id,
+    state: :created
   ]
 
   @type id :: term()
@@ -41,21 +41,18 @@ defmodule WorkflowMetal.Storage.Schema.Task do
     @enforce_keys [
       :workflow_id,
       :transition_id,
-      :case_id,
-      :state
+      :case_id
     ]
     defstruct [
       :workflow_id,
       :transition_id,
-      :case_id,
-      :state
+      :case_id
     ]
 
     @type t() :: %__MODULE__{
             workflow_id: Task.workflow_id(),
             transition_id: Task.transition_id(),
-            case_id: Task.case_id(),
-            state: Task.state()
+            case_id: Task.case_id()
           }
   end
 end

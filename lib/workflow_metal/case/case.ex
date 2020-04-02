@@ -184,8 +184,7 @@ defmodule WorkflowMetal.Case.Case do
         task_params = %Schema.Task.Params{
           workflow_id: workflow_id,
           case_id: case_id,
-          transition_id: transition_id,
-          state: :created
+          transition_id: transition_id
         }
 
         {:ok, _} = WorkflowMetal.Storage.create_task(application, task_params)
