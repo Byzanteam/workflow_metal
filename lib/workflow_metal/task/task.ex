@@ -128,12 +128,12 @@ defmodule WorkflowMetal.Task.Task do
 
   @impl true
   def handle_continue(:fetch_transition, %__MODULE__{} = state) do
-    %{transition_id: transition_id} = state
+    %{
+      application: application,
+      transition_id: transition_id
+    } = state
 
-    workflow_server = workflow_server(state)
-
-    {:ok, transition} =
-      WorkflowMetal.Workflow.Workflow.fetch_transition(workflow_server, transition_id)
+    {:ok, transition} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
 
     {:noreply, %{state | transition: transition}}
   end
@@ -234,15 +234,13 @@ defmodule WorkflowMetal.Task.Task do
 
   defp enabled?(%__MODULE__{} = state) do
     %{
+      application: application,
       transition_id: transition_id,
       transition: transition,
       token_table: token_table
     } = state
 
-    workflow_server = workflow_server(state)
-
-    {:ok, places} =
-      WorkflowMetal.Workflow.Workflow.fetch_places(workflow_server, transition_id, :in)
+    {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_id, :in)
 
     # TODO: fetch in arcs with places
     # TODO: consider conditions on the arc
@@ -262,11 +260,5 @@ defmodule WorkflowMetal.Task.Task do
 
   defp completed?(%__MODULE__{} = _state) do
     true
-  end
-
-  defp workflow_server(%__MODULE__{} = state) do
-    %{application: application, workflow_id: workflow_id} = state
-
-    WorkflowMetal.Workflow.Workflow.via_name(application, workflow_id)
   end
 end

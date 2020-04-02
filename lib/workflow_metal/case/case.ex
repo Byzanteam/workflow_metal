@@ -17,18 +17,21 @@ defmodule WorkflowMetal.Case.Case do
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+
+  @type options :: [name: term(), case: case_schema()]
 
   alias WorkflowMetal.Storage.Schema
 
   @doc false
-  @spec start_link(workflow_identifier, case_id) :: GenServer.on_start()
+  @spec start_link(workflow_identifier, options) :: GenServer.on_start()
   def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
-    case_id = Keyword.fetch!(options, :case_id)
+    case_schema = Keyword.fetch!(options, :case)
 
-    GenServer.start_link(__MODULE__, {workflow_identifier, case_id}, name: name)
+    GenServer.start_link(__MODULE__, {workflow_identifier, case_schema}, name: name)
   end
 
   @doc false
@@ -48,29 +51,21 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl true
-  def init({{application, workflow_id}, case_id}) do
+  def init({{application, workflow_id}, case_schema}) do
     token_table = :ets.new(:token_table, [:set, :private])
 
-    case WorkflowMetal.Storage.fetch_case(application, workflow_id, case_id) do
-      {:ok, %Schema.Case{} = case_schema} ->
-        %{state: state} = case_schema
-
-        {
-          :ok,
-          %__MODULE__{
-            application: application,
-            workflow_id: workflow_id,
-            case_id: case_id,
-            state: state,
-            token_table: token_table,
-            free_token_ids: MapSet.new()
-          },
-          {:continue, :rebuild_from_storage}
-        }
-
-      {:error, _reason} = reply ->
-        reply
-    end
+    {
+      :ok,
+      %__MODULE__{
+        application: application,
+        workflow_id: workflow_id,
+        case_id: case_schema.id,
+        state: case_schema.state,
+        token_table: token_table,
+        free_token_ids: MapSet.new()
+      },
+      {:continue, :rebuild_from_storage}
+    }
   end
 
   @impl true
@@ -118,12 +113,11 @@ defmodule WorkflowMetal.Case.Case do
   defp rebuild_tokens(%__MODULE__{} = state) do
     %{
       application: application,
-      workflow_id: workflow_id,
       case_id: case_id,
       token_table: token_table
     } = state
 
-    case WorkflowMetal.Storage.fetch_tokens(application, workflow_id, case_id, [:free]) do
+    case WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free]) do
       {:ok, tokens} ->
         free_token_ids = Enum.map(tokens, &upsert_token(token_table, &1))
 
@@ -155,10 +149,8 @@ defmodule WorkflowMetal.Case.Case do
       free_token_ids: free_token_ids
     } = state
 
-    workflow_server = workflow_server(state)
-
     {:ok, %{id: start_place_id}} =
-      WorkflowMetal.Workflow.Workflow.fetch_place(workflow_server, :start)
+      WorkflowMetal.Storage.fetch_special_place(application, workflow_id, :start)
 
     start_token_params = %Schema.Token.Params{
       workflow_id: workflow_id,
@@ -168,7 +160,7 @@ defmodule WorkflowMetal.Case.Case do
       produced_by_task_id: make_ref()
     }
 
-    {:ok, token_schema} = WorkflowMetal.Storage.create_token(application, start_token_params)
+    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, start_token_params)
 
     token_id = upsert_token(token_table, token_schema)
 
@@ -184,7 +176,7 @@ defmodule WorkflowMetal.Case.Case do
 
     %{id: transition_id} = transition
 
-    case WorkflowMetal.Storage.fetch_task(application, workflow_id, case_id, transition_id) do
+    case WorkflowMetal.Storage.fetch_task(application, case_id, transition_id) do
       {:ok, task} ->
         {:ok, task}
 
@@ -193,7 +185,6 @@ defmodule WorkflowMetal.Case.Case do
           workflow_id: workflow_id,
           case_id: case_id,
           transition_id: transition_id
-          # state: :created
         }
 
         {:ok, _} = WorkflowMetal.Storage.create_task(application, task_params)
@@ -220,15 +211,14 @@ defmodule WorkflowMetal.Case.Case do
   defp do_offer_token(%__MODULE__{} = state, {place_id, token_id}) do
     %{application: application} = state
 
-    state
-    |> workflow_server()
-    |> WorkflowMetal.Workflow.Workflow.fetch_transitions(place_id, :out)
+    application
+    |> WorkflowMetal.Storage.fetch_transitions(place_id, :out)
     |> Stream.map(fn transition -> fetch_or_create_task(state, transition) end)
     |> Stream.each(fn task ->
       {:ok, task_server} =
         WorkflowMetal.Task.Supervisor.open_task(
           application,
-          task
+          task.id
         )
 
       WorkflowMetal.Task.Task.offer_token(task_server, place_id, token_id)
@@ -266,11 +256,5 @@ defmodule WorkflowMetal.Case.Case do
     # TODO:
     # withdraw_token(transition_pid, {place_id, token_id})
     {:ok, state}
-  end
-
-  defp workflow_server(%__MODULE__{} = state) do
-    %{application: application, workflow_id: workflow_id} = state
-
-    WorkflowMetal.Workflow.Workflow.via_name(application, workflow_id)
   end
 end

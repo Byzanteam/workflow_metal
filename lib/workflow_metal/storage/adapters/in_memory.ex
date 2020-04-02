@@ -122,6 +122,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_special_place(adapter_meta, workflow_id, place_type) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_place, workflow_id, place_type})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_transition(adapter_meta, transition_id) do
     storage = storage_name(adapter_meta)
 
@@ -156,6 +163,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:create_task, task_params})
   end
 
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_task(adapter_meta, task_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_task, task_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_task(adapter_meta, case_id, transition_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_task, case_id, transition_id})
+  end
+
   # TODO: issue genesis token
   @impl WorkflowMetal.Storage.Adapter
   def issue_token(adapter_meta, token_params) do
@@ -169,6 +190,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     storage = storage_name(adapter_meta)
 
     GenServer.call(storage, {:lock_token, token_schema, task_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_tokens(adapter_meta, case_id, token_states) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_tokens, case_id, token_states})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -295,6 +323,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
+        {:fetch_place, workflow_id, place_type},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_place_by_type(workflow_id, place_type, state)
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
         {:fetch_transition, transition_id},
         _from,
         %State{} = state
@@ -392,6 +431,28 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
+        {:fetch_task, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_task(task_id, state)
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_task, case_id, transition_id},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_task_by(case_id, transition_id, state)
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
         {:issue_token, token_params},
         _from,
         %State{} = state
@@ -446,6 +507,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           state
         )
       end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_tokens, case_id, token_states},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_tokens(case_id, token_states, state)
 
     {:reply, reply, state}
   end
@@ -630,6 +702,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     :place
     |> get_table(state)
     |> :ets.select([{{place_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [place] -> {:ok, place}
+      _ -> {:error, :place_not_found}
+    end
+  end
+
+  defp find_place_by_type(workflow_id, place_type, %State{} = state) do
+    :place
+    |> get_table(state)
+    |> :ets.select([{{:_, :"$1", {place_type, workflow_id}}, [], [:"$1"]}])
     |> case do
       [place] -> {:ok, place}
       _ -> {:error, :place_not_found}
@@ -863,6 +945,18 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
+  defp find_tokens(case_id, token_states, %State{} = state) do
+    tokens =
+      :token
+      |> get_table(state)
+      |> :ets.select([{{:_, :"$1", {:_, case_id, :_, :_}}, [], ["$1"]}])
+      |> Enum.filter(fn %{state: state} ->
+        Enum.member?(token_states, state)
+      end)
+
+    {:ok, tokens}
+  end
+
   defp persist_task(task_params, %State{} = state, options) do
     task_table = get_table(:task, state)
     workflow_id = Keyword.fetch!(options, :workflow_id)
@@ -900,6 +994,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     :task
     |> get_table(state)
     |> :ets.select([{{task_id, :"$1", :_}, [], [:"$1"]}])
+    |> case do
+      [task_schema] -> {:ok, task_schema}
+      _ -> {:error, :task_not_found}
+    end
+  end
+
+  defp find_task_by(case_id, transition_id, %State{} = state) do
+    :task
+    |> get_table(state)
+    |> :ets.select([{{:_, :"$1", {:_, transition_id, case_id}}, [], [:"$1"]}])
     |> case do
       [task_schema] -> {:ok, task_schema}
       _ -> {:error, :task_not_found}

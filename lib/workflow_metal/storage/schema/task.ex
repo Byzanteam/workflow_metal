@@ -12,10 +12,10 @@ defmodule WorkflowMetal.Storage.Schema.Task do
   ]
   defstruct [
     :id,
-    :state,
     :workflow_id,
     :transition_id,
-    :case_id
+    :case_id,
+    state: :created
   ]
 
   @type id :: term()

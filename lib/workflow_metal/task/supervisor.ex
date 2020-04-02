@@ -11,7 +11,7 @@ defmodule WorkflowMetal.Task.Supervisor do
   @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
-  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -38,20 +38,20 @@ defmodule WorkflowMetal.Task.Supervisor do
   @doc """
   Open a task(`GenServer').
   """
-  @spec open_task(application, task_schema) ::
-          Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
-  def open_task(application, task) do
-    %{
-      workflow_id: workflow_id,
-      case_id: case_id,
-      transition_id: transition_id
-    } = task
-
+  @spec open_task(application, task_id) ::
+          Supervisor.on_start() | {:error, :case_not_found} | {:error, :task_not_found}
+  def open_task(application, task_id) do
     with(
-      {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, workflow_id, case_id)
+      {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
+      %{
+        workflow_id: workflow_id,
+        case_id: case_id,
+        transition_id: transition_id
+      } = task_schema,
+      {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, case_id)
     ) do
       task_supervisor = via_name(application, workflow_id)
-      task_spec = {WorkflowMetal.Task.Task, [task: task]}
+      task_spec = {WorkflowMetal.Task.Task, [task: task_schema]}
 
       Registration.start_child(
         application,
