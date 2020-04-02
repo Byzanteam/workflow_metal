@@ -19,11 +19,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :place_table,
       :transition_table,
       :case_table,
-      :task_table,
       :token_table,
-      :workitem_table,
-      workflows: %{},
-      cases: %{}
+      :task_table,
+      :workitem_table
     ]
   end
 
