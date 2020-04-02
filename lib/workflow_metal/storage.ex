@@ -23,6 +23,7 @@ defmodule WorkflowMetal.Storage do
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
+  @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
