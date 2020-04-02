@@ -179,10 +179,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def update_workitem(adapter_meta, workitem_schema) do
+  def complete_workitem(adapter_meta, workitem_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:update_workitem, workitem_schema})
+    GenServer.call(storage, {:complete_workitem, workitem_schema})
   end
 
   @doc """
@@ -476,45 +476,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:update_workitem, workitem_schema},
+        {:complete_workitem, workitem_schema},
         _from,
         %State{} = state
       ) do
-    %State{workflows: workflows, cases: cases} = state
-
-    %{
-      workflow_id: workflow_id,
-      case_id: case_id
-    } = workitem_schema
-
     reply =
-      with(
-        {:workflow, workflow_schema} when not is_nil(workflow_schema) <-
-          {:workflow, Map.get(workflows, workflow_id)},
-        {:case, case_schema} when not is_nil(case_schema) <-
-          {:case, Map.get(cases, {workflow_id, case_id})}
-      ) do
-        case case_schema do
-          %{workitems: [_ | _] = workitems} ->
-            case Enum.find_index(workitems, &(&1.id === workitem_schema.id)) do
-              nil ->
-                {:reply, {:error, :workitem_not_found}, state}
-
-              index ->
-                workitems = List.replace_at(workitems, index, workitem_schema)
-
-                cases =
-                  Map.put(cases, {workflow_id, case_id}, %{case_schema | workitems: workitems})
-
-                {:reply, workitem_schema, %{state | cases: cases}}
-            end
-        end
-      else
-        {:workflow, nil} ->
-          {:reply, {:error, :workflow_not_found}, state}
-
-        {:case, nil} ->
-          {:reply, {:error, :case_not_found}, state}
+      with({:ok, workitem_schema} <- find_worktem(workitem_schema.id, state)) do
+        do_complete_workitem(
+          workitem_schema,
+          state
+        )
       end
 
     {:reply, reply, state}
@@ -921,6 +892,34 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     )
 
     {:ok, workitem_schema}
+  end
+
+  defp do_complete_workitem(
+         %Schema.Workitem{state: :completed} = workitem_schema,
+         %State{} = _state
+       ) do
+    {:ok, workitem_schema}
+  end
+
+  defp do_complete_workitem(%Schema.Workitem{state: :started} = workitem_schema, %State{} = state) do
+    workitem_table = get_table(:workitem, state)
+
+    workitem_schema = %{
+      workitem_schema
+      | state: :completed
+    }
+
+    :ets.update_element(
+      workitem_table,
+      workitem_schema.id,
+      [{1, workitem_schema}]
+    )
+
+    {:ok, workitem_schema}
+  end
+
+  defp do_complete_workitem(_workitem_schema, %State{} = _state) do
+    {:error, :workitem_not_available}
   end
 
   defp find_workitem(workitem_id, %State{} = state) do

@@ -229,12 +229,12 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec update_workitem(application, workitem_schema) ::
-          WorkflowMetal.Storage.Adapter.on_update_workitem()
-  def update_workitem(application, workitem_schema) do
+  @spec complete_workitem(application, workitem_schema) ::
+          WorkflowMetal.Storage.Adapter.on_complete_workitem()
+  def complete_workitem(application, workitem_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.update_workitem(
+    adapter.complete_workitem(
       adapter_meta,
       workitem_schema
     )

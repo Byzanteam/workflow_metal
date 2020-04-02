@@ -86,10 +86,10 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
           | {:error, :task_not_found}
-  @type on_update_workitem ::
+  @type on_complete_workitem ::
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
-          | {:error, error}
+          | {:error, :workitem_not_available
 
   @doc """
   Return a child spec for the storage 
@@ -206,10 +206,10 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_create_workitem
 
   @doc """
-  Update a workitem of a task.
+  Complete a workitem of a task.
   """
-  @callback update_workitem(
+  @callback complete_workitem(
               adapter_meta,
               workitem_schema
-            ) :: on_update_workitem
+            ) :: on_complete_workitem
 end
