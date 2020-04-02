@@ -18,7 +18,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
     :case_id,
     :place_id,
     :produced_by_task_id,
-    :locked_task_id,
+    :locked_by_task_id,
     state: :free
   ]
 
@@ -37,7 +37,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
           case_id: case_id,
           place_id: place_id,
           produced_by_task_id: task_id,
-          locked_task_id: task_id
+          locked_by_task_id: task_id
         }
 
   alias __MODULE__

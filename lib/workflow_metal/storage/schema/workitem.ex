@@ -4,11 +4,11 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
   @enforce_keys [:id, :state, :workflow_id, :case_id, :task_id]
   defstruct [
     :id,
-    :state,
     :workflow_id,
     :case_id,
     :task_id,
-    :transition_id
+    :transition_id,
+    state: :created
   ]
 
   @type id :: term()
@@ -32,19 +32,17 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:state, :workflow_id, :case_id, :task_id]
+    @enforce_keys [:workflow_id, :case_id, :task_id]
     defstruct [
       :workflow_id,
       :case_id,
-      :task_id,
-      :state
+      :task_id
     ]
 
     @type t() :: %__MODULE__{
             workflow_id: Workitem.workflow_id(),
             case_id: Workitem.case_id(),
-            task_id: Workitem.task_id(),
-            state: Workitem.state()
+            task_id: Workitem.task_id()
           }
   end
 end

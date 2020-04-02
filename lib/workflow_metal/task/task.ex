@@ -220,8 +220,7 @@ defmodule WorkflowMetal.Task.Task do
     workitem_params = %Schema.Workitem.Params{
       workflow_id: workflow_id,
       case_id: case_id,
-      task_id: task_id,
-      state: :created
+      task_id: task_id
     }
 
     {:ok, workitem_schema} = WorkflowMetal.Storage.create_workitem(application, workitem_params)

@@ -24,8 +24,8 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
-  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
@@ -50,6 +50,9 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
   @type on_fetch_places ::
           {:ok, [place_schema]}
+          | {:error, :transition_not_found}
+  @type on_fetch_transition ::
+          {:ok, transition_schema}
           | {:error, :transition_not_found}
   @type on_fetch_transitions ::
           {:ok, [transition_schema]}
@@ -77,19 +80,29 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :case_not_found}
           | {:error, :place_not_found}
           | {:error, :produced_by_task_not_found}
+  @type on_lock_token ::
+          {:ok, token_schema}
+          | {:error, :token_not_found}
+          | {:error, :token_not_available}
   @type on_fetch_tokens ::
           {:ok, [token_schema]}
+  @type on_fetch_locked_tokens ::
+          {:ok, [token_schema]}
+          | {:error, :task_not_found}
 
   @type on_create_workitem ::
           {:ok, workitem_schema}
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
           | {:error, :task_not_found}
-          | {:error, error}
-  @type on_update_workitem ::
+  @type on_start_workitem ::
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
-          | {:error, error}
+          | {:error, :workitem_not_available}
+  @type on_complete_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workitem_not_found}
+          | {:error, :workitem_not_available}
 
   @doc """
   Return a child spec for the storage 
@@ -137,6 +150,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               transition_id,
               arc_direction
             ) :: on_fetch_places
+
+  @doc """
+  Retrive a transition of the workflow.
+  """
+  @callback fetch_transition(
+              adapter_meta,
+              transition_id
+            ) :: on_fetch_transition
 
   @doc """
   Retrive in/out transitions of a place.
@@ -193,7 +214,23 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               token_params
             ) :: on_issue_token
+  @doc """
+  Lock a token.
+  """
+  @callback lock_token(
+              adapter_meta,
+              token_schema,
+              task_id
+            ) :: on_lock_token
+  @doc """
+  Retrive tokens locked by the task.
+  """
+  @callback fetch_locked_tokens(
+              adapter_meta,
+              task_id
+            ) :: on_fetch_locked_tokens
 
+  # Workitem
   @doc """
   Fetch tokens by states
   """
@@ -212,10 +249,21 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_create_workitem
 
   @doc """
-  Update a workitem of a task.
+  Start to execute a `created` workitem of a task.
+
+  Return `{:ok, workitem_schema}` if it is already `started`.
   """
-  @callback update_workitem(
+  @callback start_workitem(
               adapter_meta,
               workitem_schema
-            ) :: on_update_workitem
+            ) :: on_start_workitem
+
+  @doc """
+  Complete a `started` workitem of a task.
+  Return `{:ok, workitem_schema}` if it is already `completed`.
+  """
+  @callback complete_workitem(
+              adapter_meta,
+              workitem_schema
+            ) :: on_complete_workitem
 end
