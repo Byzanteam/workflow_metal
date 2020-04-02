@@ -21,7 +21,9 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisorTest do
     end
 
     test "open a sequential_routing workflow successfully" do
-      {:ok, workflow_schema} = WorkflowMetal.Support.Workflows.SequentialRouting.create(DummyApplication)
+      {:ok, workflow_schema} =
+        WorkflowMetal.Support.Workflows.SequentialRouting.create(DummyApplication)
+
       assert {:ok, pid} = WorkflowsSupervisor.open_workflow(DummyApplication, workflow_schema.id)
       assert is_pid(pid)
     end
