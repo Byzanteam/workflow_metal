@@ -472,13 +472,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   def handle_call(:reset!, _from, %State{} = state) do
     state
     |> Map.keys()
-    |> Enum.filter(fn key ->
+    |> Stream.filter(fn key ->
       key
       |> to_string()
       |> String.ends_with?("_table")
     end)
-    |> Enum.map(&Map.get(state, &1))
-    |> Enum.each(&:ets.delete_all_objects/1)
+    |> Stream.map(&Map.get(state, &1))
+    |> Stream.each(&:ets.delete_all_objects/1)
+    |> Stream.run()
 
     {:reply, :ok, state}
   end
