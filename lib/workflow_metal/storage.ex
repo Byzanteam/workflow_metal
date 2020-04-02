@@ -240,14 +240,14 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec lock_token(application, token_schema, task_id) ::
+  @spec lock_token(application, token_id, task_id) ::
           WorkflowMetal.Storage.Adapter.on_lock_token()
-  def lock_token(application, token_schema, task_id) do
+  def lock_token(application, token_id, task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.lock_token(
       adapter_meta,
-      token_schema,
+      token_id,
       task_id
     )
   end

@@ -186,10 +186,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def lock_token(adapter_meta, token_schema, task_id) do
+  def lock_token(adapter_meta, token_id, task_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:lock_token, token_schema, task_id})
+    GenServer.call(storage, {:lock_token, token_id, task_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -492,14 +492,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:lock_token, token_schema, task_id},
+        {:lock_token, token_id, task_id},
         _from,
         %State{} = state
       ) do
     reply =
       with(
         {:ok, task_schema} <- find_task(task_id, state),
-        {:ok, token_schema} <- find_token(token_schema.id, state)
+        {:ok, token_schema} <- find_token(token_id, state)
       ) do
         do_lock_token(
           token_schema,

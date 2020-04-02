@@ -233,7 +233,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback lock_token(
               adapter_meta,
-              token_schema,
+              token_id,
               task_id
             ) :: on_lock_token
   @doc """
