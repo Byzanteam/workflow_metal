@@ -13,7 +13,7 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
-  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.t()
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -40,34 +40,26 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   @doc """
   Open a workitem(`GenServer').
   """
-  @spec open_workitem(application, workflow_id, case_id, transition_id, workitem_id) ::
-          Supervisor.on_start()
-          | {:error, :workflow_not_found}
-          | {:error, :case_not_found}
-          | {:error, :workitem_not_found}
-  def open_workitem(application, workflow_id, case_id, transition_id, workitem_id) do
-    with(
-      {:ok, _} <-
-        WorkflowMetal.Task.Supervisor.open_task(application, workflow_id, case_id, transition_id)
-    ) do
-      workitem_supervisor = via_name(application, workflow_id)
+  @spec open_workitem(application, workitem_schema) :: Supervisor.on_start()
+  def open_workitem(application, workitem) do
+    workitem_supervisor = via_name(application, workitem.workflow_id)
 
-      workitem_spec = {
-        WorkflowMetal.Workitem.Workitem,
-        [
-          case_id: case_id,
-          transition_id: transition_id,
-          workitem_id: workitem_id
-        ]
-      }
+    workitem_spec = {
+      WorkflowMetal.Workitem.Workitem,
+      [workitem: workitem]
+    }
 
-      Registration.start_child(
-        application,
-        WorkflowMetal.Workitem.Workitem.name({workflow_id, case_id, transition_id, workitem_id}),
-        workitem_supervisor,
-        workitem_spec
-      )
-    end
+    Registration.start_child(
+      application,
+      WorkflowMetal.Workitem.Workitem.name({
+        workitem.workflow_id,
+        workitem.case_id,
+        workitem.transition_id,
+        workitem.workitem_id
+      }),
+      workitem_supervisor,
+      workitem_spec
+    )
   end
 
   defp via_name(application, workflow_id) do

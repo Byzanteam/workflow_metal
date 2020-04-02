@@ -23,13 +23,12 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
-
-  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
-  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
-  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
