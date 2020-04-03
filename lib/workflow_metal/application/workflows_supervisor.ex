@@ -49,7 +49,8 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   Retrive the workflow from the storage and open it(start `Supervisor` and its children).
   """
   @spec open_workflow(application, workflow_id) ::
-          Supervisor.on_start() | {:error, :workflow_not_found}
+          WorkflowMetal.Registration.Adapter.on_start_child()
+          | {:error, :workflow_not_found}
   def open_workflow(application, workflow_id) do
     with(
       {:ok, workflow_schema} <- WorkflowMetal.Storage.fetch_workflow(application, workflow_id)

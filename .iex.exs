@@ -19,8 +19,8 @@ Airbase.ProjectWorkflow.start_link()
         %Schema.Place.Params{rid: 3, type: :end}
       ],
       transitions: [
-        %Schema.Transition.Params{rid: 1, executer: A},
-        %Schema.Transition.Params{rid: 2, executer: B}
+        %Schema.Transition.Params{rid: 1, executor: A},
+        %Schema.Transition.Params{rid: 2, executor: B}
       ],
       arcs: [
         %Schema.Arc.Params{place_rid: 1, transition_rid: 1, direction: :out},

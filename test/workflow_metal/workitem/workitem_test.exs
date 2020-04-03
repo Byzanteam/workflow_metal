@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Case.SupervisorTest do
+defmodule WorkflowMetal.Workitem.WorkitemTest do
   use ExUnit.Case, async: true
 
   defmodule DummyApplication do
@@ -17,19 +17,25 @@ defmodule WorkflowMetal.Case.SupervisorTest do
     [application: DummyApplication]
   end
 
-  describe ".open_case/2" do
-    test "failed to open a non-existing workflow" do
-      assert {:error, :case_not_found} = CaseSupervisor.open_case(DummyApplication, 123)
+  describe "activate_case" do
+    defmodule ATransition do
+      @moduledoc false
+
+      @behaviour WorkflowMetal.Executor
+
+      @impl WorkflowMetal.Executor
+      def execute(%Schema.Workitem{}, _tokens, _options) do
+        {:completed, %{}}
+      end
     end
 
-    test "failed to open a non-existing case" do
-      {:ok, _workflow_schema} = SequentialRouting.create(DummyApplication)
-
-      assert {:error, :case_not_found} = CaseSupervisor.open_case(DummyApplication, 123)
-    end
-
-    test "open a case successfully" do
-      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
+    test "activate a case successfully" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
 
       {:ok, case_schema} =
         WorkflowMetal.Storage.create_case(
@@ -41,7 +47,7 @@ defmodule WorkflowMetal.Case.SupervisorTest do
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
-      assert is_pid(pid)
+      assert_receive :a_completed
     end
   end
 end

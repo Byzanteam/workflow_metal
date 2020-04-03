@@ -53,7 +53,9 @@ defmodule WorkflowMetal.Case.Supervisor do
   Open a case(`GenServer').
   """
   @spec open_case(application, case_id) ::
-          Supervisor.on_start() | {:error, :workflow_not_found}
+          WorkflowMetal.Registration.Adapter.on_start_child()
+          | {:error, :case_not_found}
+          | {:error, :workflow_not_found}
   def open_case(application, case_id) do
     with(
       {:ok, case_schema} <- WorkflowMetal.Storage.fetch_case(application, case_id),
@@ -61,7 +63,7 @@ defmodule WorkflowMetal.Case.Supervisor do
       {:ok, _} <- WorkflowsSupervisor.open_workflow(application, workflow_id)
     ) do
       case_supervisor = via_name(application, workflow_id)
-      case_spec = {WorkflowMetal.Case.Case, [case: case_schema]}
+      case_spec = {WorkflowMetal.Case.Case, [case_schema: case_schema]}
 
       Registration.start_child(
         application,
