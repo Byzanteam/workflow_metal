@@ -179,7 +179,7 @@ defmodule WorkflowMetal.Case.Case do
       case_id: case_id,
       place_id: start_place_id,
       produced_by_task_id: :genesis,
-      in_payload: nil
+      payload: nil
     }
 
     {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, genesis_token_params)

@@ -19,8 +19,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
     :place_id,
     :produced_by_task_id,
     :locked_by_task_id,
-    :in_payload,
-    :out_payload,
+    :payload,
     state: :free
   ]
 
@@ -41,8 +40,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
           place_id: place_id,
           produced_by_task_id: task_id,
           locked_by_task_id: task_id,
-          in_payload: payload,
-          out_payload: payload
+          payload: payload
         }
 
   alias __MODULE__
@@ -50,13 +48,13 @@ defmodule WorkflowMetal.Storage.Schema.Token do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:workflow_id, :case_id, :place_id, :produced_by_task_id, :in_payload]
+    @enforce_keys [:workflow_id, :case_id, :place_id, :produced_by_task_id, :payload]
     defstruct [
       :workflow_id,
       :case_id,
       :place_id,
       :produced_by_task_id,
-      :in_payload
+      :payload
     ]
 
     @type t() :: %__MODULE__{
@@ -65,7 +63,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
             place_id: Token.place_id(),
             # `:genesis` stands for genesis token
             produced_by_task_id: Token.task_id() | :genesis,
-            in_payload: Token.payload()
+            payload: Token.payload()
           }
   end
 end
