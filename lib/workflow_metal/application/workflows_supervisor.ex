@@ -9,6 +9,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
+  @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
@@ -37,11 +38,11 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   @doc """
   Create a workflow.
   """
-  @spec create_workflow(application, workflow_schema) ::
+  @spec create_workflow(application, workflow_params) ::
           WorkflowMetal.Storage.Adapter.on_create_workflow()
-  def create_workflow(application, %Schema.Workflow{} = workflow_schema) do
+  def create_workflow(application, %Schema.Workflow.Params{} = workflow_params) do
     # TODO: do validation
-    WorkflowMetal.Storage.create_workflow(application, workflow_schema)
+    WorkflowMetal.Storage.create_workflow(application, workflow_params)
   end
 
   @doc """

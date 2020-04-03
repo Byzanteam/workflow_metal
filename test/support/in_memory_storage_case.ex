@@ -1,4 +1,6 @@
 defmodule WorkflowMetal.Support.InMemoryStorageCase do
+  @moduledoc false
+
   use ExUnit.CaseTemplate
 
   setup context do

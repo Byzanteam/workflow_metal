@@ -214,6 +214,7 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
   @spec fetch_task(application, case_id, transition_id) ::
           WorkflowMetal.Storage.Adapter.on_fetch_task()
   def fetch_task(application, case_id, transition_id) do
