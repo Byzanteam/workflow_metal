@@ -1,5 +1,5 @@
 defmodule WorkflowMetal.Case.SupervisorTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   defmodule DummyApplication do
     use WorkflowMetal.Application,
