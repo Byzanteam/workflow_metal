@@ -61,6 +61,15 @@ defmodule WorkflowMetal.Case.Case do
     GenServer.call(case_server, {:lock_tokens, token_ids, task_id})
   end
 
+  @doc """
+  Consume tokens.
+  """
+  @spec consume_tokens(GenServer.server(), [token_id], task_id) ::
+          :ok | {:error, :tokens_not_available}
+  def consume_tokens(case_server, [_ | _] = token_ids, task_id) do
+    GenServer.call(case_server, {:consume_tokens, token_ids, task_id})
+  end
+
   # Server (callbacks)
 
   @impl true
@@ -116,6 +125,17 @@ defmodule WorkflowMetal.Case.Case do
     else
       error ->
         {:reply, error, state}
+    end
+  end
+
+  @impl true
+  def handle_call(
+        {:consume_tokens, token_ids, task_id},
+        _from,
+        %__MODULE__{} = state
+      ) do
+    with({:ok, state} <- do_consume_tokens(token_ids, task_id, state)) do
+      {:reply, :ok, state}
     end
   end
 
@@ -278,6 +298,16 @@ defmodule WorkflowMetal.Case.Case do
     else
       {:error, :tokens_not_available}
     end
+  end
+
+  defp do_consume_tokens(token_ids, task_id, state) do
+    %{
+      application: application
+    } = state
+
+    {:ok, _tokens} = WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
+
+    {:ok, state}
   end
 
   defp withdraw_tokens(%__MODULE__{} = state, _except_task_id) do

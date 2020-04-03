@@ -174,6 +174,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_continue(:complete_task, %__MODULE__{} = state) do
     with(
       :ok <- task_completion(state),
+      {:ok, _tokens} <- consume_tokens(state),
       {:ok, state} <- complete_task(state)
     ) do
       {:noreply, state}
@@ -310,6 +311,26 @@ defmodule WorkflowMetal.Task.Task do
       true -> :ok
       false -> {:error, :task_not_completed}
     end
+  end
+
+  defp consume_tokens(%__MODULE__{} = state) do
+    %{
+      task_schema: %{
+        id: task_id
+      },
+      token_table: token_table
+    } = state
+
+    token_ids = :ets.select(token_table, [{{:"$1", :_, :_}, [], [:"$1"]}])
+
+    :ok =
+      WorkflowMetal.Case.Case.consume_tokens(
+        case_server(state),
+        token_ids,
+        task_id
+      )
+
+    {:ok, token_ids}
   end
 
   defp complete_task(%__MODULE__{} = state) do
