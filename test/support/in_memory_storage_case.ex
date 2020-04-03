@@ -1,7 +1,7 @@
 defmodule WorkflowMetal.Support.InMemoryStorageCase do
   @moduledoc false
 
-  alias WorkflowMetal.Storage.Adapters.InMemory, InMemoryStorage
+  alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
 
   use ExUnit.CaseTemplate
 
