@@ -57,7 +57,7 @@ defmodule WorkflowMetal.Case.Case do
   """
   @spec lock_tokens(GenServer.server(), [token_id], task_id) ::
           :ok | {:error, :tokens_not_available}
-  def lock_tokens(case_server, [_ | _] = token_ids, task_id) when is_list(token_ids) do
+  def lock_tokens(case_server, [_ | _] = token_ids, task_id) do
     GenServer.call(case_server, {:lock_tokens, token_ids, task_id})
   end
 
