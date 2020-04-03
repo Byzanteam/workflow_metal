@@ -219,6 +219,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def complete_task(adapter_meta, task_id, token_payload) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:complete_task, task_id, token_payload})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def issue_token(adapter_meta, token_params) do
     storage = storage_name(adapter_meta)
 
@@ -544,6 +551,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         %State{} = state
       ) do
     reply = find_task_by(case_id, transition_id, state)
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:complete_task, task_id, token_payload},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, task_schema} <- find_task(task_id, state)) do
+        do_complete_task(task_schema, token_payload, state)
+      end
 
     {:reply, reply, state}
   end
@@ -1225,6 +1246,44 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   defp find_produced_by_task(:genesis, %State{}), do: {:ok, nil}
   defp find_produced_by_task(task_id, %State{} = state), do: find_task(task_id, state)
+
+  defp do_complete_task(
+         %Schema.Task{state: :completed} = task_schema,
+         _token_payload,
+         %State{}
+       ) do
+    {:ok, task_schema}
+  end
+
+  defp do_complete_task(
+         %Schema.Task{state: :started} = task_schema,
+         token_payload,
+         %State{} = state
+       ) do
+    task_schema = %{
+      task_schema
+      | state: :completed,
+        token_payload: token_payload
+    }
+
+    true =
+      :task
+      |> get_table(state)
+      |> :ets.update_element(
+        task_schema.id,
+        [
+          {2, task_schema},
+          {3,
+           {
+             task_schema.workflow_id,
+             task_schema.transition_id,
+             task_schema.case_id
+           }}
+        ]
+      )
+
+    {:ok, task_schema}
+  end
 
   defp find_task(task_id, %State{} = state) do
     :task

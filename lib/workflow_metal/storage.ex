@@ -27,6 +27,7 @@ defmodule WorkflowMetal.Storage do
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
+  @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type token_states :: nonempty_list(token_state)
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
@@ -250,6 +251,19 @@ defmodule WorkflowMetal.Storage do
       adapter_meta,
       case_id,
       transition_id
+    )
+  end
+
+  @doc false
+  @spec complete_task(application, task_id, token_payload) ::
+          WorkflowMetal.Storage.Adapter.on_complete_task()
+  def complete_task(application, task_id, token_payload) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.complete_task(
+      adapter_meta,
+      task_id,
+      token_payload
     )
   end
 

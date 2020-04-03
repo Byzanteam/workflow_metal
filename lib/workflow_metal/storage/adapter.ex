@@ -33,6 +33,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
+  @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type token_states :: nonempty_list(token_state)
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
@@ -83,6 +84,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
+  @type on_complete_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
+          | {:error, :task_not_available}
 
   @type on_issue_token ::
           {:ok, token_schema}
@@ -243,6 +248,15 @@ defmodule WorkflowMetal.Storage.Adapter do
               case_id,
               transition_id
             ) :: on_fetch_task
+
+  @doc """
+  Complete a task.
+  """
+  @callback complete_task(
+              adapter_meta,
+              task_id,
+              token_payload
+            ) :: on_complete_task
 
   # Token
   @doc """
