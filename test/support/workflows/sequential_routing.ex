@@ -10,7 +10,7 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
 
     @impl WorkflowMetal.Executor
     def execute(%Schema.Workitem{}, _tokens, _options) do
-      {:completed, %{}}
+      {:completed, :ok}
     end
   end
 
@@ -27,7 +27,7 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
 
       send(request, reply)
 
-      {:completed, %{}}
+      {:completed, %{reply: reply}}
     end
   end
 

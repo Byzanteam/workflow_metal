@@ -25,6 +25,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     ]
   end
 
+  @type application :: WorkflowMetal.Application.t()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
+
   @doc false
   def start_link(opts \\ []) do
     {start_opts, _in_memory_opts} = Keyword.split(opts, [:name, :timeout, :debug, :spawn_opt])
@@ -253,6 +257,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     storage = storage_name(adapter_meta)
 
     GenServer.call(storage, :reset!)
+  end
+
+  @doc """
+  List workitems of the workflow.
+  """
+  @spec list_workitems(application, workflow_id) :: {:ok, [workitem_schema]}
+  def list_workitems(application, workflow_id) do
+    {_adapter, adapter_meta} = WorkflowMetal.Application.storage_adapter(application)
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:list_workitems, workflow_id})
   end
 
   @impl GenServer
@@ -701,6 +716,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     |> Stream.run()
 
     {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call({:list_workitems, workflow_id}, _from, %State{} = state) do
+    workitems =
+      :workitem
+      |> get_table(state)
+      |> :ets.select([{{:_, :"$1", {workflow_id, :_, :_}}, [], [:"$1"]}])
+
+    {:reply, {:ok, workitems}, state}
   end
 
   defp persist_workflow(workflow_params, %State{} = state) do
