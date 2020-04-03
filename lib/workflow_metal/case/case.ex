@@ -22,13 +22,13 @@ defmodule WorkflowMetal.Case.Case do
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
 
-  @type options :: [name: term(), case: case_schema()]
+  @type options :: [name: term(), case_schema: case_schema]
 
   @doc false
   @spec start_link(workflow_identifier, options) :: GenServer.on_start()
   def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
-    case_schema = Keyword.fetch!(options, :case)
+    case_schema = Keyword.fetch!(options, :case_schema)
 
     GenServer.start_link(__MODULE__, {workflow_identifier, case_schema}, name: name)
   end

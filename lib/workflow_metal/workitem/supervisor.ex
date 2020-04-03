@@ -37,22 +37,23 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   @doc """
   Open a workitem(`GenServer').
   """
-  @spec open_workitem(application, workitem_schema) :: Supervisor.on_start()
-  def open_workitem(application, workitem) do
-    workitem_supervisor = via_name(application, workitem.workflow_id)
+  @spec open_workitem(application, workitem_schema) ::
+          WorkflowMetal.Registration.Adapter.on_start_child()
+  def open_workitem(application, workitem_schema) do
+    workitem_supervisor = via_name(application, workitem_schema.workflow_id)
 
     workitem_spec = {
       WorkflowMetal.Workitem.Workitem,
-      [workitem: workitem]
+      [workitem_schema: workitem_schema]
     }
 
     Registration.start_child(
       application,
       WorkflowMetal.Workitem.Workitem.name({
-        workitem.workflow_id,
-        workitem.case_id,
-        workitem.transition_id,
-        workitem.workitem_id
+        workitem_schema.workflow_id,
+        workitem_schema.case_id,
+        workitem_schema.transition_id,
+        workitem_schema.workitem_id
       }),
       workitem_supervisor,
       workitem_spec
