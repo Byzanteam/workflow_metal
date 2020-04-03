@@ -54,7 +54,9 @@ defmodule WorkflowMetal.Case.CaseTest do
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
-      assert_receive :a_completed
+      until(fn ->
+        assert_receive :a_completed
+      end)
 
       until(fn ->
         {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)

@@ -1,6 +1,8 @@
 defmodule WorkflowMetal.Workitem.WorkitemTest do
   use ExUnit.Case, async: true
 
+  import WorkflowMetal.Helpers.Wait
+
   alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
   alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
@@ -37,7 +39,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
-      assert_receive :a_completed
+      until(fn ->
+        assert_receive :a_completed
+      end)
     end
 
     test "execute a workitem and put an output" do
@@ -58,14 +62,18 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
-      assert_receive :a_completed
+      until(fn ->
+        assert_receive :a_completed
+      end)
 
-      {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+      until(fn ->
+        {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
 
-      workitems
-      |> Enum.filter(&(&1.case_id === case_schema.id))
-      |> Enum.each(fn workitem ->
-        assert workitem.output === %{reply: :a_completed}
+        workitems
+        |> Enum.filter(&(&1.case_id === case_schema.id))
+        |> Enum.each(fn workitem ->
+          assert workitem.output === %{reply: :a_completed}
+        end)
       end)
     end
   end
