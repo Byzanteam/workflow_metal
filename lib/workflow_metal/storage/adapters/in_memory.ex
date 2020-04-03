@@ -113,6 +113,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_arcs(adapter_meta, transition_id, arc_direction) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_arcs, transition_id, arc_direction})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_places(adapter_meta, transition_id, arc_direction) do
     storage = storage_name(adapter_meta)
 
@@ -293,6 +300,24 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         :arc
         |> get_table(state)
         |> :ets.select([{{:_, :"$1", {workflow_schema.id, :_, :_, :_}}, [], [:"$1"]}])
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_arcs, transition_id, arc_direction},
+        _from,
+        %State{} = state
+      ) do
+    arc_direction = reversed_arc_direction(arc_direction)
+
+    reply =
+      with({:ok, transition_schema} <- find_transition(transition_id, state)) do
+        :arc
+        |> get_table(state)
+        |> :ets.select([{{:_, :"$1", {:_, :_, transition_schema.id, arc_direction}}, [], [:"$1"]}])
       end
 
     {:reply, reply, state}

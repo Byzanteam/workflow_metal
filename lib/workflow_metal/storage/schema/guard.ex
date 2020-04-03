@@ -8,7 +8,7 @@ defmodule WorkflowMetal.Storage.Schema.Guard do
     :id,
     :arc_id,
     :exp,
-    :computer
+    :evaluator
   ]
 
   @type id :: term()
@@ -18,6 +18,6 @@ defmodule WorkflowMetal.Storage.Schema.Guard do
           id: id,
           arc_id: arc_id,
           exp: String.t(),
-          computer: module()
+          evaluator: module()
         }
 end
