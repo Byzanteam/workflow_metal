@@ -1,6 +1,8 @@
 defmodule WorkflowMetal.Support.InMemoryStorageCase do
   @moduledoc false
 
+  alias WorkflowMetal.Storage.Adapters.InMemory, InMemoryStorage
+
   use ExUnit.CaseTemplate
 
   setup context do
@@ -10,7 +12,7 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
 
       storage ->
         on_exit(fn ->
-          :ok = WorkflowMetal.Storage.Adapters.InMemory.reset!(storage)
+          :ok = InMemoryStorage.reset!(storage)
         end)
     end
   end

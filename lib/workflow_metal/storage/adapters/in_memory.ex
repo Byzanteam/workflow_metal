@@ -182,7 +182,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:fetch_task, case_id, transition_id})
   end
 
-  # TODO: issue genesis token
   @impl WorkflowMetal.Storage.Adapter
   def issue_token(adapter_meta, token_params) do
     storage = storage_name(adapter_meta)

@@ -9,6 +9,7 @@ defmodule WorkflowMetal.Case.SupervisorTest do
   alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
   alias WorkflowMetal.Storage.Schema
+  alias WorkflowMetal.Support.Workflows.SequentialRouting
 
   setup_all do
     start_supervised!(DummyApplication)
@@ -22,15 +23,13 @@ defmodule WorkflowMetal.Case.SupervisorTest do
     end
 
     test "failed to open a non-existing case" do
-      {:ok, _workflow_schema} =
-        WorkflowMetal.Support.Workflows.SequentialRouting.create(DummyApplication)
+      {:ok, _workflow_schema} = SequentialRouting.create(DummyApplication)
 
       assert {:error, :case_not_found} = CaseSupervisor.open_case(DummyApplication, 123)
     end
 
     test "open a case successfully" do
-      {:ok, workflow_schema} =
-        WorkflowMetal.Support.Workflows.SequentialRouting.create(DummyApplication)
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} =
         WorkflowMetal.Storage.create_case(

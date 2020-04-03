@@ -6,12 +6,10 @@ defmodule WorkflowMetal.Helpers.Wait do
   def until(0, fun), do: fun.()
 
   def until(timeout, fun) do
-    try do
-      fun.()
-    rescue
-      ExUnit.AssertionError ->
-        :timer.sleep(10)
-        until(max(0, timeout - 10), fun)
-    end
+    fun.()
+  rescue
+    ExUnit.AssertionError ->
+      :timer.sleep(10)
+      until(max(0, timeout - 10), fun)
   end
 end
