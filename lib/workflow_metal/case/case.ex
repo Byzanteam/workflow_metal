@@ -189,7 +189,7 @@ defmodule WorkflowMetal.Case.Case do
         id: case_id,
         workflow_id: workflow_id
       } = case_schema
-    } = WorkflowMetal.Storage.activate_case(application, case_schema)
+    } = WorkflowMetal.Storage.activate_case(application, case_schema.id)
 
     {:ok, %{id: start_place_id}} =
       WorkflowMetal.Storage.fetch_special_place(application, workflow_id, :start)

@@ -192,10 +192,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def activate_case(adapter_meta, case_schema) do
+  def activate_case(adapter_meta, case_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:activate_case, case_schema})
+    GenServer.call(storage, {:activate_case, case_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -276,17 +276,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def start_workitem(adapter_meta, workitem_schema) do
+  def start_workitem(adapter_meta, workitem_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:start_workitem, workitem_schema})
+    GenServer.call(storage, {:start_workitem, workitem_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def complete_workitem(adapter_meta, workitem_schema, workitem_output) do
+  def complete_workitem(adapter_meta, workitem_id, workitem_output) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:complete_workitem, workitem_schema, workitem_output})
+    GenServer.call(storage, {:complete_workitem, workitem_id, workitem_output})
   end
 
   @doc """
@@ -503,12 +503,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:activate_case, case_schema},
+        {:activate_case, case_id},
         _from,
         %State{} = state
       ) do
     reply =
-      with({:ok, case_schema} <- find_case(case_schema.id, state)) do
+      with({:ok, case_schema} <- find_case(case_id, state)) do
         do_activate_case(case_schema, state)
       end
 
@@ -762,12 +762,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:start_workitem, workitem_schema},
+        {:start_workitem, workitem_id},
         _from,
         %State{} = state
       ) do
     reply =
-      with({:ok, workitem_schema} <- find_workitem(workitem_schema.id, state)) do
+      with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
         do_start_workitem(
           workitem_schema,
           state
@@ -779,12 +779,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:complete_workitem, workitem_schema, workitem_output},
+        {:complete_workitem, workitem_id, workitem_output},
         _from,
         %State{} = state
       ) do
     reply =
-      with({:ok, workitem_schema} <- find_workitem(workitem_schema.id, state)) do
+      with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
         do_complete_workitem(
           workitem_schema,
           workitem_output,

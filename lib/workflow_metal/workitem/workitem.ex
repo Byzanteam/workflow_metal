@@ -210,7 +210,11 @@ defmodule WorkflowMetal.Workitem.Workitem do
       workitem_schema: workitem_schema
     } = state
 
-    {:ok, workitem_schema} = WorkflowMetal.Storage.start_workitem(application, workitem_schema)
+    {:ok, workitem_schema} =
+      WorkflowMetal.Storage.start_workitem(
+        application,
+        workitem_schema.id
+      )
 
     {:ok, workitem_schema}
   end
@@ -224,7 +228,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {:ok, workitem_schema} =
       WorkflowMetal.Storage.complete_workitem(
         application,
-        workitem_schema,
+        workitem_schema.id,
         workitem_output
       )
 

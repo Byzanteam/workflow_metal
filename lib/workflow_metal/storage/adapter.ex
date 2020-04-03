@@ -36,6 +36,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type token_states :: nonempty_list(token_state)
 
+  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
@@ -224,7 +225,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback activate_case(
               adapter_meta,
-              case_schema
+              case_id
             ) :: on_activate_case
 
   # Task
@@ -324,7 +325,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback start_workitem(
               adapter_meta,
-              workitem_schema
+              workitem_id
             ) :: on_start_workitem
 
   @doc """
@@ -334,7 +335,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback complete_workitem(
               adapter_meta,
-              workitem_schema,
+              workitem_id,
               workitem_output
             ) :: on_complete_workitem
 end
