@@ -43,6 +43,7 @@ defmodule WorkflowMetal.Executor do
   @type options :: keyword()
   @type workitem :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type token :: WorkflowMetal.Storage.Schema.Token.t()
+  @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @doc """
@@ -52,4 +53,10 @@ defmodule WorkflowMetal.Executor do
               :started
               | {:completed, workitem_output}
               | {:failed, error}
+
+  @doc """
+  Merge outputs of all workitems.
+  """
+  @callback build_token_payload([workitem], options) ::
+              {:ok, token_payload}
 end

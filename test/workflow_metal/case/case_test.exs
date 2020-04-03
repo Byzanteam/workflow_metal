@@ -29,6 +29,11 @@ defmodule WorkflowMetal.Case.CaseTest do
       def execute(%Schema.Workitem{}, _tokens, _options) do
         {:completed, %{}}
       end
+
+      @impl WorkflowMetal.Executor
+      def build_token_payload(workitems, _options) do
+        {:ok, Enum.map(workitems, & &1.output)}
+      end
     end
 
     test "activate a case successfully" do
