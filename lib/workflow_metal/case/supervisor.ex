@@ -54,6 +54,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   """
   @spec open_case(application, case_id) ::
           WorkflowMetal.Registration.Adapter.on_start_child()
+          | {:error, :case_not_found}
           | {:error, :workflow_not_found}
   def open_case(application, case_id) do
     with(

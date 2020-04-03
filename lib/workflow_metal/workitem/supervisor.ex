@@ -53,7 +53,7 @@ defmodule WorkflowMetal.Workitem.Supervisor do
         workitem_schema.workflow_id,
         workitem_schema.case_id,
         workitem_schema.transition_id,
-        workitem_schema.workitem_id
+        workitem_schema.id
       }),
       workitem_supervisor,
       workitem_spec

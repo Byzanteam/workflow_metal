@@ -57,8 +57,8 @@ defmodule WorkflowMetal.Storage.Schema.Token do
             workflow_id: Token.workflow_id(),
             case_id: Token.case_id(),
             place_id: Token.place_id(),
-            # nil stands for genesis token
-            produced_by_task_id: Token.task_id() | nil
+            # `:genesis` stands for genesis token
+            produced_by_task_id: Token.task_id() | :genesis
           }
   end
 end

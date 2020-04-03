@@ -83,7 +83,7 @@ defmodule WorkflowMetal.Task.Task do
   """
   @spec complete_workitem(GenServer.server(), workitem_id, token_params) :: :ok
   def complete_workitem(task_server, workitem_id, token_params) do
-    GenServer.call(task_server, {:complete_workitem, workitem_id, token_params})
+    GenServer.cast(task_server, {:complete_workitem, workitem_id, token_params})
   end
 
   # @doc """
@@ -118,9 +118,9 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = state
 
-    {:ok, transition} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
+    {:ok, transition_schema} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
 
-    {:noreply, %{state | transition_schema: transition}, {:continue, :fetch_workitems}}
+    {:noreply, %{state | transition_schema: transition_schema}, {:continue, :fetch_workitems}}
   end
 
   @impl true
@@ -193,9 +193,8 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
-  def handle_call(
+  def handle_cast(
         {:complete_workitem, workitem_id, _output},
-        _from,
         %__MODULE__{} = state
       ) do
     %{
@@ -219,14 +218,14 @@ defmodule WorkflowMetal.Task.Task do
   defp task_enablement(%__MODULE__{} = state) do
     %{
       application: application,
-      transition: transition,
+      transition_schema: transition_schema,
       token_table: token_table
     } = state
 
-    {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition.id, :in)
+    {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
 
     Enum.reduce_while(places, {:ok, []}, fn place, {:ok, token_ids} ->
-      case transition.join_type do
+      case transition_schema.join_type do
         :none ->
           task_enablement_reduction_func(:none, place, token_ids, token_table)
 
@@ -259,12 +258,14 @@ defmodule WorkflowMetal.Task.Task do
       task_schema: %Schema.Task{
         id: task_id,
         workflow_id: workflow_id,
+        transition_id: transition_id,
         case_id: case_id
       }
     } = state
 
     workitem_params = %Schema.Workitem.Params{
       workflow_id: workflow_id,
+      transition_id: transition_id,
       case_id: case_id,
       task_id: task_id
     }
@@ -313,7 +314,7 @@ defmodule WorkflowMetal.Task.Task do
   defp case_server(%__MODULE__{} = state) do
     %{
       application: application,
-      case_schema: %{
+      task_schema: %{
         workflow_id: workflow_id,
         case_id: case_id
       }

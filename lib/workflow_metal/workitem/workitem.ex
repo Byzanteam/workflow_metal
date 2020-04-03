@@ -51,7 +51,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @doc """
   Complete a workitem.
   """
-  @spec complete(GenServer.server(), token_params) :: :ok
+  @spec complete(GenServer.server(), token_params) ::
+          :ok | {:error, :workitem_not_available}
   def complete(workitem_server, token_params) do
     GenServer.call(workitem_server, {:complete, token_params})
   end
@@ -101,8 +102,22 @@ defmodule WorkflowMetal.Workitem.Workitem do
         :execute_workitem,
         %__MODULE__{workitem_schema: %Schema.Workitem{state: :created}} = state
       ) do
-    {:ok, state} = do_execute_workitem(state)
-    {:noreply, state}
+    {
+      :ok,
+      %{
+        workitem_schema: %Schema.Workitem{
+          state: workitem_state
+        }
+      } = state
+    } = do_execute_workitem(state)
+
+    case workitem_state do
+      :completed ->
+        {:noreply, state, {:continue, :stop_workitem}}
+
+      _ ->
+        {:noreply, state}
+    end
   end
 
   def handle_continue(:execute_workitem, %__MODULE__{} = state), do: {:noreply, state}
@@ -124,6 +139,11 @@ defmodule WorkflowMetal.Workitem.Workitem do
   # end
 
   @impl true
+  def handle_continue(:stop_workitem, %__MODULE__{} = state) do
+    {:stop, :normal, state}
+  end
+
+  @impl true
   def handle_call(
         {:complete, token_params},
         _from,
@@ -131,11 +151,12 @@ defmodule WorkflowMetal.Workitem.Workitem do
       ) do
     {:ok, workitem_schema} = do_complete_workitem(token_params, state)
 
-    {:stop, :normal, %{state | workitem_schema: workitem_schema}}
+    {:reply, :ok, %{state | workitem_schema: workitem_schema}, {:continue, :stop_workitem}}
   end
 
-  def handle_call({:complete, _token_params}, _from, %__MODULE__{} = state),
-    do: {:stop, :normal, state}
+  def handle_call({:complete, _token_params}, _from, %__MODULE__{} = state) do
+    {:reply, {:error, :workitem_not_available}, state}
+  end
 
   # def handle_call({:fail, error}, _from, %__MODULE__{workitem_state: :started} = state) do
   #   {

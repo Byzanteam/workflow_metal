@@ -227,6 +227,8 @@ defmodule WorkflowMetal.Storage.Adapter do
   # Token
   @doc """
   Issue a token.
+
+  If produced_by_task_id not provided, the token is a genesis token.
   """
   @callback issue_token(
               adapter_meta,
