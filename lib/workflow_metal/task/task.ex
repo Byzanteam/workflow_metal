@@ -341,7 +341,8 @@ defmodule WorkflowMetal.Task.Task do
 
     {:ok, token_payload} = build_token_payload(state)
 
-    {:ok, task_schema} = WorkflowMetal.Storage.complete_task(application, task_schema.id, token_payload)
+    {:ok, task_schema} =
+      WorkflowMetal.Storage.complete_task(application, task_schema.id, token_payload)
 
     # TODO: handle split
     {:ok, %{state | task_schema: task_schema}}
