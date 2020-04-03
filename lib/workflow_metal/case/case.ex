@@ -11,7 +11,7 @@ defmodule WorkflowMetal.Case.Case do
     :application,
     :case_schema,
     :token_table,
-    :free_token_ids
+    free_token_ids: MapSet.new()
   ]
 
   @type application :: WorkflowMetal.Application.t()
@@ -68,8 +68,7 @@ defmodule WorkflowMetal.Case.Case do
       %__MODULE__{
         application: application,
         case_schema: case_schema,
-        token_table: token_table,
-        free_token_ids: MapSet.new()
+        token_table: token_table
       },
       {:continue, :rebuild_from_storage}
     }
@@ -159,13 +158,18 @@ defmodule WorkflowMetal.Case.Case do
   defp activate_case(%__MODULE__{} = state) do
     %{
       application: application,
-      case_schema: %Schema.Case{
-        id: case_id,
-        workflow_id: workflow_id
-      },
+      case_schema: case_schema,
       token_table: token_table,
       free_token_ids: free_token_ids
     } = state
+
+    {
+      :ok,
+      %Schema.Case{
+        id: case_id,
+        workflow_id: workflow_id
+      } = case_schema
+    } = WorkflowMetal.Storage.activate_case(application, case_schema)
 
     {:ok, %{id: start_place_id}} =
       WorkflowMetal.Storage.fetch_special_place(application, workflow_id, :start)
@@ -181,7 +185,14 @@ defmodule WorkflowMetal.Case.Case do
 
     token_id = insert_token(token_table, token_schema)
 
-    {:ok, %{state | free_token_ids: MapSet.put(free_token_ids, token_id)}}
+    {
+      :ok,
+      %{
+        state
+        | case_schema: case_schema,
+          free_token_ids: MapSet.put(free_token_ids, token_id)
+      }
+    }
   end
 
   defp offer_tokens(%__MODULE__{} = state) do
