@@ -60,7 +60,10 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       assert_receive :a_completed
 
       {:ok, workitems} =
-        WorkflowMetal.Storage.Adapters.InMemory.list_workitems(DummyApplication, workflow_schema.id)
+        WorkflowMetal.Storage.Adapters.InMemory.list_workitems(
+          DummyApplication,
+          workflow_schema.id
+        )
 
       workitems
       |> Enum.filter(&(&1.case_id === case_schema.id))
