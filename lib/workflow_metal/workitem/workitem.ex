@@ -221,13 +221,17 @@ defmodule WorkflowMetal.Workitem.Workitem do
       workitem_schema: workitem_schema
     } = state
 
-    {:ok, workitem_schema} = WorkflowMetal.Storage.complete_workitem(application, workitem_schema)
+    {:ok, workitem_schema} =
+      WorkflowMetal.Storage.complete_workitem(
+        application,
+        workitem_schema,
+        workitem_output
+      )
 
     :ok =
       WorkflowMetal.Task.Task.complete_workitem(
         task_server(state),
-        workitem_schema,
-        workitem_output
+        workitem_schema
       )
 
     {:ok, workitem_schema}

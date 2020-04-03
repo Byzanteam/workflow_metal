@@ -31,6 +31,7 @@ defmodule WorkflowMetal.Storage do
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @type config :: keyword()
 
@@ -343,21 +344,9 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec complete_workitem(application, workitem_schema) ::
+  @spec complete_workitem(application, workitem_schema, workitem_output) ::
           WorkflowMetal.Storage.Adapter.on_complete_workitem()
-  def complete_workitem(application, workitem_schema) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.complete_workitem(
-      adapter_meta,
-      workitem_schema
-    )
-  end
-
-  @doc false
-  @spec put_workitem_output(application, workitem_schema, workitem_output) ::
-          WorkflowMetal.Storage.Adapter.on_put_workitem_output()
-  def put_workitem_output(application, workitem_schema, workitem_output) do
+  def complete_workitem(application, workitem_schema, workitem_output) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.complete_workitem(

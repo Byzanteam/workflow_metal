@@ -37,6 +37,7 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @type error :: term()
 
@@ -115,9 +116,6 @@ defmodule WorkflowMetal.Storage.Adapter do
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
           | {:error, :workitem_not_available}
-  @type on_put_workitem_output ::
-          {:ok, workitem_schema}
-          | {:error, :workitem_not_found}
 
   @doc """
   Return a child spec for the storage 
@@ -305,20 +303,13 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_start_workitem
 
   @doc """
-  Complete a `started` workitem of a task.
+  Complete a `started` workitem of a task, and put an output into the workitem.
+
   Return `{:ok, workitem_schema}` if it is already `completed`.
   """
   @callback complete_workitem(
               adapter_meta,
-              workitem_schema
-            ) :: on_complete_workitem
-
-  @doc """
-  Put an output into the workitem.
-  """
-  @callback put_workitem_output(
-              adapter_meta,
               workitem_schema,
               workitem_output
-            ) :: on_put_workitem_output
+            ) :: on_complete_workitem
 end
