@@ -21,9 +21,9 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
 
     @impl WorkflowMetal.Executor
     def execute(%Schema.Workitem{}, _tokens, options) do
-      executer_params = Keyword.fetch!(options, :executer_params)
-      request = Keyword.fetch!(executer_params, :request)
-      reply = Keyword.fetch!(executer_params, :reply)
+      executor_params = Keyword.fetch!(options, :executor_params)
+      request = Keyword.fetch!(executor_params, :request)
+      reply = Keyword.fetch!(executor_params, :reply)
 
       send(request, reply)
 
@@ -31,9 +31,9 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     end
   end
 
-  def create(application, executers \\ []) do
-    a_transition = Keyword.get_lazy(executers, :a, fn -> build_simple_transition(1) end)
-    b_transition = Keyword.get_lazy(executers, :b, fn -> build_simple_transition(2) end)
+  def create(application, executors \\ []) do
+    a_transition = Keyword.get_lazy(executors, :a, fn -> build_simple_transition(1) end)
+    b_transition = Keyword.get_lazy(executors, :b, fn -> build_simple_transition(2) end)
 
     WorkflowMetal.Storage.create_workflow(
       application,
@@ -60,15 +60,15 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
   def build_simple_transition(rid) do
     %Schema.Transition.Params{
       rid: rid,
-      executer: SimpleTransition
+      executor: SimpleTransition
     }
   end
 
   def build_echo_transition(rid, params \\ []) do
     %Schema.Transition.Params{
       rid: rid,
-      executer: EchoTransition,
-      executer_params: Keyword.put_new(params, :request, self())
+      executor: EchoTransition,
+      executor_params: Keyword.put_new(params, :request, self())
     }
   end
 end
