@@ -1,4 +1,6 @@
 defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
+  @moduledoc false
+
   alias WorkflowMetal.Storage.Schema
 
   def create(application) do

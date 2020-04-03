@@ -19,11 +19,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :place_table,
       :transition_table,
       :case_table,
-      :task_table,
       :token_table,
-      :workitem_table,
-      workflows: %{},
-      cases: %{}
+      :task_table,
+      :workitem_table
     ]
   end
 
@@ -186,10 +184,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def lock_token(adapter_meta, token_schema, task_id) do
+  def lock_token(adapter_meta, token_id, task_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:lock_token, token_schema, task_id})
+    GenServer.call(storage, {:lock_token, token_id, task_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -211,6 +209,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     storage = storage_name(adapter_meta)
 
     GenServer.call(storage, {:create_workitem, workitem_params})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_workitems(adapter_meta, task_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_workitems, task_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -492,14 +497,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:lock_token, token_schema, task_id},
+        {:lock_token, token_id, task_id},
         _from,
         %State{} = state
       ) do
     reply =
       with(
         {:ok, task_schema} <- find_task(task_id, state),
-        {:ok, token_schema} <- find_token(token_schema.id, state)
+        {:ok, token_schema} <- find_token(token_id, state)
       ) do
         do_lock_token(
           token_schema,
@@ -569,6 +574,28 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           case_id: case_schema.id,
           task_id: task_schema.id
         )
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_workitems, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, task_schema} <- find_task(task_id, state)) do
+        :workitem
+        |> get_table(state)
+        |> :ets.select([
+          {
+            {:_, :"$1", {task_schema.workflow_id, task_schema.case_id, task_schema.id}},
+            [],
+            [:"$1"]
+          }
+        ])
       end
 
     {:reply, reply, state}

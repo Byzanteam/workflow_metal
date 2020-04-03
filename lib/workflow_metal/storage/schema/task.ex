@@ -15,11 +15,11 @@ defmodule WorkflowMetal.Storage.Schema.Task do
     :workflow_id,
     :transition_id,
     :case_id,
-    state: :created
+    state: :started
   ]
 
   @type id :: term()
-  @type state :: :created | :started | :completed
+  @type state :: :started | :completed
 
   @type workflow_id :: Schema.Workflow.id()
   @type transition_id :: Schema.Transition.id()

@@ -57,7 +57,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
             workflow_id: Token.workflow_id(),
             case_id: Token.case_id(),
             place_id: Token.place_id(),
-            produced_by_task_id: Token.task_id()
+            produced_by_task_id: Token.task_id() | nil
           }
   end
 end

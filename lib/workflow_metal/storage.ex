@@ -23,6 +23,7 @@ defmodule WorkflowMetal.Storage do
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
+  @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
@@ -213,6 +214,7 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
   @spec fetch_task(application, case_id, transition_id) ::
           WorkflowMetal.Storage.Adapter.on_fetch_task()
   def fetch_task(application, case_id, transition_id) do
@@ -240,14 +242,14 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec lock_token(application, token_schema, task_id) ::
+  @spec lock_token(application, token_id, task_id) ::
           WorkflowMetal.Storage.Adapter.on_lock_token()
-  def lock_token(application, token_schema, task_id) do
+  def lock_token(application, token_id, task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.lock_token(
       adapter_meta,
-      token_schema,
+      token_id,
       task_id
     )
   end
@@ -288,6 +290,18 @@ defmodule WorkflowMetal.Storage do
     adapter.create_workitem(
       adapter_meta,
       workitem_params
+    )
+  end
+
+  @doc false
+  @spec fetch_workitems(application, task_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_workitems()
+  def fetch_workitems(application, task_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_workitems(
+      adapter_meta,
+      task_id
     )
   end
 
