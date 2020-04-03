@@ -10,5 +10,5 @@ defmodule WorkflowMetal.Controller.Split do
               application,
               [arc_schema],
               token_schema
-            ) :: Splitter.result()
+            ) :: WorkflowMetal.Controller.Splitter.result()
 end
