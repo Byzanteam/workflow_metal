@@ -189,6 +189,18 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec activate_case(application, case_schema) ::
+          WorkflowMetal.Storage.Adapter.on_activate_case()
+  def activate_case(application, case_schema) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.activate_case(
+      adapter_meta,
+      case_schema
+    )
+  end
+
   ## Task
   @doc false
   @spec create_task(application, task_params) ::

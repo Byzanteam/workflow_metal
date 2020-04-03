@@ -40,7 +40,7 @@ defmodule WorkflowMetal.Registration do
   @doc """
   """
   @spec start_child(application, term, Supervisor.supervisor(), Adapter.child_spec()) ::
-          DynamicSupervisor.on_start_child()
+          WorkflowMetal.Registration.Adapter.on_start_child()
   def start_child(application, name, supervisor, child_spec) do
     {adapter, adapter_meta} = WorkflowMetal.Application.registry_adapter(application)
 

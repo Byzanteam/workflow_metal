@@ -15,6 +15,7 @@ defmodule WorkflowMetal.Registration.Adapter do
   @type config :: keyword
 
   @type child_spec :: module | {module, term}
+  @type on_start_child :: {:ok, pid} | {:error, term}
 
   @doc """
   Return a supervisor spec for the registry
@@ -36,5 +37,5 @@ defmodule WorkflowMetal.Registration.Adapter do
               name :: term,
               supervisor :: Supervisor.supervisor(),
               child_spec :: child_spec()
-            ) :: DynamicSupervisor.on_start_child()
+            ) :: on_start_child
 end

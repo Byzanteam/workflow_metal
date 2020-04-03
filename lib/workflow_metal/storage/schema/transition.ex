@@ -5,21 +5,21 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
 
   alias WorkflowMetal.Storage.Schema
 
-  @enforce_keys [:id, :workflow_id, :join_type, :split_type, :executer]
+  @enforce_keys [:id, :workflow_id, :join_type, :split_type, :executor]
   defstruct [
     :id,
     :workflow_id,
     :join_type,
     :split_type,
-    :executer,
-    :executer_params
+    :executor,
+    :executor_params
   ]
 
   @type id :: term()
   @type join_type :: :none | :and
   @type split_type :: :none | :and
-  @type executer :: module()
-  @type executer_params :: term()
+  @type executor :: module()
+  @type executor_params :: term()
 
   @type workflow_id :: Schema.Workflow.id()
 
@@ -28,8 +28,8 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
           workflow_id: workflow_id,
           join_type: join_type,
           split_type: split_type,
-          executer: module(),
-          executer_params: map()
+          executor: module(),
+          executor_params: map()
         }
 
   alias __MODULE__
@@ -37,11 +37,11 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:rid, :executer]
+    @enforce_keys [:rid, :executor]
     defstruct [
       :rid,
-      :executer,
-      :executer_params,
+      :executor,
+      :executor_params,
       join_type: :none,
       split_type: :none
     ]
@@ -52,8 +52,8 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
             rid: reference_id,
             join_type: Transition.join_type(),
             split_type: Transition.split_type(),
-            executer: Transition.executer(),
-            executer_params: Transition.executer_params()
+            executor: Transition.executor(),
+            executor_params: Transition.executor_params()
           }
   end
 end
