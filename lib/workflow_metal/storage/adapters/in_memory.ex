@@ -1,6 +1,31 @@
 defmodule WorkflowMetal.Storage.Adapters.InMemory do
   @moduledoc """
   An in-memory storage adapter useful for testing as no persistence provided.
+
+  ## Storage
+  The data of `:workflow_table` ETS table format:
+      {workflow_id, workflow_schema}
+
+  The data of `:arc_table` ETS table format:
+      {arc_id, arc_schema, {workflow_id, place_id, transition_id, direction}}
+
+  The data of `:place_table` ETS table format:
+      {place_id, place_schema, {place_type, workflow_id}}
+
+  The data of `:transition_table` ETS table format:
+      {transition_id, transition_schema, workflow_id}
+
+  The data of `:case_table` ETS table format:
+      {case_id, case_schema, {case_state, workflow_id}}
+
+  The data of `:token_table` ETS table format:
+      {token_id, token_schema, {workflow_id, case_id, place_id, produced_by_task_id, locked_by_task_id, state}}
+
+  The data of `:task_table` ETS table format:
+      {task_id, task_schema, {workflow_id, transition_id, case_id}}
+
+  The data of `:workitem_table` ETS table format:
+      {workitem_id, workitem_schema, {workflow_id, case_id, task_id}}
   """
 
   alias WorkflowMetal.Storage.Schema
