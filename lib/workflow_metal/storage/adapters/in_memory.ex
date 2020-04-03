@@ -52,6 +52,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
 
   @doc false
@@ -296,6 +297,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     storage = storage_name(adapter_meta)
 
     GenServer.call(storage, :reset!)
+  end
+
+  @doc """
+  List tasks of the workflow.
+  """
+  @spec list_tasks(application, workflow_id) :: {:ok, [task_schema]}
+  def list_tasks(application, workflow_id) do
+    {_adapter, adapter_meta} = WorkflowMetal.Application.storage_adapter(application)
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:list_tasks, workflow_id})
   end
 
   @doc """
@@ -797,6 +809,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     |> Stream.run()
 
     {:reply, :ok, state}
+  end
+
+  @impl GenServer
+  def handle_call({:list_tasks, workflow_id}, _from, %State{} = state) do
+    tasks =
+      :task
+      |> get_table(state)
+      |> :ets.select([{{:_, :"$1", {workflow_id, :_, :_}}, [], [:"$1"]}])
+
+    {:reply, {:ok, tasks}, state}
   end
 
   @impl GenServer
