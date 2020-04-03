@@ -1,6 +1,13 @@
 defmodule WorkflowMetal.Task.Task do
   @moduledoc """
   A `GenServer` to hold tokens, execute conditions and generate `workitem`.
+
+  ## Storage
+  The data of `:token_table` is stored in ETS in the following format:
+      {token_id :: token_id, place_id :: place_id, token_state :: token_state}
+
+  The data of `:workitem_table` is stored in ETS in the following format:
+      {workitem_id :: workitem_id, workitem_state :: workitem_state}
   """
 
   use GenServer
@@ -201,7 +208,7 @@ defmodule WorkflowMetal.Task.Task do
       workitem_table: workitem_table
     } = state
 
-    :ets.update_element(workitem_table, workitem_id, [{1, :completed}])
+    :ets.update_element(workitem_table, workitem_id, [{2, :completed}])
 
     {:noreply, state, {:continue, :complete_task}}
   end
@@ -245,7 +252,7 @@ defmodule WorkflowMetal.Task.Task do
 
     with(:ok <- WorkflowMetal.Case.Case.lock_tokens(case_server(state), token_ids, task_id)) do
       Enum.each(token_ids, fn token_id ->
-        :ets.update_element(token_table, token_id, [{2, :locked}])
+        :ets.update_element(token_table, token_id, [{3, :locked}])
       end)
 
       {:ok, state}
