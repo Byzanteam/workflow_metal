@@ -115,6 +115,9 @@ defmodule WorkflowMetal.Storage.Adapter do
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
           | {:error, :workitem_not_available}
+  @type on_put_workitem_output ::
+          {:ok, workitem_schema}
+          | {:error, :workitem_not_found}
 
   @doc """
   Return a child spec for the storage 
@@ -309,4 +312,13 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               workitem_schema
             ) :: on_complete_workitem
+
+  @doc """
+  Put an output into the workitem.
+  """
+  @callback put_workitem_output(
+              adapter_meta,
+              workitem_schema,
+              workitem_output
+            ) :: on_put_workitem_output
 end

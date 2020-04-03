@@ -353,4 +353,17 @@ defmodule WorkflowMetal.Storage do
       workitem_schema
     )
   end
+
+  @doc false
+  @spec put_workitem_output(application, workitem_schema, workitem_output) ::
+          WorkflowMetal.Storage.Adapter.on_put_workitem_output()
+  def put_workitem_output(application, workitem_schema, workitem_output) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.complete_workitem(
+      adapter_meta,
+      workitem_schema,
+      workitem_output
+    )
+  end
 end

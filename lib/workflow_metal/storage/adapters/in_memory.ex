@@ -245,6 +245,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:complete_workitem, workitem_schema})
   end
 
+  @impl WorkflowMetal.Storage.Adapter
+  def put_workitem_output(adapter_meta, workitem_schema, workitem_output) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:put_workitem_output, workitem_schema, workitem_output})
+  end
+
   @doc """
   Reset state.
   """
@@ -679,6 +686,24 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       with({:ok, workitem_schema} <- find_workitem(workitem_schema.id, state)) do
         do_complete_workitem(
           workitem_schema,
+          state
+        )
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:put_workitem_output, workitem_schema, workitem_output},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, workitem_schema} <- find_workitem(workitem_schema.id, state)) do
+        do_put_workitem_output(
+          workitem_schema,
+          workitem_output,
           state
         )
       end
@@ -1223,6 +1248,24 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   defp do_complete_workitem(_workitem_schema, %State{} = _state) do
     {:error, :workitem_not_available}
+
+    workitem_schema = %{
+      workitem_schema
+      | output: workitem_output
+    }
+
+    true =
+      :ets.update_element(
+        workitem_table,
+        workitem_schema.id,
+        [{2, workitem_schema}]
+      )
+
+    {:ok, workitem_schema}
+  end
+
+  defp do_put_workitem_output(workitem_schema, workitem_output, %State{} = state) do
+    workitem_table = get_table(:workitem, state)
   end
 
   defp find_workitem(workitem_id, %State{} = state) do
