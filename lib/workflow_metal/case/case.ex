@@ -1,6 +1,10 @@
 defmodule WorkflowMetal.Case.Case do
   @moduledoc """
   `GenServer` process to present a workflow case.
+
+  ## Storage
+  The data of `:token_table` is stored in ETS in the following format:
+      {token_id, token_state, place_id, locked_by_task_id}
   """
 
   alias WorkflowMetal.Storage.Schema
