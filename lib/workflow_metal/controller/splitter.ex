@@ -1,4 +1,4 @@
-defmodule WorkflowMetal.Task.Splitter do
+defmodule WorkflowMetal.Controller.Splitter do
   @moduledoc false
 
   @type application :: WorkflowMetal.Application.t()
@@ -9,7 +9,6 @@ defmodule WorkflowMetal.Task.Splitter do
   @type arc_weight :: integer
   @type result ::
           %{required(arc_id) => integer}
-          | {:error, :invalid_split_type}
           | {:error, :transition_not_found}
 
   @doc false
@@ -25,19 +24,8 @@ defmodule WorkflowMetal.Task.Splitter do
     end
   end
 
-  alias WorkflowMetal.Task.Splitters
+  alias WorkflowMetal.Controller.Split
 
-  defp concrete_splitter(:none), do: {:ok, Splitters.None}
-  defp concrete_splitter(:and), do: {:ok, Splitters.And}
-
-  alias __MODULE__
-
-  defmodule ConcreteSplitter do
-    @moduledoc false
-
-    @type arc_schema :: WorkflowMetal.Storage.Schema.Arc.t()
-
-    @callback call(Splitter.application(), [arc_schema], Splitter.token_schema()) ::
-                Splitter.result()
-  end
+  defp concrete_splitter(:none), do: {:ok, Split.None}
+  defp concrete_splitter(:and), do: {:ok, Split.And}
 end
