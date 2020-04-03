@@ -70,6 +70,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_case ::
           {:ok, case_schema}
           | {:error, :case_not_found}
+  @type on_activate_case ::
+          {:ok, case_schema}
+          | {:error, :case_not_found}
 
   @type on_create_task ::
           {:ok, task_schema}
@@ -201,6 +204,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               case_id
             ) :: on_fetch_case
+
+  @doc """
+  Activate a case.
+  """
+  @callback activate_case(
+              adapter_meta,
+              case_schema
+            ) :: on_activate_case
 
   # Task
   @doc """
