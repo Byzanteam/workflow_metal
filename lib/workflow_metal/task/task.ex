@@ -26,6 +26,7 @@ defmodule WorkflowMetal.Task.Task do
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
+  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @type error :: term()
   @type options :: [
@@ -81,9 +82,9 @@ defmodule WorkflowMetal.Task.Task do
 
   @doc """
   """
-  @spec complete_workitem(GenServer.server(), workitem_id, token_params) :: :ok
-  def complete_workitem(task_server, workitem_id, token_params) do
-    GenServer.cast(task_server, {:complete_workitem, workitem_id, token_params})
+  @spec complete_workitem(GenServer.server(), workitem_id, workitem_output) :: :ok
+  def complete_workitem(task_server, workitem_id, workitem_output) do
+    GenServer.cast(task_server, {:complete_workitem, workitem_id, workitem_output})
   end
 
   # @doc """
@@ -194,7 +195,7 @@ defmodule WorkflowMetal.Task.Task do
 
   @impl true
   def handle_cast(
-        {:complete_workitem, workitem_id, _output},
+        {:complete_workitem, workitem_id, _workitem_output},
         %__MODULE__{} = state
       ) do
     %{

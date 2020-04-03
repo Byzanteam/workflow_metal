@@ -7,7 +7,7 @@ defmodule WorkflowMetal.Executor do
   ## Supported return values
 
     - `:started` - the executor is started, and report its state latter, this is useful for long-running tasks(for example: timer).
-    - `{:completed, token_params}` - the executor has been started and comploted already.
+    - `{:completed, workitem_output}` - the executor has been started and comploted already.
     - `{:failed, reason}` - the executor failed to execute.
 
   ## Example
@@ -18,7 +18,7 @@ defmodule WorkflowMetal.Executor do
 
         @impl WorkflowMetal.Executor
         def execute(%Schema.Workitem{}, _tokens, _options) do
-          {:completed, %Schema.Token.Params{}}
+          {:completed, {:output, :ok}}
         end
       end
 
@@ -34,7 +34,7 @@ defmodule WorkflowMetal.Executor do
         end
 
         def run(%Schema.Workitem{} = workitem, _tokens, _options) do
-          WorkflowMetal.WorkitemSupervisor.complete(workitem, %Schema.Token.Params{})
+          WorkflowMetal.WorkitemSupervisor.complete(workitem, {:output, :ok})
         end
       end
   """
@@ -43,13 +43,13 @@ defmodule WorkflowMetal.Executor do
   @type options :: keyword()
   @type workitem :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type token :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @doc """
   Run an executor and return its state to the `workitem` process.
   """
   @callback execute(workitem, nonempty_list(token), options) ::
               :started
-              | {:completed, token_params}
+              | {:completed, workitem_output}
               | {:failed, error}
 end
