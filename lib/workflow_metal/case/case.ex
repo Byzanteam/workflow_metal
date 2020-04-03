@@ -76,13 +76,8 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl true
   def handle_continue(:rebuild_from_storage, %__MODULE__{} = state) do
-    case rebuild_tokens(state) do
-      {:ok, state} ->
-        {:noreply, state, {:continue, :activate_case}}
-
-      {:error, reason} ->
-        {:stop, reason, state}
-    end
+    {:ok, state} = rebuild_tokens(state)
+    {:noreply, state, {:continue, :activate_case}}
   end
 
   @impl true
