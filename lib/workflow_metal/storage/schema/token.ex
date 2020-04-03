@@ -19,6 +19,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
     :place_id,
     :produced_by_task_id,
     :locked_by_task_id,
+    :consumed_by_task_id,
     :payload,
     state: :free
   ]
@@ -40,6 +41,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
           place_id: place_id,
           produced_by_task_id: task_id,
           locked_by_task_id: task_id,
+          consumed_by_task_id: task_id,
           payload: payload
         }
 

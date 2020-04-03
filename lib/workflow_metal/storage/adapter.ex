@@ -94,6 +94,9 @@ defmodule WorkflowMetal.Storage.Adapter do
           {:ok, token_schema}
           | {:error, :token_not_found}
           | {:error, :token_not_available}
+  @type on_consume_tokens ::
+          {:ok, [token_schema]}
+          | {:error, :token_not_available}
   @type on_fetch_tokens ::
           {:ok, [token_schema]}
   @type on_fetch_locked_tokens ::
@@ -259,6 +262,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               token_id,
               task_id
             ) :: on_lock_token
+  @doc """
+  Consume tokens.
+  """
+  @callback consume_tokens(
+              adapter_meta,
+              nonempty_list(token_id),
+              task_id
+            ) :: on_consume_tokens
   @doc """
   Retrive tokens locked by the task.
   """

@@ -240,6 +240,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def consume_tokens(adapter_meta, token_ids, task_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:consume_tokens, token_ids, task_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_locked_tokens(adapter_meta, task_id) do
     storage = storage_name(adapter_meta)
 
@@ -610,6 +617,34 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     reply = find_tokens(case_id, token_states, state)
 
     {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:consume_tokens, token_ids, task_id},
+        _from,
+        %State{} = state
+      ) do
+    {:ok, task_schema} = find_task(task_id, state)
+
+    tokens =
+      Enum.map(token_ids, fn token_id ->
+        with(
+          {:ok, token_schema} <- find_token(token_id, state),
+          {:ok, token_schema} <-
+            do_consume_token(token_schema, task_schema.id, state)
+        ) do
+          token_schema
+        else
+          _ ->
+            raise ArgumentError,
+                  "the token(#{inspect(task_id)}) should be consumed by the task(#{
+                    inspect(task_id)
+                  })."
+        end
+      end)
+
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
@@ -1097,6 +1132,39 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_lock_token(_token_params, _task_schema, %State{} = _state) do
+    {:error, :token_not_available}
+  end
+
+  defp do_consume_token(
+         %Schema.Token{locked_by_task_id: task_id, state: :locked} = token_schema,
+         task_id,
+         %State{} = state
+       ) do
+    token_schema = %{token_schema | consumed_by_task_id: task_id}
+
+    true =
+      :token
+      |> get_table(state)
+      |> :ets.update_element(
+        token_schema.id,
+        [
+          {2, token_schema},
+          {3,
+           {
+             token_schema.workflow_id,
+             token_schema.case_id,
+             token_schema.place_id,
+             token_schema.produced_by_task_id,
+             token_schema.locked_by_task_id,
+             token_schema.state
+           }}
+        ]
+      )
+
+    {:ok, token_schema}
+  end
+
+  defp do_consume_token(_token_schema, _task_id, %State{}) do
     {:error, :token_not_available}
   end
 
