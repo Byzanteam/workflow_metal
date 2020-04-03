@@ -1,15 +1,16 @@
 defmodule WorkflowMetal.Workitem.WorkitemTest do
   use ExUnit.Case, async: true
 
-  defmodule DummyApplication do
-    use WorkflowMetal.Application,
-      storage: WorkflowMetal.Storage.Adapters.InMemory
-  end
-
   alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
+  alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
   alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
+
+  defmodule DummyApplication do
+    use WorkflowMetal.Application,
+      storage: InMemoryStorage
+  end
 
   setup_all do
     start_supervised!(DummyApplication)
@@ -59,11 +60,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       assert_receive :a_completed
 
-      {:ok, workitems} =
-        WorkflowMetal.Storage.Adapters.InMemory.list_workitems(
-          DummyApplication,
-          workflow_schema.id
-        )
+      {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
 
       workitems
       |> Enum.filter(&(&1.case_id === case_schema.id))
