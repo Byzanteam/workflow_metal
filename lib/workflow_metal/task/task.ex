@@ -334,9 +334,47 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   defp complete_task(%__MODULE__{} = state) do
-    # TODO: complete task in storage
-    # handle split
-    {:ok, state}
+    %{
+      application: application,
+      task_schema: task_schema
+    } = state
+
+    {:ok, token_payload} = build_token_payload(state)
+
+    {:ok, task_schema} = WorkflowMetal.Storage.complete_task(application, task_schema.id, token_payload)
+
+    # TODO: handle split
+    {:ok, %{state | task_schema: task_schema}}
+  end
+
+  defp build_token_payload(%__MODULE__{} = state) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        id: task_id,
+        transition_id: transition_id
+      }
+    } = state
+
+    {:ok, workitems} =
+      WorkflowMetal.Storage.fetch_workitems(
+        application,
+        task_id
+      )
+
+    {
+      :ok,
+      %Schema.Transition{
+        executor: executor,
+        executor_params: executor_params
+      }
+    } =
+      WorkflowMetal.Storage.fetch_transition(
+        application,
+        transition_id
+      )
+
+    executor.build_token_payload(workitems, executor_params: executor_params)
   end
 
   defp case_server(%__MODULE__{} = state) do
