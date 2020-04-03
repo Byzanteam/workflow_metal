@@ -153,6 +153,11 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               workflow_id
             ) :: on_fetch_arcs
+  @callback fetch_arcs(
+              adapter_meta,
+              transition_id,
+              arc_direction
+            ) :: on_fetch_arcs
 
   @doc """
   Retrive in/out places of a transition.

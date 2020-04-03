@@ -113,6 +113,19 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec fetch_arcs(application, transition_id, arc_direction) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_arcs()
+  def fetch_arcs(application, transition_id, arc_direction) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_arcs(
+      adapter_meta,
+      transition_id,
+      arc_direction
+    )
+  end
+
+  @doc false
   @spec fetch_places(application, transition_id, arc_direction) ::
           WorkflowMetal.Storage.Adapter.on_fetch_places()
   def fetch_places(application, transition_id, arc_direction) do
