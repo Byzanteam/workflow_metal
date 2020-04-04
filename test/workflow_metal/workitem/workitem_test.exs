@@ -20,8 +20,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     [application: DummyApplication]
   end
 
-  describe "activate_case" do
-    test "activate a case successfully" do
+  describe "execute_workitem" do
+    test "execute successfully" do
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
@@ -44,7 +44,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       end)
     end
 
-    test "execute a workitem and put an output" do
+    test "put an output" do
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
@@ -73,6 +73,61 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         |> Enum.filter(&(&1.case_id === case_schema.id))
         |> Enum.each(fn workitem ->
           assert workitem.output === %{reply: :a_completed}
+        end)
+      end)
+    end
+
+    defmodule TwiceLockTransition do
+      use WorkflowMetal.Executor
+
+      @impl true
+      def execute(workitem, _tokens, options) do
+        :ok = lock_tokens(workitem, options)
+        :ok = lock_tokens(workitem, options)
+
+        executor_params = Keyword.fetch!(options, :executor_params)
+        request = Keyword.fetch!(executor_params, :request)
+        reply = Keyword.fetch!(executor_params, :reply)
+
+        send(request, reply)
+
+        {:completed, %{reply: reply}}
+      end
+    end
+
+    test "lock tokens twice" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a:
+            SequentialRouting.build_transition(1, TwiceLockTransition,
+              request: self(),
+              reply: :locked_twice
+            ),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+
+      until(fn ->
+        assert_receive :locked_twice
+      end)
+
+      until(fn ->
+        {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+
+        workitems
+        |> Enum.filter(&(&1.case_id === case_schema.id))
+        |> Enum.each(fn workitem ->
+          assert workitem.output === %{reply: :locked_twice}
         end)
       end)
     end

@@ -36,6 +36,7 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     end
   end
 
+  @doc false
   def create(application, executors \\ []) do
     a_transition = Keyword.get_lazy(executors, :a, fn -> build_simple_transition(1) end)
     b_transition = Keyword.get_lazy(executors, :b, fn -> build_simple_transition(2) end)
@@ -62,6 +63,7 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     )
   end
 
+  @doc false
   def build_simple_transition(rid) do
     %Schema.Transition.Params{
       rid: rid,
@@ -69,11 +71,21 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     }
   end
 
+  @doc false
   def build_echo_transition(rid, params \\ []) do
     %Schema.Transition.Params{
       rid: rid,
       executor: EchoTransition,
       executor_params: Keyword.put_new(params, :request, self())
+    }
+  end
+
+  @doc false
+  def build_transition(rid, executor, executor_params) do
+    %Schema.Transition.Params{
+      rid: rid,
+      executor: executor,
+      executor_params: executor_params
     }
   end
 end

@@ -217,7 +217,11 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
-  def handle_call(:lock_tokens, _from, %__MODULE__{} = state) do
+  def handle_call(
+        :lock_tokens,
+        _from,
+        %__MODULE__{task_schema: %Schema.Task{state: :started}} = state
+      ) do
     reply =
       with(
         {:ok, token_ids} <- task_enablement(state),
@@ -234,6 +238,15 @@ defmodule WorkflowMetal.Task.Task do
       error ->
         {:reply, error, state}
     end
+  end
+
+  @impl true
+  def handle_call(
+        :lock_tokens,
+        _from,
+        %__MODULE__{task_schema: %Schema.Task{state: :executing}} = state
+      ) do
+    {:reply, :ok, state}
   end
 
   # @impl true
@@ -370,6 +383,19 @@ defmodule WorkflowMetal.Task.Task do
       WorkflowMetal.Storage.complete_task(application, task_schema.id, token_payload)
 
     # TODO: handle split
+    {:ok, %{state | task_schema: task_schema}}
+  end
+
+  defp do_execute_task(%__MODULE__{} = state) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        id: task_id
+      }
+    } = state
+
+    {:ok, task_schema} = WorkflowMetal.Storage.execute_task(application, task_id)
+
     {:ok, %{state | task_schema: task_schema}}
   end
 
