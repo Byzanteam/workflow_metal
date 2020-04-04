@@ -187,11 +187,19 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
-  def handle_cast({:offer_token, place_id, token_id}, %__MODULE__{} = state) do
+  def handle_cast(
+        {:offer_token, place_id, token_id},
+        %__MODULE__{task_schema: %Schema.Task{state: :started}} = state
+      ) do
     %{token_table: token_table} = state
     :ets.insert(token_table, {token_id, place_id, :free})
 
     {:noreply, state, {:continue, :fire_task}}
+  end
+
+  @impl true
+  def handle_cast({:offer_token, _place_id, _token_id}, %__MODULE__{} = state) do
+    {:noreply, state}
   end
 
   @impl true
