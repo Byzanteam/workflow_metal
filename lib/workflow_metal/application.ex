@@ -69,6 +69,18 @@ defmodule WorkflowMetal.Application do
         )
       end
 
+      @doc """
+      Lock tokens of a task.
+
+      This usually happens before execute the workitem.
+      """
+      def lock_tokens(task_id) do
+        WorkflowMetal.Task.Supervisor.lock_tokens(
+          application(),
+          task_id
+        )
+      end
+
       defp name(opts) do
         case Keyword.get(opts, :name) do
           nil ->
