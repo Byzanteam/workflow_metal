@@ -1,5 +1,9 @@
 defmodule WorkflowMetal.Controller.Join.None do
-  @moduledoc false
+  @moduledoc """
+  The default join controller.
+
+  There is only one branch of the transition.
+  """
 
   @behaviour WorkflowMetal.Controller.Join
 
@@ -11,16 +15,14 @@ defmodule WorkflowMetal.Controller.Join.None do
       token_table: token_table
     } = task_state
 
-    {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
+    {:ok, [place]} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
 
-    Enum.reduce_while(places, {:ok, []}, fn place, {:ok, token_ids} ->
-      case :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}]) do
-        [token_id | _rest] ->
-          {:cont, {:ok, [token_id | token_ids]}}
+    case :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}]) do
+      [token_id | _rest] ->
+        {:ok, [token_id]}
 
-        _ ->
-          {:halt, {:error, :task_not_enabled}}
-      end
-    end)
+      _ ->
+        {:error, :task_not_enabled}
+    end
   end
 end

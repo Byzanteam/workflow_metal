@@ -26,5 +26,5 @@ defmodule WorkflowMetal.Controller.Join do
 
   defp controller(:none), do: WorkflowMetal.Controller.Join.None
   defp controller(:and), do: WorkflowMetal.Controller.Join.And
-  defp controller(controller_module), do: controller_module
+  defp controller(controller_module) when is_atom(controller_module), do: controller_module
 end
