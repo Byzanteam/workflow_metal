@@ -6,23 +6,18 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
   defmodule SimpleTransition do
     @moduledoc false
 
-    @behaviour WorkflowMetal.Executor
+    use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
     def execute(%Schema.Workitem{}, _tokens, _options) do
       {:completed, :ok}
-    end
-
-    @impl WorkflowMetal.Executor
-    def build_token_payload(workitems, _options) do
-      {:ok, Enum.map(workitems, & &1.output)}
     end
   end
 
   defmodule EchoTransition do
     @moduledoc false
 
-    @behaviour WorkflowMetal.Executor
+    use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
     def execute(%Schema.Workitem{}, _tokens, options) do
@@ -33,11 +28,6 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
       send(request, reply)
 
       {:completed, %{reply: reply}}
-    end
-
-    @impl WorkflowMetal.Executor
-    def build_token_payload(workitems, _options) do
-      {:ok, Enum.map(workitems, & &1.output)}
     end
   end
 

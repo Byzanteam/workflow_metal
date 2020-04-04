@@ -12,38 +12,48 @@ defmodule WorkflowMetal.Executor do
 
   ## Example
       defmodule ExampleExecutor do
-        @behaviour WorkflowMetal.Executor
+        use WorkflowMetal.Executor
 
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
         def execute(%Schema.Workitem{}, _tokens, _options) do
+          options[:application].lock_tokens(workitem.task_id)
+
           {:completed, {:output, :ok}}
         end
       end
 
       defmodule AsyncExampleExecutor do
-        @behaviour WorkflowMetal.Executor
+        use WorkflowMetal.Executor
 
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
         def execute(%Schema.Workitem{} = workitem, tokens, options) do
+          options[:application].lock_tokens(workitem.task_id)
+
           Task.async(__MODULE__, :run, [workitem, tokens, options])
           :started
         end
 
         def run(%Schema.Workitem{} = workitem, _tokens, _options) do
-          WorkflowMetal.WorkitemSupervisor.complete(workitem, {:output, :ok})
+          WorkflowApplication.complete_workitem(workitem, {:output, :ok})
         end
       end
   """
 
-  @type options :: keyword()
-  @type workitem :: WorkflowMetal.Storage.Schema.Workitem.t()
-  @type token :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
-  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
+  alias WorkflowMetal.Storage.Schema
+
+  @type options :: [
+          executor_params: Schema.Transition.executor_params(),
+          application: WorkflowMetal.Application.t()
+        ]
+
+  @type workitem :: Schema.Workitem.t()
+  @type token :: Schema.Token.t()
+  @type token_payload :: Schema.Token.payload()
+  @type workitem_output :: Schema.Workitem.output()
 
   @doc """
   Run an executor and return its state to the `workitem` process.
@@ -57,4 +67,18 @@ defmodule WorkflowMetal.Executor do
   """
   @callback build_token_payload(nonempty_list(workitem), options) ::
               {:ok, token_payload}
+
+  @doc false
+  defmacro __using__(_opts) do
+    quote do
+      @behaviour WorkflowMetal.Executor
+
+      @impl WorkflowMetal.Executor
+      def build_token_payload(workitems, _options) do
+        {:ok, Enum.map(workitems, & &1.output)}
+      end
+
+      defoverridable WorkflowMetal.Executor
+    end
+  end
 end

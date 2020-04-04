@@ -375,7 +375,11 @@ defmodule WorkflowMetal.Task.Task do
         transition_id
       )
 
-    executor.build_token_payload(workitems, executor_params: executor_params)
+    executor.build_token_payload(
+      workitems,
+      executor_params: executor_params,
+      application: application
+    )
   end
 
   defp case_server(%__MODULE__{} = state) do

@@ -190,7 +190,12 @@ defmodule WorkflowMetal.Workitem.Workitem do
       }
     } = WorkflowMetal.Storage.fetch_transition(application, transition_id)
 
-    case executor.execute(workitem_schema, tokens, executor_params: executor_params) do
+    case executor.execute(
+           workitem_schema,
+           tokens,
+           executor_params: executor_params,
+           application: application
+         ) do
       :started ->
         {:ok, workitem_schema} = do_start_workitem(state)
         {:ok, %{state | workitem_schema: workitem_schema}}
