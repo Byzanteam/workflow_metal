@@ -15,7 +15,6 @@ defmodule WorkflowMetal.Task.Task do
   defstruct [
     :application,
     :task_schema,
-    :transition_schema,
     :token_table,
     :workitem_table
   ]
@@ -130,22 +129,8 @@ defmodule WorkflowMetal.Task.Task do
         token_table: :ets.new(:token_table, [:set, :private]),
         workitem_table: :ets.new(:workitem_table, [:set, :private])
       },
-      {:continue, :fetch_transition}
+      {:continue, :fetch_workitems}
     }
-  end
-
-  @impl true
-  def handle_continue(:fetch_transition, %__MODULE__{} = state) do
-    %{
-      application: application,
-      task_schema: %Schema.Task{
-        transition_id: transition_id
-      }
-    } = state
-
-    {:ok, transition_schema} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
-
-    {:noreply, %{state | transition_schema: transition_schema}, {:continue, :fetch_workitems}}
   end
 
   @impl true
@@ -263,10 +248,13 @@ defmodule WorkflowMetal.Task.Task do
   defp task_enablement(%__MODULE__{} = state) do
     %{
       application: application,
-      transition_schema: transition_schema,
+      task_schema: %Schema.Task{
+        transition_id: transition_id
+      },
       token_table: token_table
     } = state
 
+    {:ok, transition_schema} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
     {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
 
     Enum.reduce_while(places, {:ok, []}, fn place, {:ok, token_ids} ->
