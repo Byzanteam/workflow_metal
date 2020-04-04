@@ -671,7 +671,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         else
           _ ->
             raise ArgumentError,
-                  "the token(#{inspect(task_id)}) should be consumed by the task(#{
+                  "the token(#{inspect(token_id)}) should be consumed by the task(#{
                     inspect(task_id)
                   })."
         end
