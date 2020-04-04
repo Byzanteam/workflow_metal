@@ -40,6 +40,11 @@ defmodule WorkflowMetal.Task.Task do
           task: task_schema()
         ]
 
+  @type on_lock_tokens ::
+          :ok
+          | {:error, :tokens_not_available}
+          | {:error, :task_not_enabled}
+
   alias WorkflowMetal.Storage.Schema
 
   @doc false
@@ -84,6 +89,19 @@ defmodule WorkflowMetal.Task.Task do
   @spec withdraw_token(GenServer.server(), place_id, token_id) :: :ok
   def withdraw_token(task_server, place_id, token_id) do
     GenServer.cast(task_server, {:withdraw_token, place_id, token_id})
+  end
+
+  @doc """
+  Lock tokens, and return `:ok`.
+
+  If tokens are already locked by the task, return `:ok` too.
+
+  When the task is not enabled, return `{:error, :task_not_enabled}`.
+  When fail to lock tokens, return `{:error, :tokens_not_available}`.
+  """
+  @spec lock_tokens(GenServer.server()) :: on_lock_tokens
+  def lock_tokens(task_server) do
+    GenServer.call(task_server, :lock_tokens)
   end
 
   @doc """
@@ -155,8 +173,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl true
   def handle_continue(:fire_task, %__MODULE__{} = state) do
     with(
-      {:ok, token_ids} <- task_enablement(state),
-      {:ok, state} <- lock_tokens(token_ids, state),
+      {:ok, _token_ids} <- task_enablement(state),
       {:ok, state} <- generate_workitem(state)
     ) do
       {:noreply, state}
@@ -214,6 +231,26 @@ defmodule WorkflowMetal.Task.Task do
     {:noreply, state, {:continue, :complete_task}}
   end
 
+  @impl true
+  def handle_call(:lock_tokens, _from, %__MODULE__{} = state) do
+    reply =
+      with(
+        {:ok, token_ids} <- task_enablement(state),
+        :ok <- do_lock_tokens(token_ids, state),
+        {:ok, state} <- do_execute_task(state)
+      ) do
+        {:ok, state}
+      end
+
+    case reply do
+      {:ok, state} ->
+        {:reply, :ok, state}
+
+      error ->
+        {:reply, error, state}
+    end
+  end
+
   # @impl true
   # def handle_call({:fail_workitem, workitem_id, _error}, %__MODULE__{} = state) do
   #   # TODO:
@@ -243,7 +280,17 @@ defmodule WorkflowMetal.Task.Task do
     end)
   end
 
-  defp lock_tokens(token_ids, %__MODULE__{} = state) do
+  defp task_enablement_reduction_func(:none, place, token_ids, token_table) do
+    case :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}]) do
+      [token_id | _rest] ->
+        {:cont, {:ok, [token_id | token_ids]}}
+
+      _ ->
+        {:halt, {:error, :task_not_enabled}}
+    end
+  end
+
+  defp do_lock_tokens(token_ids, %__MODULE__{} = state) do
     %{
       task_schema: %{
         id: task_id
@@ -256,7 +303,7 @@ defmodule WorkflowMetal.Task.Task do
         :ets.update_element(token_table, token_id, [{3, :locked}])
       end)
 
-      {:ok, state}
+      :ok
     end
   end
 
@@ -287,16 +334,6 @@ defmodule WorkflowMetal.Task.Task do
       )
 
     {:ok, state}
-  end
-
-  defp task_enablement_reduction_func(:none, place, token_ids, token_table) do
-    case :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}]) do
-      [token_id | _rest] ->
-        {:cont, {:ok, [token_id | token_ids]}}
-
-      _ ->
-        {:halt, {:error, :task_not_enabled}}
-    end
   end
 
   defp task_completion(%__MODULE__{} = state) do
