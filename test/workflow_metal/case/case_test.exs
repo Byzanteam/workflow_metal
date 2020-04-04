@@ -26,7 +26,9 @@ defmodule WorkflowMetal.Case.CaseTest do
       use WorkflowMetal.Executor
 
       @impl WorkflowMetal.Executor
-      def execute(%Schema.Workitem{}, _tokens, _options) do
+      def execute(%Schema.Workitem{} = workitem, _tokens, options) do
+        :ok = lock_tokens(workitem, options)
+
         {:completed, %{}}
       end
     end

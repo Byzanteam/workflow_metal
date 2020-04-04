@@ -17,8 +17,8 @@ defmodule WorkflowMetal.Executor do
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
-        def execute(%Schema.Workitem{}, _tokens, _options) do
-          options[:application].lock_tokens(workitem.task_id)
+        def execute(%Schema.Workitem{}, _tokens, options) do
+          :ok = lock_tokens(workitem, options)
 
           {:completed, {:output, :ok}}
         end
@@ -31,7 +31,7 @@ defmodule WorkflowMetal.Executor do
 
         @impl WorkflowMetal.Executor
         def execute(%Schema.Workitem{} = workitem, tokens, options) do
-          options[:application].lock_tokens(workitem.task_id)
+          :ok = lock_tokens(workitem, options)
 
           Task.async(__MODULE__, :run, [workitem, tokens, options])
           :started
@@ -79,6 +79,11 @@ defmodule WorkflowMetal.Executor do
       end
 
       defoverridable WorkflowMetal.Executor
+
+      defp lock_tokens(workitem, options) do
+        application = Keyword.fetch!(options, :application)
+        application.lock_tokens(workitem.task_id)
+      end
     end
   end
 end
