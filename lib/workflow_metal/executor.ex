@@ -39,7 +39,6 @@ defmodule WorkflowMetal.Executor do
       end
   """
 
-  @type error :: term()
   @type options :: keyword()
   @type workitem :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type token :: WorkflowMetal.Storage.Schema.Token.t()
@@ -52,11 +51,10 @@ defmodule WorkflowMetal.Executor do
   @callback execute(workitem, nonempty_list(token), options) ::
               :started
               | {:completed, workitem_output}
-              | {:failed, error}
 
   @doc """
   Merge outputs of all workitems.
   """
-  @callback build_token_payload([workitem], options) ::
+  @callback build_token_payload(nonempty_list(workitem), options) ::
               {:ok, token_payload}
 end
