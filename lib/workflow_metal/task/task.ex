@@ -15,25 +15,33 @@ defmodule WorkflowMetal.Task.Task do
   defstruct [
     :application,
     :task_schema,
+    :transition_schema,
     :token_table,
     :workitem_table
   ]
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
+
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
-  @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
-  @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
-  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
+  @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
 
+  @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
-  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
 
-  @type error :: term()
+  @type t :: %__MODULE__{
+          application: application,
+          task_schema: task_schema,
+          transition_schema: transition_schema,
+          token_table: :ets.tid(),
+          workitem_table: :ets.tid()
+        }
+
   @type options :: [
           name: term(),
           task: task_schema()
@@ -44,6 +52,7 @@ defmodule WorkflowMetal.Task.Task do
           | {:error, :tokens_not_available}
           | {:error, :task_not_enabled}
 
+  alias WorkflowMetal.Controller.Join, as: JoinController
   alias WorkflowMetal.Storage.Schema
 
   @doc false
@@ -129,6 +138,24 @@ defmodule WorkflowMetal.Task.Task do
         token_table: :ets.new(:token_table, [:set, :private]),
         workitem_table: :ets.new(:workitem_table, [:set, :private])
       },
+      {:continue, :fetch_transition}
+    }
+  end
+
+  @impl true
+  def handle_continue(:fetch_transition, %__MODULE__{} = state) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        transition_id: transition_id
+      }
+    } = state
+
+    {:ok, transition_schema} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
+
+    {
+      :noreply,
+      %{state | transition_schema: transition_schema},
       {:continue, :fetch_workitems}
     }
   end
@@ -158,7 +185,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl true
   def handle_continue(:fire_task, %__MODULE__{} = state) do
     with(
-      {:ok, _token_ids} <- task_enablement(state),
+      {:ok, _token_ids} <- JoinController.task_enablement(state),
       {:ok, state} <- generate_workitem(state)
     ) do
       {:noreply, state}
@@ -176,10 +203,10 @@ defmodule WorkflowMetal.Task.Task do
   def handle_continue(:complete_task, %__MODULE__{} = state) do
     with(
       :ok <- task_completion(state),
-      {:ok, _tokens} <- consume_tokens(state),
-      {:ok, state} <- complete_task(state)
+      {:ok, _tokens} <- do_consume_tokens(state),
+      {:ok, state} <- do_complete_task(state)
     ) do
-      {:noreply, state}
+      {:stop, :normal, state}
     else
       {:error, :task_not_completed} ->
         {:noreply, state}
@@ -232,7 +259,7 @@ defmodule WorkflowMetal.Task.Task do
       ) do
     reply =
       with(
-        {:ok, token_ids} <- task_enablement(state),
+        {:ok, token_ids} <- JoinController.task_enablement(state),
         :ok <- do_lock_tokens(token_ids, state),
         {:ok, state} <- do_execute_task(state)
       ) do
@@ -266,39 +293,6 @@ defmodule WorkflowMetal.Task.Task do
   #   {:noreply, state}
   # end
 
-  defp task_enablement(%__MODULE__{} = state) do
-    %{
-      application: application,
-      task_schema: %Schema.Task{
-        transition_id: transition_id
-      },
-      token_table: token_table
-    } = state
-
-    {:ok, transition_schema} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
-    {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
-
-    Enum.reduce_while(places, {:ok, []}, fn place, {:ok, token_ids} ->
-      case transition_schema.join_type do
-        :none ->
-          task_enablement_reduction_func(:none, place, token_ids, token_table)
-
-        _ ->
-          {:halt, {:error, :task_not_enabled}}
-      end
-    end)
-  end
-
-  defp task_enablement_reduction_func(:none, place, token_ids, token_table) do
-    case :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}]) do
-      [token_id | _rest] ->
-        {:cont, {:ok, [token_id | token_ids]}}
-
-      _ ->
-        {:halt, {:error, :task_not_enabled}}
-    end
-  end
-
   defp do_lock_tokens(token_ids, %__MODULE__{} = state) do
     %{
       task_schema: %{
@@ -308,9 +302,7 @@ defmodule WorkflowMetal.Task.Task do
     } = state
 
     with(:ok <- WorkflowMetal.Case.Case.lock_tokens(case_server(state), token_ids, task_id)) do
-      Enum.each(token_ids, fn token_id ->
-        :ets.update_element(token_table, token_id, [{3, :locked}])
-      end)
+      Enum.each(token_ids, &:ets.update_element(token_table, &1, [{3, :locked}]))
 
       :ok
     end
@@ -359,7 +351,7 @@ defmodule WorkflowMetal.Task.Task do
     end
   end
 
-  defp consume_tokens(%__MODULE__{} = state) do
+  defp do_consume_tokens(%__MODULE__{} = state) do
     %{
       task_schema: %{
         id: task_id
@@ -379,7 +371,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, token_ids}
   end
 
-  defp complete_task(%__MODULE__{} = state) do
+  defp do_complete_task(%__MODULE__{} = state) do
     %{
       application: application,
       task_schema: task_schema
@@ -411,8 +403,11 @@ defmodule WorkflowMetal.Task.Task do
     %{
       application: application,
       task_schema: %Schema.Task{
-        id: task_id,
-        transition_id: transition_id
+        id: task_id
+      },
+      transition_schema: %Schema.Transition{
+        executor: executor,
+        executor_params: executor_params
       }
     } = state
 
@@ -420,18 +415,6 @@ defmodule WorkflowMetal.Task.Task do
       WorkflowMetal.Storage.fetch_workitems(
         application,
         task_id
-      )
-
-    {
-      :ok,
-      %Schema.Transition{
-        executor: executor,
-        executor_params: executor_params
-      }
-    } =
-      WorkflowMetal.Storage.fetch_transition(
-        application,
-        transition_id
       )
 
     executor.build_token_payload(
