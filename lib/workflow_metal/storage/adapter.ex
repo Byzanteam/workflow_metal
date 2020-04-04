@@ -85,6 +85,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
+  @type on_execute_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
+          | {:error, :task_not_available}
   @type on_complete_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
@@ -249,6 +253,16 @@ defmodule WorkflowMetal.Storage.Adapter do
               case_id,
               transition_id
             ) :: on_fetch_task
+
+  @doc """
+  Start to execute a task.
+
+  Return `{:ok, task_schema}` if it is already `executing`.
+  """
+  @callback execute_task(
+              adapter_meta,
+              workitem_id
+            ) :: on_execute_task
 
   @doc """
   Complete a task.

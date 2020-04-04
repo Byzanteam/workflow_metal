@@ -252,6 +252,18 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec execute_task(application, task_id) ::
+          WorkflowMetal.Storage.Adapter.on_execute_task()
+  def execute_task(application, task_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.execute_task(
+      adapter_meta,
+      task_id
+    )
+  end
+
+  @doc false
   @spec complete_task(application, task_id, token_payload) ::
           WorkflowMetal.Storage.Adapter.on_complete_task()
   def complete_task(application, task_id, token_payload) do

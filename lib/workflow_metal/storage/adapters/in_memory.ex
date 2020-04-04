@@ -220,6 +220,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def execute_task(adapter_meta, workitem_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:execute_task, workitem_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def complete_task(adapter_meta, task_id, token_payload) do
     storage = storage_name(adapter_meta)
 
@@ -563,6 +570,23 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         %State{} = state
       ) do
     reply = find_task_by(case_id, transition_id, state)
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:execute_task, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, task_schema} <- find_task(task_id, state)) do
+        do_execute_task(
+          task_schema,
+          state
+        )
+      end
 
     {:reply, reply, state}
   end
@@ -1269,6 +1293,41 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp find_produced_by_task(:genesis, %State{}), do: {:ok, nil}
   defp find_produced_by_task(task_id, %State{} = state), do: find_task(task_id, state)
 
+  defp do_execute_task(
+         %Schema.Task{state: :executing} = task_schema,
+         %State{} = _state
+       ) do
+    {:ok, task_schema}
+  end
+
+  defp do_execute_task(
+         %Schema.Task{state: :started} = task_schema,
+         %State{} = state
+       ) do
+    task_table = get_table(:task, state)
+
+    task_schema = %{
+      task_schema
+      | state: :executing
+    }
+
+    true =
+      :ets.update_element(
+        task_table,
+        task_schema.id,
+        [{2, task_schema}]
+      )
+
+    {:ok, task_schema}
+  end
+
+  defp do_execute_task(
+         %Schema.Task{},
+         %State{} = _state
+       ) do
+    {:error, :task_not_available}
+  end
+
   defp do_complete_task(
          %Schema.Task{state: :completed} = task_schema,
          _token_payload,
@@ -1278,7 +1337,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_complete_task(
-         %Schema.Task{state: :started} = task_schema,
+         %Schema.Task{state: :executing} = task_schema,
          token_payload,
          %State{} = state
        ) do
