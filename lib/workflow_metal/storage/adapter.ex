@@ -16,7 +16,6 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
   @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
-  @type special_place_type :: WorkflowMetal.Storage.Schema.Place.special_type()
 
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
@@ -54,9 +53,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_arcs ::
           {:ok, [arc_schema]}
           | {:error, :workflow_not_found}
-  @type on_fetch_place ::
-          {:ok, place_schema}
-          | {:error, :place_not_found}
+  @type on_fetch_edge_places ::
+          {:ok, {place_schema, place_schema}}
+          | {:error, :workflow_not_found}
   @type on_fetch_places ::
           {:ok, [place_schema]}
           | {:error, :transition_not_found}
@@ -174,13 +173,12 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_fetch_arcs
 
   @doc """
-  Retrive in/out places of a transition.
+  Retrive start and end of a workflow.
   """
-  @callback fetch_special_place(
+  @callback fetch_edge_places(
               adapter_meta,
-              workflow_id,
-              special_place_type
-            ) :: on_fetch_place
+              workflow_id
+            ) :: on_fetch_edge_places
 
   @doc """
   Retrive in/out places of a transition.

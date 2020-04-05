@@ -14,6 +14,8 @@ defmodule WorkflowMetal.Case.Case do
   defstruct [
     :application,
     :case_schema,
+    :start_place,
+    :end_place,
     :token_table,
     free_token_ids: MapSet.new()
   ]
@@ -100,8 +102,12 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl true
   def handle_continue(:rebuild_from_storage, %__MODULE__{} = state) do
-    {:ok, state} = rebuild_tokens(state)
-    {:noreply, state, {:continue, :activate_case}}
+    with(
+      {:ok, state} <- rebuild_tokens(state),
+      {:ok, state} <- fetch_start_and_end_places(state)
+    ) do
+      {:noreply, state, {:continue, :activate_case}}
+    end
   end
 
   @impl true
@@ -184,6 +190,20 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
+  defp fetch_start_and_end_places(%__MODULE__{} = state) do
+    %{
+      application: application,
+      case_schema: %Schema.Case{
+        workflow_id: workflow_id
+      }
+    } = state
+
+    {:ok, {start_place, end_place}} =
+      WorkflowMetal.Storage.fetch_edge_places(application, workflow_id)
+
+    {:ok, %{state | start_place: start_place, end_place: end_place}}
+  end
+
   defp insert_token(token_table, %Schema.Token{} = token) do
     %{
       id: token_id,
@@ -200,6 +220,9 @@ defmodule WorkflowMetal.Case.Case do
   defp do_activate_case(%__MODULE__{} = state) do
     %{
       application: application,
+      start_place: %Schema.Place{
+        id: start_place_id
+      },
       case_schema: case_schema,
       free_token_ids: free_token_ids
     } = state
@@ -211,9 +234,6 @@ defmodule WorkflowMetal.Case.Case do
         workflow_id: workflow_id
       } = case_schema
     } = WorkflowMetal.Storage.activate_case(application, case_schema.id)
-
-    {:ok, %{id: start_place_id}} =
-      WorkflowMetal.Storage.fetch_special_place(application, workflow_id, :start)
 
     genesis_token_params = %Schema.Token.Params{
       workflow_id: workflow_id,

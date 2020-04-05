@@ -22,7 +22,6 @@ defmodule WorkflowMetal.Storage.Schema.Place do
 
   @type id :: term()
   @type type :: :start | :normal | :end
-  @type special_type :: :start | :end
 
   @type workflow_id :: Schema.Workflow.id()
 
