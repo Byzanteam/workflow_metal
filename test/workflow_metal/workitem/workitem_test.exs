@@ -44,6 +44,88 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       end)
     end
 
+    defmodule AsynchronousTransition do
+      use WorkflowMetal.Executor
+
+      @impl true
+      def execute(workitem, _tokens, options) do
+        :ok = lock_tokens(workitem, options)
+
+        executor_params = Keyword.fetch!(options, :executor_params)
+        request = Keyword.fetch!(executor_params, :request)
+        reply = Keyword.fetch!(executor_params, :reply)
+
+        send(request, reply)
+
+        :started
+      end
+    end
+
+    test "execute successfully and asynchronously" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a:
+            SequentialRouting.build_transition(1, AsynchronousTransition,
+              request: self(),
+              reply: :workitem_started
+            ),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+
+      until(fn ->
+        assert_receive :workitem_started
+      end)
+
+      workitem =
+        until(fn ->
+          {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+          [workitem | _rest] = Enum.filter(workitems, &(&1.case_id === case_schema.id))
+
+          assert workitem.state === :started
+
+          workitem
+        end)
+
+      %{
+        workflow_id: workflow_id,
+        case_id: case_id,
+        transition_id: transition_id,
+        id: workitem_id
+      } = workitem
+
+      output = %{reply: :asynchronous_reply}
+
+      workitem_name =
+        WorkflowMetal.Workitem.Workitem.name({
+          workflow_id,
+          case_id,
+          transition_id,
+          workitem_id
+        })
+
+      workitem_server = WorkflowMetal.Registration.via_tuple(DummyApplication, workitem_name)
+      WorkflowMetal.Workitem.Workitem.complete(workitem_server, output)
+
+      until(fn ->
+        {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+        [workitem | _rest] = Enum.filter(workitems, &(&1.case_id === case_schema.id))
+
+        assert workitem.state === :completed
+        assert workitem.output === output
+      end)
+    end
+
     test "put an output" do
       {:ok, workflow_schema} =
         SequentialRouting.create(
