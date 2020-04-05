@@ -25,6 +25,8 @@ defmodule WorkflowMetal.Case.Case do
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
+  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
   @type options :: [name: term(), case_schema: case_schema]
 
@@ -50,6 +52,15 @@ defmodule WorkflowMetal.Case.Case do
       application,
       name({workflow_id, case_id})
     )
+  end
+
+  @doc """
+  Issue tokens.
+  """
+  @spec issue_tokens(GenServer.server(), nonempty_list(token_params)) ::
+          {:ok, [token_schema]}
+  def issue_tokens(case_server, [_ | _] = token_params_list) do
+    GenServer.call(case_server, {:issue_tokens, token_params_list})
   end
 
   @doc """
@@ -116,6 +127,13 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl true
+  def handle_call({:issue_tokens, token_params_list}, _from, %__MODULE__{} = state) do
+    with({:ok, tokens, state} <- do_issue_tokens(token_params_list, state)) do
+      {:reply, {:ok, tokens}, state, {:continue, :offer_tokens}}
+    end
+  end
+
+  @impl true
   def handle_call({:lock_tokens, token_ids, task_id}, _from, %__MODULE__{} = state) do
     with(
       {:ok, state} <- do_lock_tokens(state, MapSet.new(token_ids), task_id),
@@ -149,7 +167,11 @@ defmodule WorkflowMetal.Case.Case do
     } = state
 
     with({:ok, tokens} <- WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free])) do
-      free_token_ids = MapSet.new(tokens, &insert_token(token_table, &1))
+      free_token_ids =
+        MapSet.new(tokens, fn token ->
+          :ok = insert_token(token_table, token)
+          token.id
+        end)
 
       {
         :ok,
@@ -170,16 +192,15 @@ defmodule WorkflowMetal.Case.Case do
       locked_by_task_id: locked_by_task_id
     } = token
 
-    :ets.insert(token_table, {token_id, state, place_id, locked_by_task_id})
+    true = :ets.insert(token_table, {token_id, state, place_id, locked_by_task_id})
 
-    token_id
+    :ok
   end
 
   defp activate_case(%__MODULE__{} = state) do
     %{
       application: application,
       case_schema: case_schema,
-      token_table: token_table,
       free_token_ids: free_token_ids
     } = state
 
@@ -202,17 +223,52 @@ defmodule WorkflowMetal.Case.Case do
       payload: nil
     }
 
-    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, genesis_token_params)
-
-    token_id = insert_token(token_table, token_schema)
+    {:ok, token_schema} = do_issue_token(genesis_token_params, state)
 
     {
       :ok,
       %{
         state
         | case_schema: case_schema,
-          free_token_ids: MapSet.put(free_token_ids, token_id)
+          free_token_ids: MapSet.put(free_token_ids, token_schema.id)
       }
+    }
+  end
+
+  defp do_issue_token(token_params, %__MODULE__{} = state) do
+    %{
+      application: application,
+      token_table: token_table
+    } = state
+
+    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_params)
+
+    :ok = insert_token(token_table, token_schema)
+
+    {:ok, token_schema}
+  end
+
+  defp do_issue_tokens(token_params_list, %__MODULE__{} = state) do
+    new_tokens =
+      Enum.map(token_params_list, fn token_schema ->
+        {:ok, token_schema} = do_issue_token(token_schema, state)
+
+        token_schema
+      end)
+
+    {
+      :ok,
+      new_tokens,
+      Map.update!(
+        state,
+        :free_token_ids,
+        fn free_token_ids ->
+          MapSet.union(
+            free_token_ids,
+            MapSet.new(new_tokens, fn new_token -> new_token.id end)
+          )
+        end
+      )
     }
   end
 

@@ -1,14 +1,35 @@
 defmodule WorkflowMetal.Controller.Split.And do
   @moduledoc false
 
+  alias WorkflowMetal.Storage.Schema
+
   @behaviour WorkflowMetal.Controller.Split
 
-  @default_pass_weight 1
-
   @impl true
-  def call(_application, arcs, _token) do
-    Enum.into(arcs, %{}, fn arc ->
-      {arc.id, @default_pass_weight}
-    end)
+  def issue_tokens(task_state, token_payload) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        id: task_id,
+        workflow_id: workflow_id,
+        transition_id: transition_id,
+        case_id: case_id
+      }
+    } = task_state
+
+    {:ok, arcs} = WorkflowMetal.Storage.fetch_arcs(application, transition_id, :out)
+
+    {
+      :ok,
+      Enum.map(arcs, fn arc ->
+        %Schema.Token.Params{
+          workflow_id: workflow_id,
+          place_id: arc.place_id,
+          case_id: case_id,
+          produced_by_task_id: task_id,
+          payload: token_payload
+        }
+      end)
+    }
   end
 end

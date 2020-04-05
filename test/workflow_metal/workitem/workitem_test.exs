@@ -68,12 +68,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       until(fn ->
         {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+        [workitem | _rest] = Enum.filter(workitems, &(&1.case_id === case_schema.id))
 
-        workitems
-        |> Enum.filter(&(&1.case_id === case_schema.id))
-        |> Enum.each(fn workitem ->
-          assert workitem.output === %{reply: :a_completed}
-        end)
+        assert workitem.output === %{reply: :a_completed}
       end)
     end
 
@@ -123,12 +120,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       until(fn ->
         {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+        [workitem | _rest] = Enum.filter(workitems, &(&1.case_id === case_schema.id))
 
-        workitems
-        |> Enum.filter(&(&1.case_id === case_schema.id))
-        |> Enum.each(fn workitem ->
-          assert workitem.output === %{reply: :locked_twice}
-        end)
+        assert workitem.output === %{reply: :locked_twice}
       end)
     end
   end

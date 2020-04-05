@@ -53,6 +53,7 @@ defmodule WorkflowMetal.Task.Task do
           | {:error, :task_not_enabled}
 
   alias WorkflowMetal.Controller.Join, as: JoinController
+  alias WorkflowMetal.Controller.Split, as: SplitController
   alias WorkflowMetal.Storage.Schema
 
   @doc false
@@ -289,6 +290,7 @@ defmodule WorkflowMetal.Task.Task do
   #   # TODO:
   #   # - update workitem state
   #   # - issue tokens
+  #   # - refund tokens
 
   #   {:noreply, state}
   # end
@@ -379,10 +381,12 @@ defmodule WorkflowMetal.Task.Task do
 
     {:ok, token_payload} = build_token_payload(state)
 
+    {:ok, token_params_list} = SplitController.issue_tokens(state, token_payload)
+    {:ok, _tokens} = WorkflowMetal.Case.Case.issue_tokens(case_server(state), token_params_list)
+
     {:ok, task_schema} =
       WorkflowMetal.Storage.complete_task(application, task_schema.id, token_payload)
 
-    # TODO: handle split
     {:ok, %{state | task_schema: task_schema}}
   end
 

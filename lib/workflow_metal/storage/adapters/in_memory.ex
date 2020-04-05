@@ -376,9 +376,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       ) do
     reply =
       with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
-        :arc
-        |> get_table(state)
-        |> :ets.select([{{:_, :"$1", {workflow_schema.id, :_, :_, :_}}, [], [:"$1"]}])
+        arcs =
+          :arc
+          |> get_table(state)
+          |> :ets.select([{{:_, :"$1", {workflow_schema.id, :_, :_, :_}}, [], [:"$1"]}])
+
+        {:ok, arcs}
       end
 
     {:reply, reply, state}
@@ -394,9 +397,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
     reply =
       with({:ok, transition_schema} <- find_transition(transition_id, state)) do
-        :arc
-        |> get_table(state)
-        |> :ets.select([{{:_, :"$1", {:_, :_, transition_schema.id, arc_direction}}, [], [:"$1"]}])
+        arcs =
+          :arc
+          |> get_table(state)
+          |> :ets.select([
+            {{:_, :"$1", {:_, :_, transition_schema.id, arc_direction}}, [], [:"$1"]}
+          ])
+
+        {:ok, arcs}
       end
 
     {:reply, reply, state}
@@ -841,6 +849,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :task
       |> get_table(state)
       |> :ets.select([{{:_, :"$1", {workflow_id, :_, :_}}, [], [:"$1"]}])
+      |> Enum.sort(&(&1.id <= &2.id))
 
     {:reply, {:ok, tasks}, state}
   end
@@ -851,6 +860,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :workitem
       |> get_table(state)
       |> :ets.select([{{:_, :"$1", {workflow_id, :_, :_}}, [], [:"$1"]}])
+      |> Enum.sort(&(&1.id <= &2.id))
 
     {:reply, {:ok, workitems}, state}
   end
@@ -1505,7 +1515,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp storage_name(adapter_meta) when is_map(adapter_meta),
     do: Map.get(adapter_meta, :name)
 
-  defp make_id, do: :erlang.unique_integer()
+  defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
 
   defp reversed_arc_direction(:in), do: :out
   defp reversed_arc_direction(:out), do: :in

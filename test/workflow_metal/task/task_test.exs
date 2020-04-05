@@ -46,11 +46,12 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, workflow_schema.id)
 
-        tasks
-        |> Enum.filter(&(&1.case_id === case_schema.id))
-        |> Enum.each(fn task ->
-          assert task.token_payload === [%{reply: :a_completed}]
-        end)
+        assert length(tasks) === 2
+
+        [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
+
+        assert a_task.token_payload === [%{reply: :a_completed}]
+        assert b_task.token_payload === [%{reply: :b_completed}]
       end)
     end
   end

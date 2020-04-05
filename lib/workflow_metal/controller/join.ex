@@ -13,6 +13,7 @@ defmodule WorkflowMetal.Controller.Join do
   @doc false
   @callback task_enablement(task_state) :: on_task_enablement
 
+  @doc false
   @spec task_enablement(task_state) :: on_task_enablement
   def task_enablement(task_state) do
     %{
