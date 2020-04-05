@@ -2,7 +2,7 @@ defmodule WorkflowMetal.Executor do
   @moduledoc """
   Defines an executor module.
 
-  The `WorkflowMetal.Executor` behaviour is used to execute the executor.
+  The `WorkflowMetal.Executor` behaviour is used to define a transition.
 
   ## Supported return values
 
