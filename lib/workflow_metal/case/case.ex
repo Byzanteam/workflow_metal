@@ -109,7 +109,7 @@ defmodule WorkflowMetal.Case.Case do
         :activate_case,
         %__MODULE__{case_schema: %Schema.Case{state: :created}} = state
       ) do
-    {:ok, state} = activate_case(state)
+    {:ok, state} = do_activate_case(state)
     {:noreply, state, {:continue, :offer_tokens}}
   end
 
@@ -117,7 +117,7 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl true
   def handle_continue(:offer_tokens, %__MODULE__{} = state) do
-    :ok = offer_tokens(state)
+    :ok = do_offer_tokens(state)
     {:noreply, state}
   end
 
@@ -197,7 +197,7 @@ defmodule WorkflowMetal.Case.Case do
     :ok
   end
 
-  defp activate_case(%__MODULE__{} = state) do
+  defp do_activate_case(%__MODULE__{} = state) do
     %{
       application: application,
       case_schema: case_schema,
@@ -272,7 +272,7 @@ defmodule WorkflowMetal.Case.Case do
     }
   end
 
-  defp offer_tokens(%__MODULE__{} = state) do
+  defp do_offer_tokens(%__MODULE__{} = state) do
     %{token_table: token_table} = state
 
     match_spec = [{{:"$1", :free, :"$2", :_}, [], [{{:"$2", :"$1"}}]}]
