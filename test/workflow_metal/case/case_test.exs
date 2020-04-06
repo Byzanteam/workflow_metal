@@ -20,19 +20,6 @@ defmodule WorkflowMetal.Case.CaseTest do
   end
 
   describe "activate_case" do
-    defmodule ATransition do
-      @moduledoc false
-
-      use WorkflowMetal.Executor
-
-      @impl WorkflowMetal.Executor
-      def execute(%Schema.Workitem{} = workitem, _tokens, options) do
-        :ok = lock_tokens(workitem, options)
-
-        {:completed, %{}}
-      end
-    end
-
     test "activate a case successfully" do
       {:ok, workflow_schema} =
         SequentialRouting.create(
@@ -59,6 +46,37 @@ defmodule WorkflowMetal.Case.CaseTest do
         {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
 
         assert case_schema.state === :active
+      end)
+    end
+  end
+
+  describe "finish_case" do
+    test "activate a case successfully" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+
+      until(fn ->
+        assert_receive :a_completed
+      end)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+
+        assert case_schema.state === :finished
       end)
     end
   end

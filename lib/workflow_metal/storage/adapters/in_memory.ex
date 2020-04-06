@@ -1168,6 +1168,28 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
          %Schema.Case{state: :active} = case_schema,
          %State{} = state
        ) do
+    token_table = get_table(:token, state)
+    {:ok, [termination_token]} = find_tokens(case_schema.id, [:free], state)
+    termination_token = %{termination_token | state: :consumed}
+
+    true =
+      :ets.update_element(
+        token_table,
+        termination_token.id,
+        [
+          {2, termination_token},
+          {3,
+           {
+             termination_token.workflow_id,
+             termination_token.case_id,
+             termination_token.place_id,
+             termination_token.produced_by_task_id,
+             termination_token.locked_by_task_id,
+             termination_token.state
+           }}
+        ]
+      )
+
     case_table = get_table(:case, state)
 
     case_schema = %{

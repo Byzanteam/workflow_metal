@@ -1,5 +1,8 @@
 defmodule WorkflowMetal.Storage.Schema.Token do
-  @moduledoc false
+  @moduledoc """
+  `:genesis` the first token.
+  `:termination` the last token.
+  """
 
   alias WorkflowMetal.Storage.Schema
 
