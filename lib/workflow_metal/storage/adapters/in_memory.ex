@@ -1321,7 +1321,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     tokens =
       :token
       |> get_table(state)
-      |> :ets.select([{{:_, :"$1", {:_, case_id, :_, :_}}, [], ["$1"]}])
+      |> :ets.select([{{:_, :"$1", {:_, case_id, :_, :_, :_, :_}}, [], [:"$1"]}])
       |> Enum.filter(fn %{state: state} ->
         Enum.member?(token_states, state)
       end)
