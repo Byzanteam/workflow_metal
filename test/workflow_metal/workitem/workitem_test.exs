@@ -62,6 +62,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "execute successfully and asynchronously" do
+      alias WorkflowMetal.Workitem.Workitem
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
@@ -107,7 +109,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       output = %{reply: :asynchronous_reply}
 
       workitem_name =
-        WorkflowMetal.Workitem.Workitem.name({
+        Workitem.name({
           workflow_id,
           case_id,
           transition_id,
@@ -115,7 +117,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         })
 
       workitem_server = WorkflowMetal.Registration.via_tuple(DummyApplication, workitem_name)
-      WorkflowMetal.Workitem.Workitem.complete(workitem_server, output)
+      Workitem.complete(workitem_server, output)
 
       until(fn ->
         {:ok, workitems} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
