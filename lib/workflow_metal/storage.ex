@@ -211,6 +211,18 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec finish_case(application, case_id) ::
+          WorkflowMetal.Storage.Adapter.on_finish_case()
+  def finish_case(application, case_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.finish_case(
+      adapter_meta,
+      case_id
+    )
+  end
+
   ## Task
   @doc false
   @spec create_task(application, task_params) ::
