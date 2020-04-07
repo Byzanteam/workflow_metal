@@ -46,4 +46,16 @@ defmodule WorkflowMetal.Registration do
 
     adapter.start_child(adapter_meta, name, supervisor, child_spec)
   end
+
+  @doc """
+  Get the pid of a registered name.
+
+  Returns `:undefined` if the name is unregistered.
+  """
+  @spec whereis_name(application, term) :: pid() | :undefined
+  def whereis_name(application, name) do
+    {adapter, adapter_meta} = WorkflowMetal.Application.registry_adapter(application)
+
+    adapter.whereis_name(adapter_meta, name)
+  end
 end

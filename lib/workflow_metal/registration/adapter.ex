@@ -38,4 +38,11 @@ defmodule WorkflowMetal.Registration.Adapter do
               supervisor :: Supervisor.supervisor(),
               child_spec :: child_spec()
             ) :: on_start_child
+
+  @doc """
+  Get the pid of a registered name.
+
+  Returns `:undefined` if the name is unregistered.
+  """
+  @callback whereis_name(adapter_meta, name :: term()) :: pid() | :undefined
 end
