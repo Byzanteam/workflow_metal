@@ -16,7 +16,6 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
   @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
-  @type special_place_type :: WorkflowMetal.Storage.Schema.Place.special_type()
 
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
@@ -33,10 +32,13 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
+  @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type token_states :: nonempty_list(token_state)
 
+  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @type error :: term()
 
@@ -51,9 +53,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_arcs ::
           {:ok, [arc_schema]}
           | {:error, :workflow_not_found}
-  @type on_fetch_place ::
-          {:ok, place_schema}
-          | {:error, :place_not_found}
+  @type on_fetch_edge_places ::
+          {:ok, {place_schema, place_schema}}
+          | {:error, :workflow_not_found}
   @type on_fetch_places ::
           {:ok, [place_schema]}
           | {:error, :transition_not_found}
@@ -73,6 +75,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_activate_case ::
           {:ok, case_schema}
           | {:error, :case_not_found}
+  @type on_finish_case ::
+          {:ok, case_schema}
+          | {:error, :case_not_found}
 
   @type on_create_task ::
           {:ok, task_schema}
@@ -82,6 +87,14 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
+  @type on_execute_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
+          | {:error, :task_not_available}
+  @type on_complete_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
+          | {:error, :task_not_available}
 
   @type on_issue_token ::
           {:ok, token_schema}
@@ -92,6 +105,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_lock_token ::
           {:ok, token_schema}
           | {:error, :token_not_found}
+          | {:error, :token_not_available}
+  @type on_consume_tokens ::
+          {:ok, [token_schema]}
           | {:error, :token_not_available}
   @type on_fetch_tokens ::
           {:ok, [token_schema]}
@@ -160,13 +176,12 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_fetch_arcs
 
   @doc """
-  Retrive in/out places of a transition.
+  Retrive start and end of a workflow.
   """
-  @callback fetch_special_place(
+  @callback fetch_edge_places(
               adapter_meta,
-              workflow_id,
-              special_place_type
-            ) :: on_fetch_place
+              workflow_id
+            ) :: on_fetch_edge_places
 
   @doc """
   Retrive in/out places of a transition.
@@ -215,8 +230,16 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback activate_case(
               adapter_meta,
-              case_schema
+              case_id
             ) :: on_activate_case
+
+  @doc """
+  Finish a case.
+  """
+  @callback finish_case(
+              adapter_meta,
+              case_id
+            ) :: on_finish_case
 
   # Task
   @doc """
@@ -240,6 +263,25 @@ defmodule WorkflowMetal.Storage.Adapter do
               transition_id
             ) :: on_fetch_task
 
+  @doc """
+  Start to execute a task.
+
+  Return `{:ok, task_schema}` if it is already `executing`.
+  """
+  @callback execute_task(
+              adapter_meta,
+              workitem_id
+            ) :: on_execute_task
+
+  @doc """
+  Complete a task.
+  """
+  @callback complete_task(
+              adapter_meta,
+              task_id,
+              token_payload
+            ) :: on_complete_task
+
   # Token
   @doc """
   Issue a token.
@@ -258,6 +300,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               token_id,
               task_id
             ) :: on_lock_token
+  @doc """
+  Consume tokens.
+  """
+  @callback consume_tokens(
+              adapter_meta,
+              nonempty_list(token_id),
+              task_id
+            ) :: on_consume_tokens
   @doc """
   Retrive tokens locked by the task.
   """
@@ -298,15 +348,17 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback start_workitem(
               adapter_meta,
-              workitem_schema
+              workitem_id
             ) :: on_start_workitem
 
   @doc """
-  Complete a `started` workitem of a task.
+  Complete a `started` workitem of a task, and put an output into the workitem.
+
   Return `{:ok, workitem_schema}` if it is already `completed`.
   """
   @callback complete_workitem(
               adapter_meta,
-              workitem_schema
+              workitem_id,
+              workitem_output
             ) :: on_complete_workitem
 end

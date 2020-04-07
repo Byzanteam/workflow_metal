@@ -8,11 +8,14 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
     :transition_id,
     :case_id,
     :task_id,
+    :output,
     state: :created
   ]
 
   @type id :: term()
   @type state :: :created | :started | :suspended | :failed | :completed
+  @type output :: term()
+
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
@@ -24,7 +27,8 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
           case_id: case_id,
           task_id: task_id,
           transition_id: transition_id,
-          state: state
+          state: state,
+          output: output
         }
 
   alias __MODULE__

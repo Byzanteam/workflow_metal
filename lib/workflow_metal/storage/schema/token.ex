@@ -1,5 +1,8 @@
 defmodule WorkflowMetal.Storage.Schema.Token do
-  @moduledoc false
+  @moduledoc """
+  `:genesis` the first token.
+  `:termination` the last token.
+  """
 
   alias WorkflowMetal.Storage.Schema
 
@@ -19,11 +22,14 @@ defmodule WorkflowMetal.Storage.Schema.Token do
     :place_id,
     :produced_by_task_id,
     :locked_by_task_id,
+    :consumed_by_task_id,
+    :payload,
     state: :free
   ]
 
   @type id :: term()
-  @type state :: :created | :free | :locked | :consumed
+  @type state :: :free | :locked | :consumed
+  @type payload :: term()
 
   @type workflow_id :: Schema.Workflow.id()
   @type place_id :: Schema.Place.id()
@@ -37,7 +43,9 @@ defmodule WorkflowMetal.Storage.Schema.Token do
           case_id: case_id,
           place_id: place_id,
           produced_by_task_id: task_id,
-          locked_by_task_id: task_id
+          locked_by_task_id: task_id,
+          consumed_by_task_id: task_id,
+          payload: payload
         }
 
   alias __MODULE__
@@ -45,12 +53,13 @@ defmodule WorkflowMetal.Storage.Schema.Token do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:workflow_id, :case_id, :place_id, :produced_by_task_id]
+    @enforce_keys [:workflow_id, :case_id, :place_id, :produced_by_task_id, :payload]
     defstruct [
       :workflow_id,
       :case_id,
       :place_id,
-      :produced_by_task_id
+      :produced_by_task_id,
+      :payload
     ]
 
     @type t() :: %__MODULE__{
@@ -58,7 +67,8 @@ defmodule WorkflowMetal.Storage.Schema.Token do
             case_id: Token.case_id(),
             place_id: Token.place_id(),
             # `:genesis` stands for genesis token
-            produced_by_task_id: Token.task_id() | :genesis
+            produced_by_task_id: Token.task_id() | :genesis,
+            payload: Token.payload()
           }
   end
 end

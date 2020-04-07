@@ -65,6 +65,17 @@ defmodule WorkflowMetal.Task.Supervisor do
     end
   end
 
+  @doc """
+  Lock tokens of a task.
+  """
+  @spec lock_tokens(application, task_id) ::
+          WorkflowMetal.Task.Task.on_lock_tokens()
+  def lock_tokens(application, task_id) do
+    with({:ok, task_server} <- open_task(application, task_id)) do
+      WorkflowMetal.Task.Task.lock_tokens(task_server)
+    end
+  end
+
   defp via_name(application, workflow_id) do
     Registration.via_tuple(application, name(workflow_id))
   end

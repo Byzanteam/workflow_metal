@@ -50,5 +50,13 @@ defmodule WorkflowMetal.Registration.LocalRegistry do
     end
   end
 
+  @doc false
+  @impl WorkflowMetal.Registration.Adapter
+  def whereis_name(adapter_meta, name) do
+    registry_name = registry_name(adapter_meta)
+
+    Registry.whereis_name({registry_name, name})
+  end
+
   defp registry_name(adapter_meta), do: Map.fetch!(adapter_meta, :registry_name)
 end

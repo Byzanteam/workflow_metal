@@ -22,6 +22,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
+  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @type error :: term()
   @type options :: [
@@ -51,10 +52,10 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @doc """
   Complete a workitem.
   """
-  @spec complete(GenServer.server(), token_params) ::
+  @spec complete(GenServer.server(), workitem_output) ::
           :ok | {:error, :workitem_not_available}
-  def complete(workitem_server, token_params) do
-    GenServer.call(workitem_server, {:complete, token_params})
+  def complete(workitem_server, output) do
+    GenServer.call(workitem_server, {:complete, output})
   end
 
   # @doc """
@@ -145,11 +146,11 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   @impl true
   def handle_call(
-        {:complete, token_params},
+        {:complete, workitem_output},
         _from,
         %__MODULE__{workitem_schema: %Schema.Workitem{state: :started}} = state
       ) do
-    {:ok, workitem_schema} = do_complete_workitem(token_params, state)
+    {:ok, workitem_schema} = do_complete_workitem(workitem_output, state)
 
     {:reply, :ok, %{state | workitem_schema: workitem_schema}, {:continue, :stop_workitem}}
   end
@@ -189,13 +190,18 @@ defmodule WorkflowMetal.Workitem.Workitem do
       }
     } = WorkflowMetal.Storage.fetch_transition(application, transition_id)
 
-    case executor.execute(workitem_schema, tokens, executor_params: executor_params) do
+    case executor.execute(
+           workitem_schema,
+           tokens,
+           executor_params: executor_params,
+           application: application
+         ) do
       :started ->
         {:ok, workitem_schema} = do_start_workitem(state)
         {:ok, %{state | workitem_schema: workitem_schema}}
 
-      {:completed, token_params} ->
-        {:ok, workitem_schema} = do_complete_workitem(token_params, state)
+      {:completed, workitem_output} ->
+        {:ok, workitem_schema} = do_complete_workitem(workitem_output, state)
         {:ok, %{state | workitem_schema: workitem_schema}}
 
         # {:failed, error} ->
@@ -209,21 +215,33 @@ defmodule WorkflowMetal.Workitem.Workitem do
       workitem_schema: workitem_schema
     } = state
 
-    {:ok, workitem_schema} = WorkflowMetal.Storage.start_workitem(application, workitem_schema)
+    {:ok, workitem_schema} =
+      WorkflowMetal.Storage.start_workitem(
+        application,
+        workitem_schema.id
+      )
 
     {:ok, workitem_schema}
   end
 
-  defp do_complete_workitem(token_params, %__MODULE__{} = state) do
+  defp do_complete_workitem(workitem_output, %__MODULE__{} = state) do
     %__MODULE__{
       application: application,
       workitem_schema: workitem_schema
     } = state
 
-    {:ok, workitem_schema} = WorkflowMetal.Storage.complete_workitem(application, workitem_schema)
+    {:ok, workitem_schema} =
+      WorkflowMetal.Storage.complete_workitem(
+        application,
+        workitem_schema.id,
+        workitem_output
+      )
 
     :ok =
-      WorkflowMetal.Task.Task.complete_workitem(task_server(state), workitem_schema, token_params)
+      WorkflowMetal.Task.Task.complete_workitem(
+        task_server(state),
+        workitem_schema
+      )
 
     {:ok, workitem_schema}
   end

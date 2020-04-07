@@ -6,31 +6,37 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
   defmodule SimpleTransition do
     @moduledoc false
 
-    @behaviour WorkflowMetal.Executor
+    use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{}, _tokens, _options) do
-      {:completed, %{}}
+    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
+      :ok = lock_tokens(workitem, options)
+
+      {:completed, :ok}
     end
   end
 
   defmodule EchoTransition do
     @moduledoc false
 
-    @behaviour WorkflowMetal.Executor
+    use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{}, _tokens, options) do
+    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
+      :ok = lock_tokens(workitem, options)
+
       executor_params = Keyword.fetch!(options, :executor_params)
+
       request = Keyword.fetch!(executor_params, :request)
       reply = Keyword.fetch!(executor_params, :reply)
 
       send(request, reply)
 
-      {:completed, %{}}
+      {:completed, %{reply: reply}}
     end
   end
 
+  @doc false
   def create(application, executors \\ []) do
     a_transition = Keyword.get_lazy(executors, :a, fn -> build_simple_transition(1) end)
     b_transition = Keyword.get_lazy(executors, :b, fn -> build_simple_transition(2) end)
@@ -57,6 +63,7 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     )
   end
 
+  @doc false
   def build_simple_transition(rid) do
     %Schema.Transition.Params{
       rid: rid,
@@ -64,11 +71,21 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     }
   end
 
+  @doc false
   def build_echo_transition(rid, params \\ []) do
     %Schema.Transition.Params{
       rid: rid,
       executor: EchoTransition,
       executor_params: Keyword.put_new(params, :request, self())
+    }
+  end
+
+  @doc false
+  def build_transition(rid, executor, executor_params) do
+    %Schema.Transition.Params{
+      rid: rid,
+      executor: executor,
+      executor_params: executor_params
     }
   end
 end

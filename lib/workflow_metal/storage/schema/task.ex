@@ -15,22 +15,25 @@ defmodule WorkflowMetal.Storage.Schema.Task do
     :workflow_id,
     :transition_id,
     :case_id,
+    :token_payload,
     state: :started
   ]
 
   @type id :: term()
-  @type state :: :started | :completed
+  @type state :: :started | :executing | :completed
 
   @type workflow_id :: Schema.Workflow.id()
   @type transition_id :: Schema.Transition.id()
   @type case_id :: Schema.Case.id()
+  @type token_payload :: Schema.Token.payload()
 
   @type t() :: %__MODULE__{
           id: id,
           workflow_id: workflow_id,
           case_id: case_id,
           transition_id: transition_id,
-          state: state
+          state: state,
+          token_payload: token_payload
         }
 
   alias __MODULE__
