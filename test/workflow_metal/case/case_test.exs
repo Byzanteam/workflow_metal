@@ -51,7 +51,7 @@ defmodule WorkflowMetal.Case.CaseTest do
   end
 
   describe "finish_case" do
-    test "activate a case successfully" do
+    test "finish a case successfully" do
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,

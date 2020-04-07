@@ -148,6 +148,12 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl true
+  def handle_continue({:withdraw_tokens, token_ids, task_id}, %__MODULE__{} = state) do
+    {:ok, state} = do_withdraw_tokens(token_ids, task_id, state)
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_continue(:fire_transitions, %__MODULE__{} = state) do
     {:noreply, state}
   end
@@ -161,12 +167,10 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl true
   def handle_call({:lock_tokens, token_ids, task_id}, _from, %__MODULE__{} = state) do
-    with(
-      {:ok, state} <- do_lock_tokens(state, MapSet.new(token_ids), task_id),
-      {:ok, _state} <- withdraw_tokens(state, task_id)
-    ) do
-      {:reply, :ok, state}
-    else
+    case do_lock_tokens(state, MapSet.new(token_ids), task_id) do
+      {:ok, state} ->
+        {:reply, :ok, state, {:continue, {:withdraw_tokens, token_ids, task_id}}}
+
       error ->
         {:reply, error, state}
     end
@@ -454,9 +458,72 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, %{state | case_schema: case_schema}}
   end
 
-  defp withdraw_tokens(%__MODULE__{} = state, _except_task_id) do
-    # TODO:
-    # withdraw_token(transition_pid, {place_id, token_id})
+  defp do_withdraw_tokens(token_ids, except_task_id, %__MODULE__{} = state) do
+    Enum.each(token_ids, fn token_id ->
+      :ok = do_withdraw_token(token_id, except_task_id, state)
+    end)
+
     {:ok, state}
+  end
+
+  defp do_withdraw_token(token_id, except_task_id, %__MODULE__{} = state) do
+    %{
+      application: application,
+      token_table: token_table
+    } = state
+
+    token_table
+    |> :ets.select([{{token_id, :locked, :"$2", :_}, [], [:"$2"]}])
+    |> Enum.flat_map(fn place_id ->
+      {:ok, transitions} = WorkflowMetal.Storage.fetch_transitions(application, place_id, :out)
+
+      transitions
+    end)
+    |> Stream.map(fn transition ->
+      fetch_active_task(transition.id, state)
+    end)
+    |> Stream.each(fn
+      {:ok, %Schema.Task{id: task_id} = task} when task_id !== except_task_id ->
+        %{
+          workflow_id: workflow_id,
+          case_id: case_id,
+          transition_id: transition_id
+        } = task
+
+        task_server_name =
+          WorkflowMetal.Task.Task.via_name(
+            application,
+            {workflow_id, case_id, transition_id, task_id}
+          )
+
+        case WorkflowMetal.Registration.whereis_name(application, task_server_name) do
+          :undefined ->
+            :skip
+
+          task_server ->
+            WorkflowMetal.Task.Task.withdraw_token(task_server, token_id)
+        end
+
+      {:ok, _task} ->
+        # skip the non-running task server
+        :skip
+
+      {:error, _reason} ->
+        :skip
+    end)
+    |> Stream.run()
+
+    :ok
+  end
+
+  defp fetch_active_task(transition_id, %__MODULE__{} = state) do
+    %{
+      application: application,
+      case_schema: %Schema.Case{
+        id: case_id
+      }
+    } = state
+
+    WorkflowMetal.Storage.fetch_task(application, case_id, transition_id)
   end
 end

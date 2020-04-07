@@ -95,9 +95,9 @@ defmodule WorkflowMetal.Task.Task do
   @doc """
   Withdraw a token.
   """
-  @spec withdraw_token(GenServer.server(), place_id, token_id) :: :ok
-  def withdraw_token(task_server, place_id, token_id) do
-    GenServer.cast(task_server, {:withdraw_token, place_id, token_id})
+  @spec withdraw_token(GenServer.server(), token_id) :: :ok
+  def withdraw_token(task_server, token_id) do
+    GenServer.cast(task_server, {:withdraw_token, token_id})
   end
 
   @doc """
@@ -231,7 +231,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl true
-  def handle_cast({:withdraw_token, _place_id, token_id}, %__MODULE__{} = state) do
+  def handle_cast({:withdraw_token, token_id}, %__MODULE__{} = state) do
     %{token_table: token_table} = state
     :ets.delete(token_table, token_id)
 
