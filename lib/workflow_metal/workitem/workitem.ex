@@ -86,12 +86,12 @@ defmodule WorkflowMetal.Workitem.Workitem do
         application: application,
         workitem_schema: workitem_schema
       },
-      {:continue, :lock_tokens}
+      {:continue, :restore_lock_tokens}
     }
   end
 
   @impl true
-  def handle_continue(:lock_tokens, %__MODULE__{} = state) do
+  def handle_continue(:restore_lock_tokens, %__MODULE__{} = state) do
     %{
       application: application,
       workitem_schema: %{
