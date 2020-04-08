@@ -15,6 +15,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     tokens: []
   ]
 
+  @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
@@ -47,6 +48,15 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @spec name({workflow_id, case_id, transition_id, workitem_id}) :: term()
   def name({workflow_id, case_id, transition_id, workitem_id}) do
     {__MODULE__, {workflow_id, case_id, transition_id, workitem_id}}
+  end
+
+  @doc false
+  @spec via_name(application, {workflow_id, case_id, transition_id, workitem_id}) :: term()
+  def via_name(application, {workflow_id, case_id, transition_id, workitem_id}) do
+    WorkflowMetal.Registration.via_tuple(
+      application,
+      name({workflow_id, case_id, transition_id, workitem_id})
+    )
   end
 
   @doc """
