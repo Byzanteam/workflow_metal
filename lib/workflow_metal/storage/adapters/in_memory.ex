@@ -303,6 +303,22 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     GenServer.call(storage, {:complete_workitem, workitem_id, workitem_output})
   end
 
+  @impl WorkflowMetal.Storage.Adapter
+  def update_workitem(adapter_meta, workitem_id, state_and_options) do
+    storage = storage_name(adapter_meta)
+
+    case state_and_options do
+      :started ->
+        GenServer.call(storage, {:start_workitem, workitem_id})
+
+      {:completed, workitem_output} ->
+        GenServer.call(storage, {:complete_workitem, workitem_id, workitem_output})
+
+      :abandoned ->
+        GenServer.call(storage, {:abandon_workitem, workitem_id})
+    end
+  end
+
   @doc """
   Reset state.
   """
@@ -847,6 +863,23 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         do_complete_workitem(
           workitem_schema,
           workitem_output,
+          state
+        )
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:abandon_workitem, workitem_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
+        do_abandon_workitem(
+          workitem_schema,
           state
         )
       end
@@ -1579,6 +1612,42 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   defp do_complete_workitem(_workitem_schema, _workitem_output, %State{} = _state) do
     {:error, :workitem_not_available}
+  end
+
+  defp do_abandon_workitem(
+         %Schema.Workitem{state: :abandoned} = workitem_schema,
+         %State{} = _state
+       ) do
+    {:ok, workitem_schema}
+  end
+
+  defp do_abandon_workitem(
+         %Schema.Workitem{state: :completed},
+         %State{} = _state
+       ) do
+    {:error, :workitem_not_available}
+  end
+
+  defp do_abandon_workitem(
+         %Schema.Workitem{state: state} = workitem_schema,
+         %State{} = state
+       )
+       when state !== :completed do
+    workitem_table = get_table(:workitem, state)
+
+    workitem_schema = %{
+      workitem_schema
+      | state: :abandoned
+    }
+
+    true =
+      :ets.update_element(
+        workitem_table,
+        workitem_schema.id,
+        [{2, workitem_schema}]
+      )
+
+    {:ok, workitem_schema}
   end
 
   defp find_workitem(workitem_id, %State{} = state) do

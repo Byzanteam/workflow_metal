@@ -401,4 +401,21 @@ defmodule WorkflowMetal.Storage do
       workitem_output
     )
   end
+
+  @doc false
+  @spec update_workitem(
+          application,
+          workitem_id,
+          WorkflowMetal.Storage.Adapter.update_workitem_params()
+        ) ::
+          WorkflowMetal.Storage.Adapter.on_update_workitem()
+  def update_workitem(application, workitem_id, update_workitem_params) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.update_workitem(
+      adapter_meta,
+      workitem_id,
+      update_workitem_params
+    )
+  end
 end

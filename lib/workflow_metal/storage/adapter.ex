@@ -39,6 +39,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
+  @type update_workitem_params :: :started | {:completed, workitem_output} | :abandoned
 
   @type error :: term()
 
@@ -128,6 +129,10 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workitem_not_found}
           | {:error, :workitem_not_available}
   @type on_complete_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workitem_not_found}
+          | {:error, :workitem_not_available}
+  @type on_update_workitem ::
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
           | {:error, :workitem_not_available}
@@ -361,4 +366,21 @@ defmodule WorkflowMetal.Storage.Adapter do
               workitem_id,
               workitem_output
             ) :: on_complete_workitem
+
+  @doc """
+  Update the workitem.
+
+  ### update_workitem_params:
+  - `:started`
+  - `{:completed, workitem_output}`
+  - `:abandoned`
+
+  note: if the state of the workitem is the state in the update_workitem,
+  it returns `{:ok, workitem_schema}` too.
+  """
+  @callback update_workitem(
+              adapter_meta,
+              workitem_id,
+              update_workitem_params
+            ) :: on_update_workitem
 end
