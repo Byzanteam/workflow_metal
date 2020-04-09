@@ -210,4 +210,22 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       end)
     end
   end
+
+  describe "restore_from_storage" do
+    test "restore from created state" do
+      # TODO: test
+    end
+
+    test "restore from started state" do
+      # TODO: test
+    end
+
+    test "restore from completed state" do
+      # TODO: test
+    end
+
+    test "restore from abandoned state" do
+      # TODO: test
+    end
+  end
 end
