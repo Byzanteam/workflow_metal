@@ -1,6 +1,28 @@
 defmodule WorkflowMetal.Workitem.Workitem do
   @moduledoc """
   A `GenStateMachine` to run a workitem.
+
+  ## Flow
+
+  The workitem starts to execute, when the workitem is created.
+
+  If the executor returns `:started`,
+  you can call `:complete` with the `workitem_output` to complete the workitem manually(asynchronously).
+
+  If the executor returns `{:completed, workitem_output}`,
+  the workitem is completed immediately.
+
+  The task can abandon the workitem when needed.
+
+  ## State
+
+  ```
+  created+-------->started+------->completed
+      +               +
+      |               |
+      |               v
+      +---------->abandoned
+  ```
   """
 
   require Logger
