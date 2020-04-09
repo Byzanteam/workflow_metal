@@ -75,14 +75,20 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
       state: state
     } = workitem_schema
 
-    {
-      :ok,
-      state,
-      %__MODULE__{
-        application: application,
-        workitem_schema: workitem_schema
-      }
-    }
+    cond do
+      state in [:completed, :abandoned] ->
+        {:stop, :normal}
+
+      true ->
+        {
+          :ok,
+          state,
+          %__MODULE__{
+            application: application,
+            workitem_schema: workitem_schema
+          }
+        }
+    end
   end
 
   @impl GenStateMachine
@@ -91,7 +97,7 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
       {:created, :created} ->
         {
           :keep_state_and_data,
-          [{:state_timeout, 0, :start_at_created}]
+          {:state_timeout, 0, :start_at_created}
         }
 
       {same, same} ->
@@ -124,16 +130,35 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
   @impl GenStateMachine
   def handle_event(:cast, :abandon, state, %__MODULE__{} = data)
       when state not in [:abandoned, :completed] do
-    {:next_state, :abandoned, data}
+    {
+      :next_state,
+      :abandoned,
+      data,
+      {:next_event, :cast, :stop}
+    }
   end
 
+  @impl GenStateMachine
+  def handle_event(:cast, :stop, _state, %__MODULE__{} = data) do
+    {:stop, :normal, data}
+  end
+
+  @impl GenStateMachine
   def handle_event(:cast, _event_content, _state, %__MODULE__{}) do
     :keep_state_and_data
   end
 
   @impl GenStateMachine
   def handle_event({:call, from}, {:complete, output}, :started, %__MODULE__{} = data) do
-    {:next_state, :completed, data, {:reply, from, [output]}}
+    {
+      :next_state,
+      :completed,
+      data,
+      [
+        {:reply, from, [output]},
+        {:next_event, :cast, :stop}
+      ]
+    }
   end
 
   @impl GenStateMachine
