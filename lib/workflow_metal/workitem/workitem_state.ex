@@ -9,10 +9,11 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
     callback_mode: [:handle_event_function, :state_enter],
     restart: :temporary
 
+  alias WorkflowMetal.Storage.Schema
+
   defstruct [
     :application,
-    :workitem_schema,
-    tokens: []
+    :workitem_schema
   ]
 
   @type application :: WorkflowMetal.Application.t()
@@ -67,6 +68,14 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
     GenStateMachine.call(workitem_server, {:complete, output})
   end
 
+  @doc """
+  Abandon a workitem.
+  """
+  @spec abandon(GenServer.server()) :: :ok
+  def abandon(workitem_server) do
+    GenStateMachine.cast(workitem_server, :abandon)
+  end
+
   # callbacks
 
   @impl GenStateMachine
@@ -104,15 +113,14 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
         :keep_state_and_data
 
       {:created, :started} ->
-        {:ok, data} = update_workitem_state(data, :started)
+        {:ok, data} = update_workitem(data, :started)
         {:keep_state, data}
 
       {:started, :completed} ->
-        {:ok, data} = update_workitem_state(data, :completed)
         {:keep_state, data}
 
       {_from, :abandoned} ->
-        {:ok, data} = update_workitem_state(data, :abandoned)
+        {:ok, data} = update_workitem(data, :abandoned)
         {:keep_state, data}
     end
   end
@@ -124,7 +132,18 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
 
   @impl GenStateMachine
   def handle_event(:cast, :start, :created, %__MODULE__{} = data) do
-    {:next_state, :started, data}
+    case do_execute(data) do
+      {:ok, :started, data} ->
+        {:next_state, :started, data}
+
+      {:ok, {:completed, workitem_output}, data} ->
+        {
+          :next_state,
+          :started,
+          data,
+          {:next_event, :cast, {:complete, workitem_output}}
+        }
+    end
   end
 
   @impl GenStateMachine
@@ -139,6 +158,11 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
   end
 
   @impl GenStateMachine
+  def handle_event(:cast, :abandon, _state, %__MODULE__{}) do
+    :keep_state_and_data
+  end
+
+  @impl GenStateMachine
   def handle_event(:cast, :stop, _state, %__MODULE__{} = data) do
     {:stop, :normal, data}
   end
@@ -150,12 +174,14 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
 
   @impl GenStateMachine
   def handle_event({:call, from}, {:complete, output}, :started, %__MODULE__{} = data) do
+    {:ok, data} = do_complete(data, output)
+
     {
       :next_state,
       :completed,
       data,
       [
-        {:reply, from, [output]},
+        {:reply, from, :ok},
         {:next_event, :cast, :stop}
       ]
     }
@@ -163,7 +189,7 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
 
   @impl GenStateMachine
   def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
-    {:keep_state_and_data, {:reply, from, {:error, :invalid_event_content}}}
+    {:keep_state_and_data, {:reply, from, {:error, :workitem_not_available}}}
   end
 
   @impl GenStateMachine
@@ -171,15 +197,80 @@ defmodule WorkflowMetal.Workitem.WorkitemState do
     {:state, %{current_state: state, data: data}}
   end
 
-  defp update_workitem_state(%__MODULE__{} = data, state, _options \\ []) do
+  defp update_workitem(%__MODULE__{} = data, state_and_options) do
     %{
+      application: application,
       workitem_schema: workitem_schema
     } = data
 
-    IO.inspect("the state becomes to #{state} from #{workitem_schema.state}.")
-
-    workitem_schema = %{workitem_schema | state: state}
+    {:ok, workitem_schema} =
+      WorkflowMetal.Storage.update_workitem(
+        application,
+        workitem_schema.id,
+        state_and_options
+      )
 
     {:ok, %{data | workitem_schema: workitem_schema}}
+  end
+
+  defp do_execute(%__MODULE__{} = data) do
+    %{
+      application: application,
+      workitem_schema:
+        %Schema.Workitem{
+          transition_id: transition_id
+        } = workitem_schema
+    } = data
+
+    {
+      :ok,
+      %{
+        executor: executor,
+        executor_params: executor_params
+      }
+    } = WorkflowMetal.Storage.fetch_transition(application, transition_id)
+
+    case executor.execute(
+           workitem_schema,
+           executor_params: executor_params,
+           application: application
+         ) do
+      :started ->
+        {:ok, :started, data}
+
+      {:completed, workitem_output} ->
+        {:ok, {:completed, workitem_output}, data}
+    end
+  end
+
+  defp do_complete(%__MODULE__{} = data, output) do
+    {
+      :ok,
+      %{
+        workitem_schema: workitem_schema
+      } = data
+    } = update_workitem(data, {:completed, output})
+
+    :ok =
+      WorkflowMetal.Task.Task.complete_workitem(
+        task_server(data),
+        workitem_schema
+      )
+
+    {:ok, data}
+  end
+
+  defp task_server(%__MODULE__{} = data) do
+    %{
+      application: application,
+      workitem_schema: %Schema.Workitem{
+        workflow_id: workflow_id,
+        case_id: case_id,
+        transition_id: transition_id,
+        task_id: task_id
+      }
+    } = data
+
+    WorkflowMetal.Task.Task.via_name(application, {workflow_id, case_id, transition_id, task_id})
   end
 end
