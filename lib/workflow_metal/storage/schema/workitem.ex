@@ -24,9 +24,9 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
   @type t() :: %__MODULE__{
           id: id,
           workflow_id: workflow_id,
+          transition_id: transition_id,
           case_id: case_id,
           task_id: task_id,
-          transition_id: transition_id,
           state: state,
           output: output
         }
