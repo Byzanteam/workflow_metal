@@ -69,7 +69,7 @@ defmodule WorkflowMetal.Case.Case do
   Lock tokens.
   """
   @spec lock_tokens(GenServer.server(), [token_id], task_id) ::
-          :ok | {:error, :tokens_not_available}
+          {:ok, nonempty_list(token_schema)} | {:error, :tokens_not_available}
   def lock_tokens(case_server, [_ | _] = token_ids, task_id) do
     GenServer.call(case_server, {:lock_tokens, token_ids, task_id})
   end
@@ -168,8 +168,9 @@ defmodule WorkflowMetal.Case.Case do
   @impl true
   def handle_call({:lock_tokens, token_ids, task_id}, _from, %__MODULE__{} = state) do
     case do_lock_tokens(state, MapSet.new(token_ids), task_id) do
-      {:ok, state} ->
-        {:reply, :ok, state, {:continue, {:withdraw_tokens, token_ids, task_id}}}
+      {:ok, locked_token_schemas, state} ->
+        {:reply, {:ok, locked_token_schemas}, state,
+         {:continue, {:withdraw_tokens, token_ids, task_id}}}
 
       error ->
         {:reply, error, state}
@@ -383,18 +384,21 @@ defmodule WorkflowMetal.Case.Case do
     } = state
 
     if MapSet.subset?(token_ids, free_token_ids) do
-      Enum.each(token_ids, fn token_id ->
-        :ets.update_element(token_table, token_id, [
-          {@state_position, :locked},
-          {@locked_by_task_id_position, task_id}
-        ])
+      locked_token_schemas =
+        Enum.map(token_ids, fn token_id ->
+          :ets.update_element(token_table, token_id, [
+            {@state_position, :locked},
+            {@locked_by_task_id_position, task_id}
+          ])
 
-        {:ok, _token_schema} = WorkflowMetal.Storage.lock_token(application, token_id, task_id)
-      end)
+          {:ok, token_schema} = WorkflowMetal.Storage.lock_token(application, token_id, task_id)
+
+          token_schema
+        end)
 
       free_token_ids = MapSet.difference(free_token_ids, token_ids)
 
-      {:ok, %{state | free_token_ids: free_token_ids}}
+      {:ok, locked_token_schemas, %{state | free_token_ids: free_token_ids}}
     else
       {:error, :tokens_not_available}
     end

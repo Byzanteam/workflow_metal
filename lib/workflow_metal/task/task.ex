@@ -30,6 +30,7 @@ defmodule WorkflowMetal.Task.Task do
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
@@ -48,7 +49,7 @@ defmodule WorkflowMetal.Task.Task do
         ]
 
   @type on_lock_tokens ::
-          :ok
+          {:ok, nonempty_list(token_schema)}
           | {:error, :tokens_not_available}
           | {:error, :task_not_enabled}
 
@@ -261,15 +262,15 @@ defmodule WorkflowMetal.Task.Task do
     reply =
       with(
         {:ok, token_ids} <- JoinController.task_enablement(state),
-        :ok <- do_lock_tokens(token_ids, state),
+        {:ok, locked_token_schemas} <- do_lock_tokens(token_ids, state),
         {:ok, state} <- do_execute_task(state)
       ) do
-        {:ok, state}
+        {:ok, locked_token_schemas, state}
       end
 
     case reply do
-      {:ok, state} ->
-        {:reply, :ok, state}
+      {:ok, locked_token_schemas, state} ->
+        {:reply, {:ok, locked_token_schemas}, state}
 
       error ->
         {:reply, error, state}
@@ -282,7 +283,16 @@ defmodule WorkflowMetal.Task.Task do
         _from,
         %__MODULE__{task_schema: %Schema.Task{state: :executing}} = state
       ) do
-    {:reply, :ok, state}
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        id: task_id
+      }
+    } = state
+
+    # TODO: fetch locked_tokens at init
+    {:ok, locked_token_schemas} = WorkflowMetal.Storage.fetch_locked_tokens(application, task_id)
+    {:reply, {:ok, locked_token_schemas}, state}
   end
 
   # @impl true
@@ -303,10 +313,13 @@ defmodule WorkflowMetal.Task.Task do
       token_table: token_table
     } = state
 
-    with(:ok <- WorkflowMetal.Case.Case.lock_tokens(case_server(state), token_ids, task_id)) do
+    with(
+      {:ok, locked_token_schemas} <-
+        WorkflowMetal.Case.Case.lock_tokens(case_server(state), token_ids, task_id)
+    ) do
       Enum.each(token_ids, &:ets.update_element(token_table, &1, [{3, :locked}]))
 
-      :ok
+      {:ok, locked_token_schemas}
     end
   end
 
