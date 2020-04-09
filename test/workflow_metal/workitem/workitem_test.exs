@@ -48,8 +48,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       use WorkflowMetal.Executor
 
       @impl true
-      def execute(workitem, _tokens, options) do
-        :ok = lock_tokens(workitem, options)
+      def execute(workitem, options) do
+        {:ok, _tokens} = lock_tokens(workitem, options)
 
         executor_params = Keyword.fetch!(options, :executor_params)
         request = Keyword.fetch!(executor_params, :request)
@@ -162,9 +162,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       use WorkflowMetal.Executor
 
       @impl true
-      def execute(workitem, _tokens, options) do
-        :ok = lock_tokens(workitem, options)
-        :ok = lock_tokens(workitem, options)
+      def execute(workitem, options) do
+        {:ok, _tokens} = lock_tokens(workitem, options)
+        {:ok, _tokens} = lock_tokens(workitem, options)
 
         executor_params = Keyword.fetch!(options, :executor_params)
         request = Keyword.fetch!(executor_params, :request)

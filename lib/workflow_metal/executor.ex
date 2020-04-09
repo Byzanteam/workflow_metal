@@ -17,8 +17,8 @@ defmodule WorkflowMetal.Executor do
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
-        def execute(%Schema.Workitem{}, _tokens, options) do
-          :ok = lock_tokens(workitem, options)
+        def execute(%Schema.Workitem{}, options) do
+          {:ok, _tokens} = lock_tokens(workitem, options)
 
           {:completed, {:output, :ok}}
         end
@@ -30,8 +30,8 @@ defmodule WorkflowMetal.Executor do
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
-        def execute(%Schema.Workitem{} = workitem, tokens, options) do
-          :ok = lock_tokens(workitem, options)
+        def execute(%Schema.Workitem{} = workitem, options) do
+          {:ok, tokens} = lock_tokens(workitem, options)
 
           Task.async(__MODULE__, :run, [workitem, tokens, options])
           :started
@@ -51,14 +51,13 @@ defmodule WorkflowMetal.Executor do
         ]
 
   @type workitem :: Schema.Workitem.t()
-  @type token :: Schema.Token.t()
   @type token_payload :: Schema.Token.payload()
   @type workitem_output :: Schema.Workitem.output()
 
   @doc """
   Run an executor and return its state to the `workitem` process.
   """
-  @callback execute(workitem, nonempty_list(token), options) ::
+  @callback execute(workitem, options) ::
               :started
               | {:completed, workitem_output}
 

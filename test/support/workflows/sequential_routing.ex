@@ -9,8 +9,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def execute(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       {:completed, :ok}
     end
@@ -22,8 +22,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def execute(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       executor_params = Keyword.fetch!(options, :executor_params)
 
