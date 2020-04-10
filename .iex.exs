@@ -53,8 +53,8 @@ defmodule TrafficLight do
     alias WorkflowMetal.Storage.Schema
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def execute(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       IO.puts("\n#{TrafficLight.now()} the light is on.")
 
@@ -70,21 +70,21 @@ defmodule TrafficLight do
     alias WorkflowMetal.Storage.Schema
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, tokens, options) do
+    def execute(%Schema.Workitem{} = workitem, options) do
       IO.puts("\n#{TrafficLight.now()} the light is about to turning red in 1s.")
 
-      Task.async(__MODULE__, :run, [workitem, tokens, options])
+      Task.async(__MODULE__, :run, [workitem, options])
       :started
     end
 
-    def run(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def run(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       Process.sleep(1000)
 
       TrafficLight.complete_workitem(workitem, options, :turn_red)
 
-      IO.puts("\n#{TrafficLight.now()} the light is red.")
+      TrafficLight.log_light(:red)
     end
   end
 
@@ -96,21 +96,21 @@ defmodule TrafficLight do
     alias WorkflowMetal.Storage.Schema
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, tokens, options) do
+    def execute(%Schema.Workitem{} = workitem, options) do
       IO.puts("\n#{TrafficLight.now()} the light is about to turning green in 5s.")
 
-      Task.async(__MODULE__, :run, [workitem, tokens, options])
+      Task.async(__MODULE__, :run, [workitem, options])
       :started
     end
 
-    def run(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def run(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       Process.sleep(5000)
 
       TrafficLight.complete_workitem(workitem, options, :turn_green)
 
-      IO.puts("\n#{TrafficLight.now()} the light is green.")
+      TrafficLight.log_light(:green)
     end
   end
 
@@ -122,21 +122,21 @@ defmodule TrafficLight do
     alias WorkflowMetal.Storage.Schema
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, tokens, options) do
+    def execute(%Schema.Workitem{} = workitem, options) do
       IO.puts("\n#{TrafficLight.now()} the light is about to turning yellow in 4s.")
 
-      Task.async(__MODULE__, :run, [workitem, tokens, options])
+      Task.async(__MODULE__, :run, [workitem, options])
       :started
     end
 
-    def run(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def run(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       Process.sleep(4000)
 
       TrafficLight.complete_workitem(workitem, options, :turn_yellow)
 
-      IO.puts("\n#{TrafficLight.now()} the light is yellow.")
+      TrafficLight.log_light(:yellow)
     end
   end
 
@@ -148,10 +148,10 @@ defmodule TrafficLight do
     alias WorkflowMetal.Storage.Schema
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
+    def execute(%Schema.Workitem{} = workitem, options) do
       # 20% chance
       if :rand.uniform(10) < 2 do
-        :ok = lock_tokens(workitem, options)
+        {:ok, _tokens} = lock_tokens(workitem, options)
 
         IO.puts("\n#{TrafficLight.now()} the light is off.")
 
@@ -187,6 +187,18 @@ defmodule TrafficLight do
 
   def now do
     DateTime.utc_now() |> DateTime.to_string()
+  end
+
+  def log_light(color) do
+    IO.puts([
+      "\n",
+      now(),
+      "the light is ",
+      apply(IO.ANSI, color, []),
+      to_string(color),
+      IO.ANSI.reset(),
+      "."
+    ])
   end
 end
 
@@ -227,4 +239,3 @@ end
 # ```elixir
 # WorkflowMetal.Case.Supervisor.create_case Airbase.ProjectWorkflow, %Schema.Case.Params{workflow_id: traffic_light_workflow.id}
 # ```
-
