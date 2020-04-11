@@ -54,7 +54,7 @@ defmodule WorkflowMetal.Task.Supervisor do
       {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, case_id)
     ) do
       task_supervisor = via_name(application, workflow_id)
-      task_spec = {WorkflowMetal.Task.Task, [task: task_schema]}
+      task_spec = {WorkflowMetal.Task.Task, [task_schema: task_schema]}
 
       Registration.start_child(
         application,
