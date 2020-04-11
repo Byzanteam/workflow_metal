@@ -6,7 +6,7 @@ defmodule WorkflowMetal.Controller.Split.None do
   @behaviour WorkflowMetal.Controller.Split
 
   @impl true
-  def issue_tokens(task_state, token_payload) do
+  def issue_tokens(task_data, token_payload) do
     %{
       application: application,
       task_schema: %Schema.Task{
@@ -15,7 +15,7 @@ defmodule WorkflowMetal.Controller.Split.None do
         transition_id: transition_id,
         case_id: case_id
       }
-    } = task_state
+    } = task_data
 
     {:ok, [arc]} = WorkflowMetal.Storage.fetch_arcs(application, transition_id, :out)
 

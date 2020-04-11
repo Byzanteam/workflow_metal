@@ -343,7 +343,7 @@ defmodule WorkflowMetal.Case.Case do
     |> Stream.each(fn {:ok, task} ->
       {:ok, task_server} = WorkflowMetal.Task.Supervisor.open_task(application, task.id)
 
-      WorkflowMetal.Task.Task.offer_token(task_server, place_id, token_id)
+      WorkflowMetal.Task.Task.offer_token(task_server, {place_id, token_id})
     end)
     |> Stream.run()
   end

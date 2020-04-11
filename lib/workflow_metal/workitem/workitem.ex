@@ -53,7 +53,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
           workitem_schema: workitem_schema
         ]
 
-  @spec start_link(workflow_identifier, options) :: GenServer.on_start()
+  @spec start_link(workflow_identifier, options) :: :gen_statem.start_ret()
   def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
     workitem_schema = Keyword.fetch!(options, :workitem_schema)
@@ -83,7 +83,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @doc """
   Complete a workitem.
   """
-  @spec complete(GenServer.server(), workitem_output) ::
+  @spec complete(:gen_statem.server_ref(), workitem_output) ::
           :ok | {:error, :workitem_not_available}
   def complete(workitem_server, output) do
     GenStateMachine.call(workitem_server, {:complete, output})
@@ -92,7 +92,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @doc """
   Abandon a workitem.
   """
-  @spec abandon(GenServer.server()) :: :ok
+  @spec abandon(:gen_statem.server_ref()) :: :ok
   def abandon(workitem_server) do
     GenStateMachine.cast(workitem_server, :abandon)
   end
@@ -176,7 +176,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {:ok, data} = do_complete(data, output)
 
     {
-      :keep_state,
+      :next_state,
+      :completed,
       data,
       {:next_event, :cast, :stop}
     }

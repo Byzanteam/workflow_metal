@@ -55,4 +55,7 @@ defmodule WorkflowMetal.Task.TaskTest do
       end)
     end
   end
+
+  describe "restore_from_storage" do
+  end
 end

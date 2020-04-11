@@ -290,7 +290,7 @@ defmodule WorkflowMetal.Storage do
   @spec update_task(
           application,
           task_id,
-          WorkflowMetal.Storage.Adapter.on_update_task()
+          WorkflowMetal.Storage.Adapter.update_task_params()
         ) ::
           WorkflowMetal.Storage.Adapter.on_update_task()
   def update_task(application, task_id, update_task_params) do

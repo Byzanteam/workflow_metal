@@ -8,12 +8,12 @@ defmodule WorkflowMetal.Controller.Join.None do
   @behaviour WorkflowMetal.Controller.Join
 
   @impl WorkflowMetal.Controller.Join
-  def task_enablement(task_state) do
+  def task_enablement(task_data) do
     %{
       application: application,
       transition_schema: transition_schema,
       token_table: token_table
-    } = task_state
+    } = task_data
 
     {:ok, [place]} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
 
