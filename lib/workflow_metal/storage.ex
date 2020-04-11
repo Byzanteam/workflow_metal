@@ -286,6 +286,23 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec update_task(
+          application,
+          task_id,
+          WorkflowMetal.Storage.Adapter.on_update_task()
+        ) ::
+          WorkflowMetal.Storage.Adapter.on_update_task()
+  def update_task(application, task_id, update_task_params) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.update_task(
+      adapter_meta,
+      task_id,
+      update_task_params
+    )
+  end
+
   ## Token
 
   @doc false

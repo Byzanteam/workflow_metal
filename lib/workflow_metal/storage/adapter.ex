@@ -27,6 +27,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+  @type update_task_params :: :executing | {:completed, token_payload}
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
@@ -93,6 +94,10 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :task_not_found}
           | {:error, :task_not_available}
   @type on_complete_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
+          | {:error, :task_not_available}
+  @type on_update_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
           | {:error, :task_not_available}
@@ -286,6 +291,22 @@ defmodule WorkflowMetal.Storage.Adapter do
               task_id,
               token_payload
             ) :: on_complete_task
+
+  @doc """
+  Update the task.
+
+  ### update_task_params:
+  - `:executing`
+  - `{:completed, task_output}`
+
+  note: if the state of the task is the state in the update_task,
+  it returns `{:ok, task_schema}` too.
+  """
+  @callback update_task(
+              adapter_meta,
+              task_id,
+              update_task_params
+            ) :: on_update_task
 
   # Token
   @doc """

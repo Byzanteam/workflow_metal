@@ -227,10 +227,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def execute_task(adapter_meta, workitem_id) do
+  def execute_task(adapter_meta, task_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:execute_task, workitem_id})
+    GenServer.call(storage, {:execute_task, task_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -238,6 +238,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     storage = storage_name(adapter_meta)
 
     GenServer.call(storage, {:complete_task, task_id, token_payload})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def update_task(adapter_meta, task_id, state_and_options) do
+    storage = storage_name(adapter_meta)
+
+    case state_and_options do
+      :executing ->
+        GenServer.call(storage, {:execute_task, task_id})
+
+      {:completed, token_payload} ->
+        GenServer.call(storage, {:complete_task, task_id, token_payload})
+    end
   end
 
   @impl WorkflowMetal.Storage.Adapter
