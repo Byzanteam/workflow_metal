@@ -156,6 +156,11 @@ defmodule WorkflowMetal.Workitem.Workitem do
   end
 
   @impl GenStateMachine
+  def handle_event(:internal, :stop, _state, %__MODULE__{} = data) do
+    {:stop, :normal, data}
+  end
+
+  @impl GenStateMachine
   def handle_event(:cast, :start, :created, %__MODULE__{} = data) do
     case do_execute(data) do
       {:ok, :started, data} ->
@@ -179,7 +184,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       :next_state,
       :completed,
       data,
-      {:next_event, :cast, :stop}
+      {:next_event, :internal, :stop}
     }
   end
 
@@ -190,18 +195,13 @@ defmodule WorkflowMetal.Workitem.Workitem do
       :next_state,
       :abandoned,
       data,
-      {:next_event, :cast, :stop}
+      {:next_event, :internal, :stop}
     }
   end
 
   @impl GenStateMachine
   def handle_event(:cast, :abandon, _state, %__MODULE__{}) do
     :keep_state_and_data
-  end
-
-  @impl GenStateMachine
-  def handle_event(:cast, :stop, _state, %__MODULE__{} = data) do
-    {:stop, :normal, data}
   end
 
   @impl GenStateMachine
@@ -219,7 +219,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       data,
       [
         {:reply, from, :ok},
-        {:next_event, :cast, :stop}
+        {:next_event, :internal, :stop}
       ]
     }
   end

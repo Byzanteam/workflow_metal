@@ -166,6 +166,7 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
+  @impl GenStateMachine
   def handle_event(:state_timeout, :activate_at_created, :created, %__MODULE__{} = data) do
     {:ok, data} = do_activate_case(data)
 
@@ -177,6 +178,7 @@ defmodule WorkflowMetal.Case.Case do
     }
   end
 
+  @impl GenStateMachine
   def handle_event(:internal, :offer_tokens, :active, %__MODULE__{} = data) do
     {:ok, data} = do_offer_tokens(data)
 
@@ -187,6 +189,7 @@ defmodule WorkflowMetal.Case.Case do
     }
   end
 
+  @impl GenStateMachine
   def handle_event(
         :internal,
         {:withdraw_tokens, token_ids, except_task_id},
@@ -198,6 +201,7 @@ defmodule WorkflowMetal.Case.Case do
     {:keep_state, data}
   end
 
+  @impl GenStateMachine
   def handle_event(:internal, :finish, :active, %__MODULE__{} = data) do
     with(
       {:finished, data} <- case_finishment(data),
@@ -215,11 +219,13 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
+  @impl GenStateMachine
   def handle_event(:internal, :stop, state, %__MODULE__{} = data)
       when state in [:canceled, :finished] do
     {:stop, :normal, data}
   end
 
+  @impl GenStateMachine
   def handle_event(
         {:call, from},
         {:lock_tokens, token_ids, task_id},
@@ -246,6 +252,7 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
+  @impl GenStateMachine
   def handle_event(
         {:call, from},
         {:consume_tokens, token_ids, task_id},
@@ -269,6 +276,7 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
+  @impl GenStateMachine
   def handle_event(
         {:call, from},
         {:issue_tokens, token_params_list},
@@ -285,6 +293,16 @@ defmodule WorkflowMetal.Case.Case do
         {:next_event, :internal, :offer_tokens}
       ]
     }
+  end
+
+  @impl GenStateMachine
+  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
+    {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
+  end
+
+  @impl GenStateMachine
+  def format_status(_reason, [_pdict, state, data]) do
+    {:state, %{current_state: state, data: data}}
   end
 
   defp rebuild_tokens(%__MODULE__{} = data) do
