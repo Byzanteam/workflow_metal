@@ -73,14 +73,14 @@ defmodule TrafficLight do
     def execute(%Schema.Workitem{} = workitem, options) do
       IO.puts("\n#{TrafficLight.now()} the light is about to turning red in 1s.")
 
-      Task.async(__MODULE__, :run, [workitem, options])
+      Task.start(__MODULE__, :run, [workitem, options])
       :started
     end
 
     def run(%Schema.Workitem{} = workitem, options) do
-      {:ok, _tokens} = lock_tokens(workitem, options)
-
       Process.sleep(1000)
+
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       TrafficLight.complete_workitem(workitem, options, :turn_red)
 
@@ -99,18 +99,22 @@ defmodule TrafficLight do
     def execute(%Schema.Workitem{} = workitem, options) do
       IO.puts("\n#{TrafficLight.now()} the light is about to turning green in 5s.")
 
-      Task.async(__MODULE__, :run, [workitem, options])
+      Task.start(__MODULE__, :run, [workitem, options])
       :started
     end
 
     def run(%Schema.Workitem{} = workitem, options) do
-      {:ok, _tokens} = lock_tokens(workitem, options)
-
       Process.sleep(5000)
 
-      TrafficLight.complete_workitem(workitem, options, :turn_green)
+      case lock_tokens(workitem, options) do
+        {:ok, _tokens} ->
+          TrafficLight.complete_workitem(workitem, options, :turn_green)
 
-      TrafficLight.log_light(:green)
+          TrafficLight.log_light(:green)
+
+        _ ->
+          :skip
+      end
     end
   end
 
@@ -125,14 +129,14 @@ defmodule TrafficLight do
     def execute(%Schema.Workitem{} = workitem, options) do
       IO.puts("\n#{TrafficLight.now()} the light is about to turning yellow in 4s.")
 
-      Task.async(__MODULE__, :run, [workitem, options])
+      Task.start(__MODULE__, :run, [workitem, options])
       :started
     end
 
     def run(%Schema.Workitem{} = workitem, options) do
-      {:ok, _tokens} = lock_tokens(workitem, options)
-
       Process.sleep(4000)
+
+      {:ok, _tokens} = lock_tokens(workitem, options)
 
       TrafficLight.complete_workitem(workitem, options, :turn_yellow)
 
@@ -149,15 +153,19 @@ defmodule TrafficLight do
 
     @impl WorkflowMetal.Executor
     def execute(%Schema.Workitem{} = workitem, options) do
-      # 20% chance
-      if :rand.uniform(10) < 2 do
-        {:ok, _tokens} = lock_tokens(workitem, options)
+      # 50% chance
+      if :rand.uniform(10) <= 5 do
+        case lock_tokens(workitem, options) do
+          {:ok, _tokens} ->
+            IO.puts("\n#{TrafficLight.now()} the light is off.")
 
-        IO.puts("\n#{TrafficLight.now()} the light is off.")
+            {:completed, :ended}
 
-        {:completed, :ended}
+          _ ->
+            :abandoned
+        end
       else
-        :started
+        :abandoned
       end
     end
   end
