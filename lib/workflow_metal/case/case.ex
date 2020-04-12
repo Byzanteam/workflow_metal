@@ -628,8 +628,7 @@ defmodule WorkflowMetal.Case.Case do
         } = task
 
         task_server_name =
-          WorkflowMetal.Task.Task.via_name(
-            application,
+          WorkflowMetal.Task.Task.name(
             {workflow_id, case_id, transition_id, task_id}
           )
 
