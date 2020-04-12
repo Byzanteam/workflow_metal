@@ -134,7 +134,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       {:created, :started} ->
         Logger.debug(fn -> "#{describe(data)} start executing." end)
 
-        {:ok, data} = update_workitem(data, :started)
+        {:ok, data} = update_workitem(:started, data)
         {:keep_state, data}
 
       {:started, :completed} ->
@@ -145,7 +145,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       {_from, :abandoned} ->
         Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
 
-        {:ok, data} = update_workitem(data, :abandoned)
+        {:ok, data} = update_workitem(:abandoned, data)
         {:keep_state, data}
     end
   end
@@ -178,7 +178,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   @impl GenStateMachine
   def handle_event(:cast, {:complete, output}, :started, %__MODULE__{} = data) do
-    {:ok, data} = do_complete(data, output)
+    {:ok, data} = do_complete(output, data)
 
     {
       :next_state,
@@ -211,7 +211,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   @impl GenStateMachine
   def handle_event({:call, from}, {:complete, output}, :started, %__MODULE__{} = data) do
-    {:ok, data} = do_complete(data, output)
+    {:ok, data} = do_complete(output, data)
 
     {
       :next_state,
@@ -234,7 +234,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {:state, %{current_state: state, data: data}}
   end
 
-  defp update_workitem(%__MODULE__{} = data, state_and_options) do
+  defp update_workitem(state_and_options, %__MODULE__{} = data) do
     %{
       application: application,
       workitem_schema: workitem_schema
@@ -280,13 +280,13 @@ defmodule WorkflowMetal.Workitem.Workitem do
     end
   end
 
-  defp do_complete(%__MODULE__{} = data, output) do
+  defp do_complete(output, %__MODULE__{} = data) do
     {
       :ok,
       %{
         workitem_schema: workitem_schema
       } = data
-    } = update_workitem(data, {:completed, output})
+    } = update_workitem({:completed, output}, data)
 
     :ok =
       WorkflowMetal.Task.Task.complete_workitem(

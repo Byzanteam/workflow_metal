@@ -150,7 +150,7 @@ defmodule WorkflowMetal.Case.Case do
       {:created, :active} ->
         Logger.debug(fn -> "#{describe(data)} is activated." end)
 
-        {:ok, data} = update_case(data, :active)
+        {:ok, data} = update_case(:active, data)
         {:keep_state, data}
 
       {:active, :finished} ->
@@ -161,7 +161,7 @@ defmodule WorkflowMetal.Case.Case do
       {_, :canceled} ->
         Logger.debug(fn -> "#{describe(data)} is canceled." end)
 
-        {:ok, data} = update_case(data, :canceled)
+        {:ok, data} = update_case(:canceled, data)
         {:keep_state, data}
     end
   end
@@ -232,7 +232,7 @@ defmodule WorkflowMetal.Case.Case do
         :active,
         %__MODULE__{} = data
       ) do
-    case do_lock_tokens(data, MapSet.new(token_ids), task_id) do
+    case do_lock_tokens(MapSet.new(token_ids), task_id, data) do
       {:ok, locked_token_schemas, data} ->
         {
           :keep_state,
@@ -346,7 +346,7 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, %{data | start_place: start_place, end_place: end_place}}
   end
 
-  defp update_case(%__MODULE__{} = data, state_and_options) do
+  defp update_case(state_and_options, %__MODULE__{} = data) do
     %{
       application: application,
       case_schema: case_schema
@@ -448,13 +448,13 @@ defmodule WorkflowMetal.Case.Case do
     token_table
     |> :ets.select([{{:"$1", :free, :"$2", :_}, [], [{{:"$2", :"$1"}}]}])
     |> Enum.each(fn {place_id, token_id} ->
-      do_offer_token(data, place_id, token_id)
+      do_offer_token(place_id, token_id, data)
     end)
 
     {:ok, data}
   end
 
-  defp do_offer_token(%__MODULE__{} = data, place_id, token_id) do
+  defp do_offer_token(place_id, token_id, %__MODULE__{} = data) do
     %{
       application: application
     } = data
@@ -501,7 +501,7 @@ defmodule WorkflowMetal.Case.Case do
 
   @state_position 2
   @locked_by_task_id_position 4
-  defp do_lock_tokens(%__MODULE__{} = data, token_ids, task_id) do
+  defp do_lock_tokens(token_ids, task_id, %__MODULE__{} = data) do
     %{
       application: application,
       token_table: token_table,
@@ -570,7 +570,7 @@ defmodule WorkflowMetal.Case.Case do
 
     [free_token_id] = MapSet.to_list(free_token_ids)
     true = :ets.update_element(token_table, free_token_id, [{2, :consumed}])
-    {:ok, data} = update_case(data, :finished)
+    {:ok, data} = update_case(:finished, data)
 
     {:ok, data}
   end
@@ -597,7 +597,7 @@ defmodule WorkflowMetal.Case.Case do
       transitions
     end)
     |> Stream.map(fn transition ->
-      fetch_active_task(transition.id, data)
+      fetch_available_task(transition.id, data)
     end)
     |> Stream.each(fn
       {:ok, %Schema.Task{id: task_id} = task} when task_id !== except_task_id ->

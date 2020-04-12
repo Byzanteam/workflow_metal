@@ -184,7 +184,7 @@ defmodule WorkflowMetal.Task.Task do
       {:started, :executing} ->
         Logger.debug(fn -> "#{describe(data)} start executing." end)
 
-        {:ok, data} = update_task(data, :executing)
+        {:ok, data} = update_task(:executing, data)
         {:keep_state, data}
 
       {:executing, :completed} ->
@@ -289,7 +289,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event({:call, from}, :lock_tokens, :started, %__MODULE__{} = data) do
     with(
       {:ok, token_ids} <- JoinController.task_enablement(data),
-      {:ok, locked_token_schemas, data} <- do_lock_tokens(token_ids, data)
+      {:ok, locked_token_schemas, data} <- do_lock_tokens(data, token_ids)
     ) do
       {
         :next_state,
@@ -385,7 +385,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, %{data | transition_schema: transition_schema}}
   end
 
-  defp update_task(%__MODULE__{} = data, state_and_options) do
+  defp update_task(state_and_options, %__MODULE__{} = data) do
     %{
       application: application,
       task_schema: task_schema
@@ -430,7 +430,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, data}
   end
 
-  defp do_lock_tokens(token_ids, %__MODULE__{} = data) do
+  defp do_lock_tokens(%__MODULE__{} = data, token_ids) do
     %{
       task_schema: %Schema.Task{
         id: task_id
@@ -493,7 +493,7 @@ defmodule WorkflowMetal.Task.Task do
 
     {:ok, _tokens} = WorkflowMetal.Case.Case.issue_tokens(case_server(data), token_params_list)
 
-    update_task(data, {:completed, token_payload})
+    update_task({:completed, token_payload}, data)
   end
 
   defp build_token_payload(%__MODULE__{} = data) do
