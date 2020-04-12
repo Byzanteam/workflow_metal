@@ -242,12 +242,12 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec fetch_task(application, case_id, transition_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_task()
-  def fetch_task(application, case_id, transition_id) do
+  @spec fetch_available_task(application, case_id, transition_id) ::
+          WorkflowMetal.Storage.Adapter.on_fetch_available_task()
+  def fetch_available_task(application, case_id, transition_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.fetch_task(
+    adapter.fetch_available_task(
       adapter_meta,
       case_id,
       transition_id

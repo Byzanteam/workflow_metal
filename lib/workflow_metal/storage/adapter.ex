@@ -88,6 +88,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
+  @type on_fetch_available_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
   @type on_update_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
@@ -251,11 +254,16 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               task_id
             ) :: on_fetch_task
-  @callback fetch_task(
+
+  @doc """
+  Find an available(`:started` or `:executing`) task
+  associated with the case and the transition.
+  """
+  @callback fetch_available_task(
               adapter_meta,
               case_id,
               transition_id
-            ) :: on_fetch_task
+            ) :: on_fetch_available_task
 
   @doc """
   Update the task.

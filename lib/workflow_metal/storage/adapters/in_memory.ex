@@ -18,11 +18,11 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   The data of `:case_table` ETS table format:
       {case_id, case_schema, {case_state, workflow_id}}
 
+  The data of `:task_table` ETS table format:
+      {task_id, task_schema, {task_state, workflow_id, transition_id, case_id}}
+
   The data of `:token_table` ETS table format:
       {token_id, token_schema, {workflow_id, case_id, place_id, produced_by_task_id, locked_by_task_id, state}}
-
-  The data of `:task_table` ETS table format:
-      {task_id, task_schema, {workflow_id, transition_id, case_id}}
 
   The data of `:workitem_table` ETS table format:
       {workitem_id, workitem_schema, {workflow_id, case_id, task_id}}
@@ -222,10 +222,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def fetch_task(adapter_meta, case_id, transition_id) do
+  def fetch_available_task(adapter_meta, case_id, transition_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:fetch_task, case_id, transition_id})
+    GenServer.call(storage, {:fetch_available_task, case_id, transition_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -617,11 +617,11 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:fetch_task, case_id, transition_id},
+        {:fetch_available_task, case_id, transition_id},
         _from,
         %State{} = state
       ) do
-    reply = find_task_by(case_id, transition_id, state)
+    reply = find_available_task(case_id, transition_id, state)
 
     {:reply, reply, state}
   end
@@ -909,7 +909,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     tasks =
       :task
       |> get_table(state)
-      |> :ets.select([{{:_, :"$1", {workflow_id, :_, :_}}, [], [:"$1"]}])
+      |> :ets.select([{{:_, :"$1", {:_, workflow_id, :_, :_}}, [], [:"$1"]}])
       |> Enum.sort(&(&1.id <= &2.id))
 
     {:reply, {:ok, tasks}, state}
@@ -1443,6 +1443,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         task_schema.id,
         task_schema,
         {
+          task_schema.state,
           task_schema.workflow_id,
           task_schema.transition_id,
           task_schema.case_id
@@ -1478,7 +1479,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :ets.update_element(
         task_table,
         task_schema.id,
-        [{2, task_schema}]
+        [
+          {2, task_schema},
+          {3,
+           {
+             task_schema.state,
+             task_schema.workflow_id,
+             task_schema.transition_id,
+             task_schema.case_id
+           }}
+        ]
       )
 
     {:ok, task_schema}
@@ -1519,6 +1529,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           {2, task_schema},
           {3,
            {
+             task_schema.state,
              task_schema.workflow_id,
              task_schema.transition_id,
              task_schema.case_id
@@ -1539,10 +1550,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
-  defp find_task_by(case_id, transition_id, %State{} = state) do
+  defp find_available_task(case_id, transition_id, %State{} = state) do
     :task
     |> get_table(state)
-    |> :ets.select([{{:_, :"$1", {:_, transition_id, case_id}}, [], [:"$1"]}])
+    |> :ets.select([
+      {
+        {:_, :"$1", {:"$2", :_, transition_id, case_id}},
+        [{:orelse, {:"=:=", :"$2", :started}, {:"=:=", :"$2", :executing}}],
+        [:"$1"]
+      }
+    ])
     |> case do
       [task_schema] -> {:ok, task_schema}
       _ -> {:error, :task_not_found}

@@ -463,7 +463,7 @@ defmodule WorkflowMetal.Case.Case do
 
     transitions
     |> Stream.map(fn transition ->
-      fetch_or_create_task(data, transition)
+      fetch_or_create_task(transition, data)
     end)
     |> Stream.each(fn {:ok, task} ->
       {:ok, task_server} = WorkflowMetal.Task.Supervisor.open_task(application, task.id)
@@ -473,23 +473,22 @@ defmodule WorkflowMetal.Case.Case do
     |> Stream.run()
   end
 
-  # TODO: circle
-  defp fetch_or_create_task(%__MODULE__{} = data, transition) do
-    %{
-      application: application,
-      case_schema: %Schema.Case{
-        id: case_id,
-        workflow_id: workflow_id
-      }
-    } = data
-
+  defp fetch_or_create_task(transition, %__MODULE__{} = data) do
     %{id: transition_id} = transition
 
-    case WorkflowMetal.Storage.fetch_task(application, case_id, transition_id) do
+    case fetch_available_task(transition_id, data) do
       {:ok, task} ->
         {:ok, task}
 
       {:error, _} ->
+        %{
+          application: application,
+          case_schema: %Schema.Case{
+            id: case_id,
+            workflow_id: workflow_id
+          }
+        } = data
+
         task_params = %Schema.Task.Params{
           workflow_id: workflow_id,
           case_id: case_id,
@@ -634,7 +633,7 @@ defmodule WorkflowMetal.Case.Case do
     :ok
   end
 
-  defp fetch_active_task(transition_id, %__MODULE__{} = data) do
+  defp fetch_available_task(transition_id, %__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
@@ -642,7 +641,7 @@ defmodule WorkflowMetal.Case.Case do
       }
     } = data
 
-    WorkflowMetal.Storage.fetch_task(application, case_id, transition_id)
+    WorkflowMetal.Storage.fetch_available_task(application, case_id, transition_id)
   end
 
   defp describe(%__MODULE__{} = data) do
