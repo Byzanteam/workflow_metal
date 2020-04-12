@@ -234,6 +234,12 @@ defmodule WorkflowMetal.Case.Case do
       ) do
     case do_lock_tokens(MapSet.new(token_ids), task_id, data) do
       {:ok, locked_token_schemas, data} ->
+        Logger.debug(fn ->
+          "#{describe(data)}: tokens(#{token_ids |> Enum.join(", ")}) have been locked by the task(#{
+            task_id
+          })"
+        end)
+
         {
           :keep_state,
           data,
@@ -261,6 +267,12 @@ defmodule WorkflowMetal.Case.Case do
       ) do
     case do_consume_tokens(token_ids, task_id, data) do
       {:ok, tokens, data} ->
+        Logger.debug(fn ->
+          "#{describe(data)}: tokens(#{token_ids |> Enum.join(", ")}) have been consumed by the task(#{
+            task_id
+          })"
+        end)
+
         {
           :keep_state,
           data,
@@ -284,6 +296,10 @@ defmodule WorkflowMetal.Case.Case do
         %__MODULE__{} = data
       ) do
     {:ok, tokens, data} = do_issue_tokens(token_params_list, data)
+
+    Logger.debug(fn ->
+      "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been issued"
+    end)
 
     {
       :keep_state,
