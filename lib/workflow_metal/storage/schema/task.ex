@@ -20,7 +20,7 @@ defmodule WorkflowMetal.Storage.Schema.Task do
   ]
 
   @type id :: term()
-  @type state :: :started | :executing | :completed
+  @type state :: :started | :executing | :completed | :abandoned
 
   @type workflow_id :: Schema.Workflow.id()
   @type transition_id :: Schema.Transition.id()

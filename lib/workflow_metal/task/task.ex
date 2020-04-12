@@ -7,12 +7,16 @@ defmodule WorkflowMetal.Task.Task do
       {token_id :: token_id, place_id :: place_id, token_state :: token_state}
 
   The data of `:workitem_table` is stored in ETS in the following format:
-      {workitem_id :: workitem_id, workitem_state :: workitem_state}
+      {workitem_id :: workitem_id, workitem_schema, workitem_state :: workitem_state}
 
   ## State
 
   ```
   started+-------->executing+------->completed
+      +               +
+      |               |
+      |               v
+      +---------->abandoned
   ```
   """
 
@@ -125,10 +129,19 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @doc """
+  Mark a workitem completed.
   """
   @spec complete_workitem(:gen_statem.server_ref(), workitem_id) :: :ok
   def complete_workitem(task_server, workitem_id) do
-    GenStateMachine.call(task_server, {:complete_workitem, workitem_id})
+    GenStateMachine.cast(task_server, {:complete_workitem, workitem_id})
+  end
+
+  @doc """
+  Mark a workitem abandoned.
+  """
+  @spec abandon_workitem(:gen_statem.server_ref(), workitem_id) :: :ok
+  def abandon_workitem(task_server, workitem_id) do
+    GenStateMachine.cast(task_server, {:abandon_workitem, workitem_id})
   end
 
   # callbacks
@@ -139,7 +152,7 @@ defmodule WorkflowMetal.Task.Task do
       state: state
     } = task_schema
 
-    if state in [:completed] do
+    if state in [:abandoned, :completed] do
       {:stop, :normal}
     else
       {
@@ -189,6 +202,11 @@ defmodule WorkflowMetal.Task.Task do
 
       {:executing, :completed} ->
         Logger.debug(fn -> "#{describe(data)} complete the execution." end)
+
+        {:keep_state, data}
+
+      {from, :abandoned} when from in [:started, :executing] ->
+        Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
 
         {:keep_state, data}
     end
@@ -291,6 +309,71 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
+  def handle_event(:cast, :abandon, :executing, %__MODULE__{} = data) do
+    case task_abandonment(data) do
+      {:ok, data} ->
+        {
+          :next_state,
+          :abandoned,
+          data
+        }
+
+      _ ->
+        :keep_state_and_data
+    end
+  end
+
+  @impl GenStateMachine
+  def handle_event(
+        :cast,
+        {:complete_workitem, workitem_id},
+        :executing,
+        %__MODULE__{} = data
+      ) do
+    %{
+      workitem_table: workitem_table
+    } = data
+
+    :ets.update_element(
+      workitem_table,
+      workitem_id,
+      [
+        {3, :completed}
+      ]
+    )
+
+    {
+      :keep_state_and_data,
+      {:next_event, :cast, :complete}
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event(
+        :cast,
+        {:abandon_workitem, workitem_id},
+        :executing,
+        %__MODULE__{} = data
+      ) do
+    %{
+      workitem_table: workitem_table
+    } = data
+
+    :ets.update_element(
+      workitem_table,
+      workitem_id,
+      [
+        {3, :abandoned}
+      ]
+    )
+
+    {
+      :keep_state_and_data,
+      {:next_event, :cast, :abandon}
+    }
+  end
+
+  @impl GenStateMachine
   def handle_event(:cast, _event_content, _state, %__MODULE__{}) do
     :keep_state_and_data
   end
@@ -336,28 +419,6 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(
-        {:call, from},
-        {:complete_workitem, workitem_id},
-        :executing,
-        %__MODULE__{} = data
-      ) do
-    %{
-      workitem_table: workitem_table
-    } = data
-
-    :ets.update_element(workitem_table, workitem_id, [{2, :completed}])
-
-    {
-      :keep_state_and_data,
-      [
-        {:reply, from, :ok},
-        {:next_event, :cast, :complete}
-      ]
-    }
-  end
-
-  @impl GenStateMachine
   def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
     {:keep_state_and_data, {:reply, from, {:error, :task_not_available}}}
   end
@@ -379,7 +440,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, workitems} = WorkflowMetal.Storage.fetch_workitems(application, task_id)
 
     Enum.each(workitems, fn workitem ->
-      :ets.insert(workitem_table, {workitem.id, workitem.state})
+      :ets.insert(workitem_table, {workitem.id, workitem, workitem.state})
     end)
 
     # TODO: try to fire or complete task
@@ -473,7 +534,7 @@ defmodule WorkflowMetal.Task.Task do
     |> Map.fetch!(:workitem_table)
     |> :ets.tab2list()
     |> Enum.all?(fn
-      {_workitem_id, :completed} -> true
+      {_workitem_id, _workitem, :completed} -> true
       _ -> false
     end)
     |> case do
@@ -535,6 +596,22 @@ defmodule WorkflowMetal.Task.Task do
       executor_params: executor_params,
       application: application
     )
+  end
+
+  defp task_abandonment(%__MODULE__{} = data) do
+    %{
+      workitem_table: workitem_table
+    } = data
+
+    workitem_table
+    |> :ets.tab2list()
+    |> Enum.all?(fn {_workitem_id, _workitem, workitem_state} ->
+      workitem_state === :abandoned
+    end)
+    |> case do
+      true -> {:ok, data}
+      false -> {:error, :task_not_abandoned}
+    end
   end
 
   defp describe(%__MODULE__{} = data) do

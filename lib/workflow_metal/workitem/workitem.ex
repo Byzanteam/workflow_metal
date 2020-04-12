@@ -146,7 +146,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       {_from, :abandoned} ->
         Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
 
-        {:ok, data} = update_workitem(:abandoned, data)
+        {:ok, data} = do_abandon(data)
         {:keep_state, data}
     end
   end
@@ -298,7 +298,26 @@ defmodule WorkflowMetal.Workitem.Workitem do
     :ok =
       WorkflowMetal.Task.Task.complete_workitem(
         task_server(data),
-        workitem_schema
+        workitem_schema.id
+      )
+
+    {:ok, data}
+  end
+
+  defp do_abandon(%__MODULE__{} = data) do
+    {
+      :ok,
+      %{
+        workitem_schema: %Schema.Workitem{
+          id: workitem_id
+        }
+      }
+    } = update_workitem(:abandoned, data)
+
+    :ok =
+      WorkflowMetal.Task.Task.abandon_workitem(
+        task_server(data),
+        workitem_id
       )
 
     {:ok, data}
