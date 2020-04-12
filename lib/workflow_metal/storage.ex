@@ -200,30 +200,6 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec activate_case(application, case_id) ::
-          WorkflowMetal.Storage.Adapter.on_activate_case()
-  def activate_case(application, case_id) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.activate_case(
-      adapter_meta,
-      case_id
-    )
-  end
-
-  @doc false
-  @spec finish_case(application, case_id) ::
-          WorkflowMetal.Storage.Adapter.on_finish_case()
-  def finish_case(application, case_id) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.finish_case(
-      adapter_meta,
-      case_id
-    )
-  end
-
-  @doc false
   @spec update_case(
           application,
           case_id,
@@ -275,31 +251,6 @@ defmodule WorkflowMetal.Storage do
       adapter_meta,
       case_id,
       transition_id
-    )
-  end
-
-  @doc false
-  @spec execute_task(application, task_id) ::
-          WorkflowMetal.Storage.Adapter.on_execute_task()
-  def execute_task(application, task_id) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.execute_task(
-      adapter_meta,
-      task_id
-    )
-  end
-
-  @doc false
-  @spec complete_task(application, task_id, token_payload) ::
-          WorkflowMetal.Storage.Adapter.on_complete_task()
-  def complete_task(application, task_id, token_payload) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.complete_task(
-      adapter_meta,
-      task_id,
-      token_payload
     )
   end
 
@@ -408,31 +359,6 @@ defmodule WorkflowMetal.Storage do
     adapter.fetch_workitems(
       adapter_meta,
       task_id
-    )
-  end
-
-  @doc false
-  @spec start_workitem(application, workitem_id) ::
-          WorkflowMetal.Storage.Adapter.on_start_workitem()
-  def start_workitem(application, workitem_id) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.start_workitem(
-      adapter_meta,
-      workitem_id
-    )
-  end
-
-  @doc false
-  @spec complete_workitem(application, workitem_id, workitem_output) ::
-          WorkflowMetal.Storage.Adapter.on_complete_workitem()
-  def complete_workitem(application, workitem_id, workitem_output) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.complete_workitem(
-      adapter_meta,
-      workitem_id,
-      workitem_output
     )
   end
 

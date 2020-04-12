@@ -75,12 +75,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_case ::
           {:ok, case_schema}
           | {:error, :case_not_found}
-  @type on_activate_case ::
-          {:ok, case_schema}
-          | {:error, :case_not_found}
-  @type on_finish_case ::
-          {:ok, case_schema}
-          | {:error, :case_not_found}
   @type on_update_case ::
           {:ok, case_schema}
           | {:error, :case_not_found}
@@ -94,14 +88,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
-  @type on_execute_task ::
-          {:ok, task_schema}
-          | {:error, :task_not_found}
-          | {:error, :task_not_available}
-  @type on_complete_task ::
-          {:ok, task_schema}
-          | {:error, :task_not_found}
-          | {:error, :task_not_available}
   @type on_update_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
@@ -134,14 +120,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_workitems ::
           {:ok, [workitem_schema]}
           | {:error, :task_not_found}
-  @type on_start_workitem ::
-          {:ok, workitem_schema}
-          | {:error, :workitem_not_found}
-          | {:error, :workitem_not_available}
-  @type on_complete_workitem ::
-          {:ok, workitem_schema}
-          | {:error, :workitem_not_found}
-          | {:error, :workitem_not_available}
   @type on_update_workitem ::
           {:ok, workitem_schema}
           | {:error, :workitem_not_found}
@@ -241,22 +219,6 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_fetch_case
 
   @doc """
-  Activate a case.
-  """
-  @callback activate_case(
-              adapter_meta,
-              case_id
-            ) :: on_activate_case
-
-  @doc """
-  Finish a case.
-  """
-  @callback finish_case(
-              adapter_meta,
-              case_id
-            ) :: on_finish_case
-
-  @doc """
   Update the case.
 
   ### update_case_params:
@@ -294,25 +256,6 @@ defmodule WorkflowMetal.Storage.Adapter do
               case_id,
               transition_id
             ) :: on_fetch_task
-
-  @doc """
-  Start to execute a task.
-
-  Return `{:ok, task_schema}` if it is already `executing`.
-  """
-  @callback execute_task(
-              adapter_meta,
-              workitem_id
-            ) :: on_execute_task
-
-  @doc """
-  Complete a task.
-  """
-  @callback complete_task(
-              adapter_meta,
-              task_id,
-              token_payload
-            ) :: on_complete_task
 
   @doc """
   Update the task.
@@ -389,26 +332,6 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               task_id
             ) :: on_fetch_workitems
-  @doc """
-  Start to execute a `created` workitem of a task.
-
-  Return `{:ok, workitem_schema}` if it is already `started`.
-  """
-  @callback start_workitem(
-              adapter_meta,
-              workitem_id
-            ) :: on_start_workitem
-
-  @doc """
-  Complete a `started` workitem of a task, and put an output into the workitem.
-
-  Return `{:ok, workitem_schema}` if it is already `completed`.
-  """
-  @callback complete_workitem(
-              adapter_meta,
-              workitem_id,
-              workitem_output
-            ) :: on_complete_workitem
 
   @doc """
   Update the workitem.
