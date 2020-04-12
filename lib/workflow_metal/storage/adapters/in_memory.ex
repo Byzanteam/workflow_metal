@@ -206,6 +206,22 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def update_case(adapter_meta, case_id, state_and_options) do
+    storage = storage_name(adapter_meta)
+
+    case state_and_options do
+      :active ->
+        GenServer.call(storage, {:activate_case, case_id})
+
+      :finished ->
+        GenServer.call(storage, {:finish_case, case_id})
+
+      :canceled ->
+        GenServer.call(storage, {:cancel_case, case_id})
+    end
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def create_task(adapter_meta, task_params) do
     storage = storage_name(adapter_meta)
 
@@ -581,6 +597,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     reply =
       with({:ok, case_schema} <- find_case(case_id, state)) do
         do_finish_case(case_schema, state)
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:cancel_case, case_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, case_schema} <- find_case(case_id, state)) do
+        do_cancel_case(case_schema, state)
       end
 
     {:reply, reply, state}
@@ -1257,6 +1287,41 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_finish_case(_case_schema, %State{} = _state) do
+    {:error, :case_not_available}
+  end
+
+  defp do_cancel_case(
+         %Schema.Case{state: :canceled} = case_schema,
+         %State{} = _state
+       ) do
+    {:ok, case_schema}
+  end
+
+  defp do_cancel_case(
+         %Schema.Case{state: :active} = case_schema,
+         %State{} = state
+       ) do
+    case_table = get_table(:case, state)
+
+    case_schema = %{
+      case_schema
+      | state: :canceled
+    }
+
+    true =
+      :ets.update_element(
+        case_table,
+        case_schema.id,
+        [
+          {2, case_schema},
+          {3, {case_schema.state, case_schema.workflow_id}}
+        ]
+      )
+
+    {:ok, case_schema}
+  end
+
+  defp do_cancel_case(_case_schema, %State{} = _state) do
     {:error, :case_not_available}
   end
 

@@ -23,6 +23,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
+  @type update_case_params :: :active | :finished | :canceled
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
@@ -80,6 +81,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_finish_case ::
           {:ok, case_schema}
           | {:error, :case_not_found}
+  @type on_update_case ::
+          {:ok, case_schema}
+          | {:error, :case_not_found}
+          | {:error, :case_not_available}
 
   @type on_create_task ::
           {:ok, task_schema}
@@ -250,6 +255,23 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               case_id
             ) :: on_finish_case
+
+  @doc """
+  Update the case.
+
+  ### update_case_params:
+  - `:active`
+  - `:canceled`
+  - `:finished`
+
+  note: if the state of the case is the state in the update_case,
+  it returns `{:ok, case_schema}` too.
+  """
+  @callback update_case(
+              adapter_meta,
+              case_id,
+              update_case_params
+            ) :: on_update_case
 
   # Task
   @doc """

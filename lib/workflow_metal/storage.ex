@@ -223,6 +223,23 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec update_case(
+          application,
+          case_id,
+          WorkflowMetal.Storage.Adapter.update_case_params()
+        ) ::
+          WorkflowMetal.Storage.Adapter.on_update_case()
+  def update_case(application, case_id, update_case_params) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.update_case(
+      adapter_meta,
+      case_id,
+      update_case_params
+    )
+  end
+
   ## Task
   @doc false
   @spec create_task(application, task_params) ::
