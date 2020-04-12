@@ -53,6 +53,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
           workitem_schema: workitem_schema
         ]
 
+  @doc false
   @spec start_link(workflow_identifier, options) :: :gen_statem.start_ret()
   def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
