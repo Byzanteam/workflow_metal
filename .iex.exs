@@ -193,7 +193,7 @@ defmodule TrafficLight do
     IO.puts([
       "\n",
       now(),
-      "the light is ",
+      " the light is ",
       apply(IO.ANSI, color, []),
       to_string(color),
       IO.ANSI.reset(),
