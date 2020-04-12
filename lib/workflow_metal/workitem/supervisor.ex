@@ -49,12 +49,7 @@ defmodule WorkflowMetal.Workitem.Supervisor do
 
     Registration.start_child(
       application,
-      WorkflowMetal.Workitem.Workitem.name({
-        workitem_schema.workflow_id,
-        workitem_schema.case_id,
-        workitem_schema.transition_id,
-        workitem_schema.id
-      }),
+      WorkflowMetal.Workitem.Workitem.name(workitem_schema),
       workitem_supervisor,
       workitem_spec
     )

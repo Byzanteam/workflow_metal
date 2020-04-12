@@ -86,16 +86,38 @@ defmodule WorkflowMetal.Task.Task do
 
   @doc false
   @spec name({workflow_id, case_id, transition_id, task_id}) :: term()
-  def name({workflow_id, case_id, transition_id, task_id}) do
-    {__MODULE__, {workflow_id, case_id, transition_id, task_id}}
+  def name({workflow_id, transition_id, case_id, task_id}) do
+    {__MODULE__, {workflow_id, transition_id, case_id, task_id}}
   end
 
   @doc false
-  @spec via_name(application, {workflow_id, case_id, transition_id, task_id}) :: term()
-  def via_name(application, {workflow_id, case_id, transition_id, task_id}) do
+  @spec name(task_schema) :: term()
+  def name(%Schema.Task{} = task_schema) do
+    %{
+      id: task_id,
+      workflow_id: workflow_id,
+      transition_id: transition_id,
+      case_id: case_id
+    } = task_schema
+
+    name({workflow_id, transition_id, case_id, task_id})
+  end
+
+  @doc false
+  @spec via_name(application, {workflow_id, transition_id, case_id, task_id}) :: term()
+  def via_name(application, {workflow_id, transition_id, case_id, task_id}) do
     WorkflowMetal.Registration.via_tuple(
       application,
-      name({workflow_id, case_id, transition_id, task_id})
+      name({workflow_id, transition_id, case_id, task_id})
+    )
+  end
+
+  @doc false
+  @spec via_name(application, task_schema) :: term()
+  def via_name(application, %Schema.Task{} = task_schema) do
+    WorkflowMetal.Registration.via_tuple(
+      application,
+      name(task_schema)
     )
   end
 
@@ -658,17 +680,10 @@ defmodule WorkflowMetal.Task.Task do
     |> :ets.tab2list()
     |> Enum.each(fn
       {_workitem_id, workitem, state} when state in [:created, :started] ->
-        %Schema.Workitem{
-          id: workitem_id,
-          workflow_id: workflow_id,
-          transition_id: transition_id,
-          case_id: case_id
-        } = workitem
-
         workitem_server =
           WorkflowMetal.Workitem.Workitem.via_name(
             application,
-            {workflow_id, case_id, transition_id, workitem_id}
+            workitem
           )
 
         :ok = WorkflowMetal.Workitem.Workitem.abandon(workitem_server)

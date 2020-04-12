@@ -59,7 +59,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   def open_case(application, case_id) do
     with(
       {:ok, case_schema} <- WorkflowMetal.Storage.fetch_case(application, case_id),
-      %{id: case_id, workflow_id: workflow_id} = case_schema,
+      %{workflow_id: workflow_id} = case_schema,
       {:ok, _} <- WorkflowsSupervisor.open_workflow(application, workflow_id)
     ) do
       case_supervisor = via_name(application, workflow_id)
@@ -67,7 +67,7 @@ defmodule WorkflowMetal.Case.Supervisor do
 
       Registration.start_child(
         application,
-        WorkflowMetal.Case.Case.name({workflow_id, case_id}),
+        WorkflowMetal.Case.Case.name(case_schema),
         case_supervisor,
         case_spec
       )

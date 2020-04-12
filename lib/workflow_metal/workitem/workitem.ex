@@ -67,9 +67,22 @@ defmodule WorkflowMetal.Workitem.Workitem do
   end
 
   @doc false
-  @spec name({workflow_id, case_id, transition_id, workitem_id}) :: term()
-  def name({workflow_id, case_id, transition_id, workitem_id}) do
-    {__MODULE__, {workflow_id, case_id, transition_id, workitem_id}}
+  @spec name({workflow_id, transition_id, case_id, workitem_id}) :: term()
+  def name({workflow_id, transition_id, case_id, workitem_id}) do
+    {__MODULE__, {workflow_id, transition_id, case_id, workitem_id}}
+  end
+
+  @doc false
+  @spec name(workitem_schema) :: term()
+  def name(%Schema.Workitem{} = workitem_schema) do
+    %{
+      id: workitem_id,
+      workflow_id: workflow_id,
+      case_id: case_id,
+      transition_id: transition_id
+    } = workitem_schema
+
+    name({workflow_id, transition_id, case_id, workitem_id})
   end
 
   @doc false
@@ -78,6 +91,15 @@ defmodule WorkflowMetal.Workitem.Workitem do
     WorkflowMetal.Registration.via_tuple(
       application,
       name({workflow_id, case_id, transition_id, workitem_id})
+    )
+  end
+
+  @doc false
+  @spec via_name(application, workitem_schema) :: term()
+  def via_name(application, %Schema.Workitem{} = workitem_schema) do
+    WorkflowMetal.Registration.via_tuple(
+      application,
+      name(workitem_schema)
     )
   end
 
@@ -334,7 +356,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       }
     } = data
 
-    WorkflowMetal.Task.Task.via_name(application, {workflow_id, case_id, transition_id, task_id})
+    WorkflowMetal.Task.Task.via_name(application, {workflow_id, transition_id, case_id, task_id})
   end
 
   defp describe(%__MODULE__{} = data) do

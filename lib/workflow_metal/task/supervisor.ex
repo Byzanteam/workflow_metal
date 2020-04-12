@@ -46,10 +46,8 @@ defmodule WorkflowMetal.Task.Supervisor do
     with(
       {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
       %{
-        id: task_id,
         workflow_id: workflow_id,
-        case_id: case_id,
-        transition_id: transition_id
+        case_id: case_id
       } = task_schema,
       {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, case_id)
     ) do
@@ -58,7 +56,7 @@ defmodule WorkflowMetal.Task.Supervisor do
 
       Registration.start_child(
         application,
-        WorkflowMetal.Task.Task.name({workflow_id, case_id, transition_id, task_id}),
+        WorkflowMetal.Task.Task.name(task_schema),
         task_supervisor,
         task_spec
       )

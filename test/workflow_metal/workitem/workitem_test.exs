@@ -99,22 +99,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
           workitem
         end)
 
-      %{
-        workflow_id: workflow_id,
-        case_id: case_id,
-        transition_id: transition_id,
-        id: workitem_id
-      } = workitem
-
       output = %{reply: :asynchronous_reply}
 
-      workitem_name =
-        Workitem.name({
-          workflow_id,
-          case_id,
-          transition_id,
-          workitem_id
-        })
+      workitem_name = Workitem.name(workitem)
 
       workitem_server = WorkflowMetal.Registration.via_tuple(DummyApplication, workitem_name)
       Workitem.complete(workitem_server, output)

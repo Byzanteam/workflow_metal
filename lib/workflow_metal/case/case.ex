@@ -65,11 +65,31 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @doc false
+  @spec name(case_schema) :: term
+  def name(%Schema.Case{} = case_schema) do
+    %{
+      id: case_id,
+      workflow_id: workflow_id
+    } = case_schema
+
+    name({workflow_id, case_id})
+  end
+
+  @doc false
   @spec via_name(application, {workflow_id, case_id}) :: term
   def via_name(application, {workflow_id, case_id}) do
     WorkflowMetal.Registration.via_tuple(
       application,
       name({workflow_id, case_id})
+    )
+  end
+
+  @doc false
+  @spec via_name(application, case_schema) :: term
+  def via_name(application, %Schema.Case{} = case_schema) do
+    WorkflowMetal.Registration.via_tuple(
+      application,
+      name(case_schema)
     )
   end
 
@@ -621,16 +641,7 @@ defmodule WorkflowMetal.Case.Case do
     end)
     |> Stream.each(fn
       {:ok, %Schema.Task{id: task_id} = task} when task_id !== except_task_id ->
-        %{
-          workflow_id: workflow_id,
-          case_id: case_id,
-          transition_id: transition_id
-        } = task
-
-        task_server_name =
-          WorkflowMetal.Task.Task.name(
-            {workflow_id, case_id, transition_id, task_id}
-          )
+        task_server_name = WorkflowMetal.Task.Task.name(task)
 
         case WorkflowMetal.Registration.whereis_name(application, task_server_name) do
           :undefined ->
