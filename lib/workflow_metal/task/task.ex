@@ -476,7 +476,7 @@ defmodule WorkflowMetal.Task.Task do
 
     token_ids = :ets.select(token_table, [{{:"$1", :_, :_}, [], [:"$1"]}])
 
-    :ok =
+    {:ok, _tokens} =
       WorkflowMetal.Case.Case.consume_tokens(
         case_server(data),
         token_ids,
@@ -531,7 +531,7 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    "#{inspect(__MODULE__)}<#{task_id}@#{workflow_id}/#{transition_id}/#{case_id}>"
+    "Task<#{task_id}@#{workflow_id}/#{transition_id}/#{case_id}>"
   end
 
   defp case_server(%__MODULE__{} = data) do

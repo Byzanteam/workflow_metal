@@ -322,6 +322,6 @@ defmodule WorkflowMetal.Workitem.Workitem do
       }
     } = data
 
-    "#{inspect(__MODULE__)}<#{workitem_id}@#{workflow_id}/#{transition_id}/#{case_id}/#{task_id}>"
+    "Workitem<#{workitem_id}@#{workflow_id}/#{transition_id}/#{case_id}/#{task_id}>"
   end
 end
