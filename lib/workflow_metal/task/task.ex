@@ -195,6 +195,11 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
+  def handle_event(:internal, :stop, :completed, %__MODULE__{} = data) do
+    {:stop, :normal, data}
+  end
+
+  @impl GenStateMachine
   def handle_event(
         :cast,
         {:offer_token, {place_id, token_id}},
@@ -270,7 +275,12 @@ defmodule WorkflowMetal.Task.Task do
       {:ok, _token_ids, data} <- do_consume_tokens(data),
       {:ok, data} <- do_complete_task(data)
     ) do
-      {:next_state, :completed, data}
+      {
+        :next_state,
+        :completed,
+        data,
+        {:next_event, :internal, :stop}
+      }
     else
       {:error, :task_not_completed} ->
         :keep_state_and_data
