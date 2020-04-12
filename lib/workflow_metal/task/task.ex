@@ -297,6 +297,12 @@ defmodule WorkflowMetal.Task.Task do
         data,
         {:reply, from, {:ok, locked_token_schemas}}
       }
+    else
+      error ->
+        {
+          :keep_state_and_data,
+          {:reply, from, error}
+        }
     end
   end
 

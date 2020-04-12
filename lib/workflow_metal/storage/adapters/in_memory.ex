@@ -1682,10 +1682,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_abandon_workitem(
-         %Schema.Workitem{state: state} = workitem_schema,
+         %Schema.Workitem{} = workitem_schema,
          %State{} = state
-       )
-       when state !== :completed do
+       ) do
     workitem_table = get_table(:workitem, state)
 
     workitem_schema = %{

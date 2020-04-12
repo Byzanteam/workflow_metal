@@ -173,6 +173,9 @@ defmodule WorkflowMetal.Workitem.Workitem do
           data,
           {:next_event, :cast, {:complete, workitem_output}}
         }
+
+      {:ok, :abandoned, data} ->
+        {:next_state, :abandoned, data}
     end
   end
 
@@ -277,6 +280,9 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
       {:completed, workitem_output} ->
         {:ok, {:completed, workitem_output}, data}
+
+      :abandoned ->
+        {:ok, :abandoned, data}
     end
   end
 
