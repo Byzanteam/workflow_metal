@@ -256,7 +256,10 @@ defmodule WorkflowMetal.Task.Task do
 
     :ets.delete(token_table, token_id)
 
-    :keep_state_and_data
+    {
+      :keep_state_and_data,
+      {:next_event, :cast, :force_abandon}
+    }
   end
 
   @impl GenStateMachine
@@ -302,6 +305,24 @@ defmodule WorkflowMetal.Task.Task do
     else
       {:error, :task_not_completed} ->
         :keep_state_and_data
+
+      _ ->
+        :keep_state_and_data
+    end
+  end
+
+  @impl GenStateMachine
+  def handle_event(:cast, :force_abandon, state, %__MODULE__{} = data)
+      when state in [:started, :executing] do
+    case task_force_abandonment(data) do
+      {:ok, data} ->
+        {:ok, data} = do_abandon_workitems(data)
+
+        {
+          :next_state,
+          :abandoned,
+          data
+        }
 
       _ ->
         :keep_state_and_data
@@ -612,6 +633,51 @@ defmodule WorkflowMetal.Task.Task do
       true -> {:ok, data}
       false -> {:error, :task_not_abandoned}
     end
+  end
+
+  defp task_force_abandonment(%__MODULE__{} = data) do
+    %{
+      token_table: token_table
+    } = data
+
+    token_table
+    |> :ets.tab2list()
+    |> case do
+      [] -> {:ok, data}
+      [_ | _] -> {:error, :task_not_force_abandoned}
+    end
+  end
+
+  defp do_abandon_workitems(%__MODULE__{} = data) do
+    %{
+      application: application,
+      workitem_table: workitem_table
+    } = data
+
+    workitem_table
+    |> :ets.tab2list()
+    |> Enum.each(fn
+      {_workitem_id, workitem, state} when state in [:created, :started] ->
+        %Schema.Workitem{
+          id: workitem_id,
+          workflow_id: workflow_id,
+          transition_id: transition_id,
+          case_id: case_id
+        } = workitem
+
+        workitem_server =
+          WorkflowMetal.Workitem.Workitem.via_name(
+            application,
+            {workflow_id, case_id, transition_id, workitem_id}
+          )
+
+        :ok = WorkflowMetal.Workitem.Workitem.abandon(workitem_server)
+
+      _ ->
+        :skip
+    end)
+
+    {:ok, data}
   end
 
   defp describe(%__MODULE__{} = data) do
