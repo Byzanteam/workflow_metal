@@ -160,7 +160,11 @@ defmodule WorkflowMetal.Case.Case do
         {:ok, data} = rebuild_tokens(data)
         {:ok, data} = fetch_edge_places(data)
 
-        {:keep_state, data}
+        {
+          :keep_state,
+          data,
+          {:state_timeout, 0, :offer_token_at_active}
+        }
     end
   end
 
@@ -194,6 +198,14 @@ defmodule WorkflowMetal.Case.Case do
       :next_state,
       :active,
       data,
+      {:next_event, :internal, :offer_tokens}
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event(:state_timeout, :offer_token_at_active, :active, %__MODULE__{}) do
+    {
+      :keep_state_and_data,
       {:next_event, :internal, :offer_tokens}
     }
   end
