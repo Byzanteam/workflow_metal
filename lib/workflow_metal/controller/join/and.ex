@@ -3,6 +3,8 @@ defmodule WorkflowMetal.Controller.Join.And do
   All incoming branch are active.
   """
 
+  alias WorkflowMetal.Storage.Schema
+
   @behaviour WorkflowMetal.Controller.Join
 
   @impl WorkflowMetal.Controller.Join
@@ -15,8 +17,16 @@ defmodule WorkflowMetal.Controller.Join.And do
 
     {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
 
-    Enum.reduce_while(places, {:ok, []}, fn place, {:ok, token_ids} ->
-      case :ets.select(token_table, [{{:"$1", place.id, :free}, [], [:"$1"]}]) do
+    Enum.reduce_while(places, {:ok, []}, fn %Schema.Place{} = place, {:ok, token_ids} ->
+      match_spec = [
+        {
+          {:"$1", %{place_id: :"$2"}, :_},
+          [{:"=:=", {:const, place.id}, :"$2"}],
+          [:"$1"]
+        }
+      ]
+
+      case :ets.select(token_table, match_spec) do
         [token_id | _rest] ->
           {:cont, {:ok, [token_id | token_ids]}}
 

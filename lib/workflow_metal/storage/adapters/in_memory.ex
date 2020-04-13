@@ -1359,7 +1359,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         ]
       )
 
-    {:ok, :token_schema}
+    {:ok, token_schema}
   end
 
   defp do_lock_token(_token_params, _task_schema, %State{} = _state) do

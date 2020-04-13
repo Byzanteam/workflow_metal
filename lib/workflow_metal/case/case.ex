@@ -4,7 +4,7 @@ defmodule WorkflowMetal.Case.Case do
 
   ## Storage
   The data of `:token_table` is stored in ETS in the following format:
-      {token_id, token_state, place_id, locked_by_task_id}
+      {token_id, token_schema, token_state, locked_by_task_id, consumed_by_task_id}
 
   ## State
 
@@ -224,11 +224,11 @@ defmodule WorkflowMetal.Case.Case do
   @impl GenStateMachine
   def handle_event(
         :internal,
-        {:withdraw_tokens, token_ids, except_task_id},
+        {:withdraw_tokens, locked_token_schemas, except_task_id},
         :active,
         %__MODULE__{} = data
       ) do
-    {:ok, data} = do_withdraw_tokens(token_ids, except_task_id, data)
+    {:ok, data} = do_withdraw_tokens(locked_token_schemas, except_task_id, data)
 
     {:keep_state, data}
   end
@@ -277,7 +277,7 @@ defmodule WorkflowMetal.Case.Case do
           data,
           [
             {:reply, from, {:ok, locked_token_schemas}},
-            {:next_event, :internal, {:withdraw_tokens, token_ids, task_id}}
+            {:next_event, :internal, {:withdraw_tokens, locked_token_schemas, task_id}}
           ]
         }
 
@@ -365,7 +365,7 @@ defmodule WorkflowMetal.Case.Case do
     with({:ok, tokens} <- WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free])) do
       free_token_ids =
         MapSet.new(tokens, fn token ->
-          :ok = insert_token(token_table, token)
+          :ok = insert_token(token, token_table)
           token.id
         end)
 
@@ -446,20 +446,24 @@ defmodule WorkflowMetal.Case.Case do
 
     {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_params)
 
-    :ok = insert_token(token_table, token_schema)
+    :ok = insert_token(token_schema, token_table)
 
     {:ok, token_schema}
   end
 
-  defp insert_token(token_table, %Schema.Token{} = token) do
+  defp insert_token(%Schema.Token{} = token, token_table) do
     %{
       id: token_id,
       state: state,
-      place_id: place_id,
-      locked_by_task_id: locked_by_task_id
+      locked_by_task_id: locked_by_task_id,
+      consumed_by_task_id: consumed_by_task_id
     } = token
 
-    true = :ets.insert(token_table, {token_id, state, place_id, locked_by_task_id})
+    true =
+      :ets.insert(
+        token_table,
+        {token_id, token, state, locked_by_task_id, consumed_by_task_id}
+      )
 
     :ok
   end
@@ -494,20 +498,25 @@ defmodule WorkflowMetal.Case.Case do
     } = data
 
     token_table
-    |> :ets.select([{{:"$1", :free, :"$2", :_}, [], [{{:"$2", :"$1"}}]}])
-    |> Enum.each(fn {place_id, token_id} ->
-      do_offer_token(place_id, token_id, data)
+    |> :ets.select([{{:_, :"$1", :free, :_, :_}, [], [:"$1"]}])
+    |> Enum.each(fn token_schema ->
+      do_offer_token(token_schema, data)
     end)
 
     {:ok, data}
   end
 
-  defp do_offer_token(place_id, token_id, %__MODULE__{} = data) do
+  defp do_offer_token(%Schema.Token{} = token_schema, %__MODULE__{} = data) do
     %{
       application: application
     } = data
 
-    {:ok, transitions} = WorkflowMetal.Storage.fetch_transitions(application, place_id, :out)
+    {:ok, transitions} =
+      WorkflowMetal.Storage.fetch_transitions(
+        application,
+        token_schema.place_id,
+        :out
+      )
 
     transitions
     |> Stream.map(fn transition ->
@@ -516,10 +525,10 @@ defmodule WorkflowMetal.Case.Case do
     |> Stream.each(fn {:ok, task} ->
       {:ok, task_server} = WorkflowMetal.Task.Supervisor.open_task(application, task.id)
 
-      WorkflowMetal.Task.Task.offer_token(task_server, {place_id, token_id})
+      :ok = WorkflowMetal.Task.Task.offer_token(task_server, token_schema)
 
       Logger.debug(fn ->
-        "#{describe(data)}: offers a token(#{token_id}) to the task(#{task.id})"
+        "#{describe(data)}: offers a token(#{token_schema.id}) to the task(#{task.id})"
       end)
     end)
     |> Stream.run()
@@ -551,8 +560,6 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
-  @state_position 2
-  @locked_by_task_id_position 4
   defp do_lock_tokens(token_ids, task_id, %__MODULE__{} = data) do
     %{
       application: application,
@@ -564,8 +571,8 @@ defmodule WorkflowMetal.Case.Case do
       locked_token_schemas =
         Enum.map(token_ids, fn token_id ->
           :ets.update_element(token_table, token_id, [
-            {@state_position, :locked},
-            {@locked_by_task_id_position, task_id}
+            {3, :locked},
+            {4, task_id}
           ])
 
           {:ok, token_schema} = WorkflowMetal.Storage.lock_token(application, token_id, task_id)
@@ -604,8 +611,8 @@ defmodule WorkflowMetal.Case.Case do
 
     with(
       [free_token_id] <- MapSet.to_list(free_token_ids),
-      match_spec = [{{free_token_id, :free, :"$1", :_}, [], [:"$1"]}],
-      [^end_place_id] <- :ets.select(token_table, match_spec)
+      match_spec = [{{free_token_id, :"$1", :free, :_, :_}, [], [:"$1"]}],
+      [%Schema.Token{place_id: ^end_place_id}] <- :ets.select(token_table, match_spec)
     ) do
       {:finished, data}
     else
@@ -621,30 +628,35 @@ defmodule WorkflowMetal.Case.Case do
     } = data
 
     [free_token_id] = MapSet.to_list(free_token_ids)
-    true = :ets.update_element(token_table, free_token_id, [{2, :consumed}])
+    true = :ets.update_element(token_table, free_token_id, [{3, :consumed}])
     {:ok, data} = update_case(:finished, data)
 
     {:ok, data}
   end
 
-  defp do_withdraw_tokens(token_ids, except_task_id, %__MODULE__{} = data) do
-    Enum.each(token_ids, fn token_id ->
-      :ok = do_withdraw_token(token_id, except_task_id, data)
+  defp do_withdraw_tokens(locked_token_schemas, except_task_id, %__MODULE__{} = data) do
+    Enum.each(locked_token_schemas, fn locked_token ->
+      :ok = do_withdraw_token(locked_token, except_task_id, data)
     end)
 
     {:ok, data}
   end
 
-  defp do_withdraw_token(token_id, except_task_id, %__MODULE__{} = data) do
+  defp do_withdraw_token(%Schema.Token{} = token_schema, except_task_id, %__MODULE__{} = data) do
     %{
       application: application,
       token_table: token_table
     } = data
 
     token_table
-    |> :ets.select([{{token_id, :locked, :"$2", :_}, [], [:"$2"]}])
-    |> Enum.flat_map(fn place_id ->
-      {:ok, transitions} = WorkflowMetal.Storage.fetch_transitions(application, place_id, :out)
+    |> :ets.select([{{token_schema.id, :"$1", :locked, :_, :_}, [], [:"$1"]}])
+    |> Enum.flat_map(fn token_schema ->
+      {:ok, transitions} =
+        WorkflowMetal.Storage.fetch_transitions(
+          application,
+          token_schema.place_id,
+          :out
+        )
 
       transitions
     end)
@@ -660,7 +672,7 @@ defmodule WorkflowMetal.Case.Case do
             :skip
 
           task_server ->
-            WorkflowMetal.Task.Task.withdraw_token(task_server, token_id)
+            WorkflowMetal.Task.Task.withdraw_token(task_server, token_schema.id)
         end
 
       {:ok, _task} ->

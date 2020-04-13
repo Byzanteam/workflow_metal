@@ -4,10 +4,10 @@ defmodule WorkflowMetal.Task.Task do
 
   ## Storage
   The data of `:token_table` is stored in ETS in the following format:
-      {token_id :: token_id, place_id :: place_id, token_state :: token_state}
+      {token_id, token_schema, token_state}
 
   The data of `:workitem_table` is stored in ETS in the following format:
-      {workitem_id :: workitem_id, workitem_schema, workitem_state :: workitem_state}
+      {workitem_id, workitem_schema, workitem_state}
 
   ## State
 
@@ -124,17 +124,17 @@ defmodule WorkflowMetal.Task.Task do
   @doc """
   Offer a token.
   """
-  @spec offer_token(:gen_statem.server_ref(), {place_id, token_id}) :: :ok
-  def offer_token(task_server, {place_id, token_id}) do
-    GenStateMachine.cast(task_server, {:offer_token, {place_id, token_id}})
+  @spec offer_token(:gen_statem.server_ref(), token_schema) :: :ok
+  def offer_token(task_server, token_schema) do
+    GenStateMachine.cast(task_server, {:offer_token, token_schema})
   end
 
   @doc """
   Withdraw a token.
   """
-  @spec withdraw_token(:gen_statem.server_ref(), token_id) :: :ok
-  def withdraw_token(task_server, token_id) do
-    GenStateMachine.cast(task_server, {:withdraw_token, token_id})
+  @spec withdraw_token(:gen_statem.server_ref(), token_schema) :: :ok
+  def withdraw_token(task_server, token_schema) do
+    GenStateMachine.cast(task_server, {:withdraw_token, token_schema})
   end
 
   @doc """
@@ -203,13 +203,12 @@ defmodule WorkflowMetal.Task.Task do
           data
         }
 
-      # TODO: in case that restore from storage
-      # {:state_timeout, 0, :execute_at_started}
-
       :executing ->
-        # TODO: in case that restore from storage
-        # fetch locked tokens
-        {:keep_state, data}
+        {
+          :keep_state,
+          data,
+          {:state_timeout, 0, :fetch_locked_tokens}
+        }
     end
   end
 
@@ -235,6 +234,30 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
+  def handle_event(:state_timeout, :fetch_locked_tokens, :executing, %__MODULE__{} = data) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        id: task_id
+      },
+      token_table: token_table
+    } = data
+
+    {:ok, locked_token_schemas} =
+      WorkflowMetal.Storage.fetch_locked_tokens(
+        application,
+        task_id
+      )
+
+    Enum.each(locked_token_schemas, &insert_token(&1, token_table))
+
+    {
+      :keep_state,
+      data
+    }
+  end
+
+  @impl GenStateMachine
   def handle_event(:internal, :stop, :completed, %__MODULE__{} = data) do
     {:stop, :normal, data}
   end
@@ -242,7 +265,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event(
         :cast,
-        {:offer_token, {place_id, token_id}},
+        {:offer_token, token_schema},
         :started,
         %__MODULE__{} = data
       ) do
@@ -250,7 +273,7 @@ defmodule WorkflowMetal.Task.Task do
       token_table: token_table
     } = data
 
-    :ets.insert(token_table, {token_id, place_id, :free})
+    insert_token(token_schema, token_table)
 
     {
       :keep_state,
@@ -268,7 +291,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event(
         :cast,
-        {:withdraw_token, token_id},
+        {:withdraw_token, token_schema},
         :started,
         %__MODULE__{} = data
       ) do
@@ -276,7 +299,7 @@ defmodule WorkflowMetal.Task.Task do
       token_table: token_table
     } = data
 
-    :ets.delete(token_table, token_id)
+    remove_token(token_schema, token_table)
 
     {
       :keep_state_and_data,
@@ -445,19 +468,24 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event({:call, from}, :lock_tokens, :executing, %__MODULE__{} = data) do
     %{
-      application: application,
-      task_schema: %Schema.Task{
-        id: task_id
-      }
+      token_table: token_table
     } = data
 
-    # TODO: fetch locked_tokens at init
-    {:ok, locked_token_schemas} = WorkflowMetal.Storage.fetch_locked_tokens(application, task_id)
+    reply =
+      token_table
+      |> :ets.tab2list()
+      |> Enum.reduce({:ok, []}, fn
+        {_token_id, token_schema, :locked, _, _}, {:ok, tokens} ->
+          {:ok, [token_schema | tokens]}
+
+        _, acc ->
+          acc
+      end)
 
     {
       :keep_state,
       data,
-      {:reply, from, {:ok, locked_token_schemas}}
+      {:reply, from, reply}
     }
   end
 
@@ -594,7 +622,7 @@ defmodule WorkflowMetal.Task.Task do
       token_table: token_table
     } = data
 
-    token_ids = :ets.select(token_table, [{{:"$1", :_, :_}, [], [:"$1"]}])
+    token_ids = :ets.select(token_table, [{{:"$1", :_, :locked}, [], [:"$1"]}])
 
     {:ok, _tokens} =
       WorkflowMetal.Case.Case.consume_tokens(
@@ -693,6 +721,14 @@ defmodule WorkflowMetal.Task.Task do
     end)
 
     {:ok, data}
+  end
+
+  defp insert_token(%Schema.Token{} = token_schema, token_table) do
+    :ets.insert(token_table, {token_schema.id, token_schema, token_schema.state})
+  end
+
+  defp remove_token(%Schema.Token{} = token_schema, token_table) do
+    :ets.delete(token_table, token_schema.id)
   end
 
   defp describe(%__MODULE__{} = data) do
