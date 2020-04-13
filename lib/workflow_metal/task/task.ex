@@ -253,7 +253,8 @@ defmodule WorkflowMetal.Task.Task do
 
     {
       :keep_state,
-      data
+      data,
+      {:next_event, :cast, :complete}
     }
   end
 
