@@ -249,5 +249,78 @@ defmodule WorkflowMetal.Task.TaskTest do
         assert case_schema.state === :finished
       end)
     end
+
+    test "restore from completed state" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+
+      until(fn ->
+        assert_receive :a_completed
+      end)
+
+      until(fn ->
+        assert_receive :b_completed
+      end)
+
+      until(fn ->
+        {:ok, [a_task | _]} =
+          WorkflowMetal.Storage.Adapters.InMemory.list_tasks(
+            DummyApplication,
+            workflow_schema.id
+          )
+
+        assert a_task.state === :completed
+        assert {:error, :normal} = TaskSupervisor.open_task(DummyApplication, a_task.id)
+      end)
+    end
+
+    test "restore from abandoned state" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      {:ok, {start_place, _end_place}} =
+        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+
+      {:ok, [a_transition]} =
+        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+
+      task_params = %Schema.Task.Params{
+        workflow_id: workflow_schema.id,
+        case_id: case_schema.id,
+        transition_id: a_transition.id
+      }
+
+      {:ok, task_schema} = WorkflowMetal.Storage.create_task(DummyApplication, task_params)
+
+      {:ok, task_schema} = WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, :abandoned)
+
+      assert {:error, :normal} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+    end
   end
 end

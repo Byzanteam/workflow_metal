@@ -238,6 +238,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
       {:completed, token_payload} ->
         GenServer.call(storage, {:complete_task, task_id, token_payload})
+
+      :abandoned ->
+        GenServer.call(storage, {:abandon_task, task_id})
     end
   end
 
@@ -652,6 +655,23 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     reply =
       with({:ok, task_schema} <- find_task(task_id, state)) do
         do_complete_task(task_schema, token_payload, state)
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:abandon_task, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, task_schema} <- find_task(task_id, state)) do
+        do_abandon_task(
+          task_schema,
+          state
+        )
       end
 
     {:reply, reply, state}
@@ -1539,6 +1559,51 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       )
 
     {:ok, task_schema}
+  end
+
+  defp do_abandon_task(
+         %Schema.Task{state: :abandoned} = task_schema,
+         %State{} = _state
+       ) do
+    {:ok, task_schema}
+  end
+
+  defp do_abandon_task(
+         %Schema.Task{state: task_state} = task_schema,
+         %State{} = state
+       )
+       when task_state in [:started, :executing] do
+    task_table = get_table(:task, state)
+
+    task_schema = %{
+      task_schema
+      | state: :abandoned
+    }
+
+    true =
+      :ets.update_element(
+        task_table,
+        task_schema.id,
+        [
+          {2, task_schema},
+          {3,
+           {
+             task_schema.state,
+             task_schema.workflow_id,
+             task_schema.transition_id,
+             task_schema.case_id
+           }}
+        ]
+      )
+
+    {:ok, task_schema}
+  end
+
+  defp do_abandon_task(
+         %Schema.Task{},
+         %State{} = _state
+       ) do
+    {:error, :task_not_available}
   end
 
   defp find_task(task_id, %State{} = state) do
