@@ -1,5 +1,6 @@
 defmodule WorkflowMetal.Case.CaseTest do
   use ExUnit.Case, async: true
+  use WorkflowMetal.Support.InMemoryStorageCase
 
   import WorkflowMetal.Helpers.Wait
 
@@ -10,7 +11,6 @@ defmodule WorkflowMetal.Case.CaseTest do
 
   alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
-  alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
 
   setup_all do
@@ -227,20 +227,5 @@ defmodule WorkflowMetal.Case.CaseTest do
 
       assert {:error, :normal} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
     end
-  end
-
-  defp generate_genesis_token(application, workflow_schema, case_schema) do
-    {:ok, {start_place, _end_place}} =
-      WorkflowMetal.Storage.fetch_edge_places(application, workflow_schema.id)
-
-    genesis_token_params = %Schema.Token.Params{
-      workflow_id: workflow_schema.id,
-      place_id: start_place.id,
-      case_id: case_schema.id,
-      produced_by_task_id: :genesis,
-      payload: nil
-    }
-
-    WorkflowMetal.Storage.issue_token(application, genesis_token_params)
   end
 end
