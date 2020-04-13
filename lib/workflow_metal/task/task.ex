@@ -193,21 +193,19 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   # init
   def handle_event(:enter, state, state, %__MODULE__{} = data) do
-    {:ok, data} = fetch_workitems(data)
-    {:ok, data} = fetch_transition(data)
-
     case state do
       :started ->
         {
           :keep_state,
-          data
+          data,
+          {:state_timeout, 0, :restore_from_started}
         }
 
       :executing ->
         {
           :keep_state,
           data,
-          {:state_timeout, 0, :fetch_locked_tokens}
+          {:state_timeout, 0, :restore_from_executing}
         }
     end
   end
@@ -234,22 +232,24 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :fetch_locked_tokens, :executing, %__MODULE__{} = data) do
-    %{
-      application: application,
-      task_schema: %Schema.Task{
-        id: task_id
-      },
-      token_table: token_table
-    } = data
+  def handle_event(:state_timeout, :restore_from_started, :started, %__MODULE__{} = data) do
+    {:ok, data} = fetch_workitems(data)
+    {:ok, data} = fetch_transition(data)
 
-    {:ok, locked_token_schemas} =
-      WorkflowMetal.Storage.fetch_locked_tokens(
-        application,
-        task_id
-      )
+    # TODO: request free tokens from the case
 
-    Enum.each(locked_token_schemas, &insert_token(&1, token_table))
+    {
+      :keep_state,
+      data
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event(:state_timeout, :restore_from_executing, :executing, %__MODULE__{} = data) do
+    {:ok, data} = fetch_workitems(data)
+    {:ok, data} = fetch_transition(data)
+    {:ok, data} = fetch_locked_tokens(data)
+    {:ok, data} = start_created_workitems(data)
 
     {
       :keep_state,
@@ -514,9 +514,6 @@ defmodule WorkflowMetal.Task.Task do
       :ets.insert(workitem_table, {workitem.id, workitem, workitem.state})
     end)
 
-    # TODO: try to fire or complete task
-    # if the task is enabled, then fire task
-    # if the task is completed, then complete task
     {:ok, data}
   end
 
@@ -531,6 +528,45 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, transition_schema} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
 
     {:ok, %{data | transition_schema: transition_schema}}
+  end
+
+  defp fetch_locked_tokens(%__MODULE__{} = data) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        id: task_id
+      },
+      token_table: token_table
+    } = data
+
+    {:ok, locked_token_schemas} =
+      WorkflowMetal.Storage.fetch_locked_tokens(
+        application,
+        task_id
+      )
+
+    Enum.each(locked_token_schemas, &insert_token(&1, token_table))
+
+    {:ok, data}
+  end
+
+  defp start_created_workitems(%__MODULE__{} = data) do
+    %{
+      application: application,
+      workitem_table: workitem_table
+    } = data
+
+    workitem_table
+    |> :ets.select([{{:_, :"$1", :created}, [], [:"$1"]}])
+    |> Enum.each(fn workitem_schema ->
+      {:ok, _} =
+        WorkflowMetal.Workitem.Supervisor.open_workitem(
+          application,
+          workitem_schema
+        )
+    end)
+
+    {:ok, data}
   end
 
   defp update_task(state_and_options, %__MODULE__{} = data) do

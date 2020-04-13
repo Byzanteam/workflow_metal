@@ -163,7 +163,7 @@ defmodule WorkflowMetal.Case.Case do
         {
           :keep_state,
           data,
-          {:state_timeout, 0, :offer_token_at_active}
+          {:state_timeout, 0, :restore_from_active}
         }
     end
   end
@@ -203,9 +203,12 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :offer_token_at_active, :active, %__MODULE__{}) do
+  def handle_event(:state_timeout, :restore_from_active, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_start_executing_tasks(data)
+
     {
-      :keep_state_and_data,
+      :keep_state,
+      data,
       {:next_event, :internal, :offer_tokens}
     }
   end
@@ -436,6 +439,28 @@ defmodule WorkflowMetal.Case.Case do
       :ok,
       %{data | free_token_ids: MapSet.put(free_token_ids, token_schema.id)}
     }
+  end
+
+  defp do_start_executing_tasks(%__MODULE__{} = data) do
+    %{
+      application: application,
+      case_schema: %Schema.Case{
+        id: case_id
+      }
+    } = data
+
+    {:ok, tasks} =
+      WorkflowMetal.Storage.fetch_tasks(
+        application,
+        case_id,
+        [:executing]
+      )
+
+    Enum.each(tasks, fn task ->
+      {:ok, _pid} = WorkflowMetal.Task.Supervisor.open_task(application, task.id)
+    end)
+
+    {:ok, data}
   end
 
   defp do_issue_token(token_params, %__MODULE__{} = data) do

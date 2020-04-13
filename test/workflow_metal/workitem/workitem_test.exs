@@ -1,5 +1,6 @@
 defmodule WorkflowMetal.Workitem.WorkitemTest do
   use ExUnit.Case, async: true
+  use WorkflowMetal.Support.InMemoryStorageCase
 
   import WorkflowMetal.Helpers.Wait
 
