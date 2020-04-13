@@ -209,14 +209,6 @@ defmodule WorkflowMetal.Task.TaskTest do
 
       assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
 
-      refute_receive :a_completed
-
-      {:ok, _} =
-        WorkflowMetal.Workitem.Supervisor.open_workitem(
-          DummyApplication,
-          workitem_schema
-        )
-
       until(fn ->
         assert_receive :a_completed
       end)
