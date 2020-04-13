@@ -26,8 +26,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type update_case_params :: :active | :finished | :canceled
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
+  @type task_state :: WorkflowMetal.Storage.Schema.Task.state()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+  @type task_states :: nonempty_list(task_state)
   @type update_task_params :: :executing | {:completed, token_payload}
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
@@ -88,6 +90,9 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
+  @type on_fetch_tasks ::
+          {:ok, [task_schema]}
+          | {:error, :case_not_found}
   @type on_fetch_available_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
@@ -254,6 +259,15 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               task_id
             ) :: on_fetch_task
+
+  @doc """
+  Retrive tasks of a case.
+  """
+  @callback fetch_tasks(
+              adapter_meta,
+              case_id,
+              task_states
+            ) :: on_fetch_tasks
 
   @doc """
   Find an available(`:started` or `:executing`) task

@@ -229,6 +229,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_tasks(adapter_meta, case_id, task_states) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_tasks, case_id, task_states})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def update_task(adapter_meta, task_id, state_and_options) do
     storage = storage_name(adapter_meta)
 
@@ -625,6 +632,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         %State{} = state
       ) do
     reply = find_available_task(case_id, transition_id, state)
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_tasks, case_id, task_states},
+        _from,
+        %State{} = state
+      ) do
+    reply = do_fetch_tasks(case_id, task_states, state)
 
     {:reply, reply, state}
   end
@@ -1630,6 +1648,32 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       [task_schema] -> {:ok, task_schema}
       _ -> {:error, :task_not_found}
     end
+  end
+
+  defp do_fetch_tasks(case_id, task_states, %State{} = state) do
+    match_conditions =
+      case task_states do
+        [task_state] ->
+          [{:"=:=", :"$2", task_state}]
+
+        [_ | _] ->
+          Enum.reduce(task_states, [{:orelse}], fn task_state, [acc] ->
+            [Tuple.append(acc, {:"=:=", :"$2", task_state})]
+          end)
+      end
+
+    {
+      :ok,
+      :task
+      |> get_table(state)
+      |> :ets.select([
+        {
+          {:_, :"$1", {:"$2", :_, :_, case_id}},
+          match_conditions,
+          [:"$1"]
+        }
+      ])
+    }
   end
 
   defp persist_workitem(workitem_params, %State{} = state, options) do
