@@ -36,6 +36,22 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     end
   end
 
+  defmodule AsynchronousTransition do
+    use WorkflowMetal.Executor
+
+    @impl true
+    def execute(_workitem, options) do
+      executor_params = Keyword.fetch!(options, :executor_params)
+
+      request = Keyword.fetch!(executor_params, :request)
+      reply = Keyword.fetch!(executor_params, :reply)
+
+      send(request, reply)
+
+      :started
+    end
+  end
+
   @doc false
   def create(application, executors \\ []) do
     a_transition = Keyword.get_lazy(executors, :a, fn -> build_simple_transition(1) end)
@@ -76,6 +92,15 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     %Schema.Transition.Params{
       rid: rid,
       executor: EchoTransition,
+      executor_params: Keyword.put_new(params, :request, self())
+    }
+  end
+
+  @doc false
+  def build_asynchronous_transition(rid, params \\ []) do
+    %Schema.Transition.Params{
+      rid: rid,
+      executor: AsynchronousTransition,
       executor_params: Keyword.put_new(params, :request, self())
     }
   end
