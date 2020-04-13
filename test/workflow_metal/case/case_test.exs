@@ -158,6 +158,75 @@ defmodule WorkflowMetal.Case.CaseTest do
         assert case_schema.state === :finished
       end)
     end
+
+    test "restore from canceled state" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.update_case(
+          DummyApplication,
+          case_schema.id,
+          :canceled
+        )
+
+      assert {:error, :normal} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+    end
+
+    test "restore from finished state" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      assert case_schema.state === :created
+
+      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+
+      until(fn ->
+        assert_receive :a_completed
+      end)
+
+      until(fn ->
+        assert_receive :b_completed
+      end)
+
+      assert Process.alive?(pid)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+
+        assert case_schema.state === :finished
+      end)
+
+      until(fn ->
+        refute Process.alive?(pid)
+      end)
+
+      assert {:error, :normal} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+    end
   end
 
   defp generate_genesis_token(application, workflow_schema, case_schema) do

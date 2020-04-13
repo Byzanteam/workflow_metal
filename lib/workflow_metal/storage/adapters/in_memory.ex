@@ -1256,9 +1256,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_cancel_case(
-         %Schema.Case{state: :active} = case_schema,
+         %Schema.Case{state: case_state} = case_schema,
          %State{} = state
-       ) do
+       )
+       when case_state in [:created, :active] do
     case_table = get_table(:case, state)
 
     case_schema = %{
