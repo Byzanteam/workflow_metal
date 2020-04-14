@@ -715,7 +715,7 @@ defmodule WorkflowMetal.Case.Case do
             :skip
 
           task_server ->
-            WorkflowMetal.Task.Task.withdraw_token(task_server, token_schema.id)
+            WorkflowMetal.Task.Task.withdraw_token(task_server, token_schema)
         end
 
       {:ok, _task} ->
