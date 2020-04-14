@@ -226,6 +226,7 @@ defmodule WorkflowMetal.Task.Task do
 
       {from, :abandoned} when from in [:started, :executing] ->
         Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
+        {:ok, data} = update_task(:abandoned, data)
 
         {:keep_state, data}
     end
