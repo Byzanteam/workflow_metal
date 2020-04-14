@@ -120,6 +120,14 @@ defmodule WorkflowMetal.Case.Case do
     GenStateMachine.call(case_server, {:consume_tokens, token_ids, task_id})
   end
 
+  @doc """
+  Request free tokens when a task restore from storage.
+  """
+  @spec request_free_tokens(:gen_statem.server_ref(), task_id) :: :ok
+  def request_free_tokens(case_server, task_id) do
+    GenStateMachine.cast(case_server, {:request_free_tokens, task_id})
+  end
+
   # Server (callbacks)
 
   @impl true
@@ -145,24 +153,17 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl GenStateMachine
   # init
-  def handle_event(:enter, state, state, %__MODULE__{} = data) do
+  def handle_event(:enter, state, state, %__MODULE__{}) do
     case state do
       :created ->
-        {:ok, data} = fetch_edge_places(data)
-
         {
-          :keep_state,
-          data,
-          {:state_timeout, 0, :activate_at_created}
+          :keep_state_and_data,
+          {:state_timeout, 0, :restore_from_created}
         }
 
       :active ->
-        {:ok, data} = rebuild_tokens(data)
-        {:ok, data} = fetch_edge_places(data)
-
         {
-          :keep_state,
-          data,
+          :keep_state_and_data,
           {:state_timeout, 0, :restore_from_active}
         }
     end
@@ -191,7 +192,8 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :activate_at_created, :created, %__MODULE__{} = data) do
+  def handle_event(:state_timeout, :restore_from_created, :created, %__MODULE__{} = data) do
+    {:ok, data} = fetch_edge_places(data)
     {:ok, data} = do_activate_case(data)
 
     {
@@ -204,6 +206,8 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl GenStateMachine
   def handle_event(:state_timeout, :restore_from_active, :active, %__MODULE__{} = data) do
+    {:ok, data} = rebuild_tokens(data)
+    {:ok, data} = fetch_edge_places(data)
     {:ok, data} = do_start_executing_tasks(data)
 
     {
@@ -352,6 +356,13 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
+  def handle_event(:cast, {:request_free_tokens, task_id}, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_request_free_tokens(task_id, data)
+
+    {:keep_state, data}
+  end
+
+  @impl GenStateMachine
   def format_status(_reason, [_pdict, state, data]) do
     {:state, %{current_state: state, data: data}}
   end
@@ -365,11 +376,18 @@ defmodule WorkflowMetal.Case.Case do
       token_table: token_table
     } = data
 
-    with({:ok, tokens} <- WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free])) do
+    with(
+      {:ok, tokens} <- WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free, :locked])
+    ) do
       free_token_ids =
-        MapSet.new(tokens, fn token ->
-          :ok = insert_token(token, token_table)
-          token.id
+        Enum.reduce(tokens, MapSet.new(), fn
+          %Schema.Token{state: :free} = token, acc ->
+            :ok = insert_token(token, token_table)
+            MapSet.put(acc, token.id)
+
+          %Schema.Token{state: :locked} = token, acc ->
+            :ok = insert_token(token, token_table)
+            acc
         end)
 
       {
@@ -721,6 +739,41 @@ defmodule WorkflowMetal.Case.Case do
     } = data
 
     WorkflowMetal.Storage.fetch_available_task(application, case_id, transition_id)
+  end
+
+  defp do_request_free_tokens(task_id, %__MODULE__{} = data) do
+    %{
+      application: application,
+      token_table: token_table
+    } = data
+
+    with(
+      {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
+      %Schema.Task{state: :started} <- task_schema,
+      task_server_name = WorkflowMetal.Task.Task.name(task_schema),
+      task_server when task_server !== :undefined <-
+        WorkflowMetal.Registration.whereis_name(application, task_server_name)
+    ) do
+      token_table
+      |> :ets.select([
+        {
+          {:_, :"$1", :"$2", :"$3", :_},
+          [
+            {
+              :orelse,
+              {:andalso, {:"=:=", :"$2", :locked}, {:"=:=", :"$3", task_id}},
+              {:"=:=", :"$2", :free}
+            }
+          ],
+          [:"$1"]
+        }
+      ])
+      |> Enum.each(fn token_schema ->
+        :ok = WorkflowMetal.Task.Task.offer_token(task_server, token_schema)
+      end)
+    end
+
+    {:ok, data}
   end
 
   defp describe(%__MODULE__{} = data) do

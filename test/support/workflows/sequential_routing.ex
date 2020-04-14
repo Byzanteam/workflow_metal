@@ -37,6 +37,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
   end
 
   defmodule AsynchronousTransition do
+    @moduledoc false
+
     use WorkflowMetal.Executor
 
     @impl true

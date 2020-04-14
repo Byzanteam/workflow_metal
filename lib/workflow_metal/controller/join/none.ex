@@ -22,8 +22,8 @@ defmodule WorkflowMetal.Controller.Join.None do
 
     match_spec = [
       {
-        {:"$1", %{place_id: :"$2"}, :_},
-        [{:"=:=", {:const, place_id}, :"$2"}],
+        {:"$1", %{place_id: place_id}, :_},
+        [],
         [:"$1"]
       }
     ]

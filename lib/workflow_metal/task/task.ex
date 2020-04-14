@@ -235,8 +235,8 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event(:state_timeout, :restore_from_started, :started, %__MODULE__{} = data) do
     {:ok, data} = fetch_workitems(data)
     {:ok, data} = fetch_transition(data)
-
-    # TODO: request free tokens from the case
+    {:ok, data} = request_free_tokens(data)
+    {:ok, data} = start_created_workitems(data)
 
     {
       :keep_state,
@@ -318,7 +318,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event(:cast, :execute, :started, %__MODULE__{} = data) do
     with(
       {:ok, _token_ids} <- JoinController.task_enablement(data),
-      {:ok, data} <- generate_workitem(data)
+      {:ok, data} <- open_or_generate_workitem(data)
     ) do
       {:keep_state, data}
     else
@@ -512,7 +512,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, workitems} = WorkflowMetal.Storage.fetch_workitems(application, task_id)
 
     Enum.each(workitems, fn workitem ->
-      :ets.insert(workitem_table, {workitem.id, workitem, workitem.state})
+      upsert_workitem(workitem, workitem_table)
     end)
 
     {:ok, data}
@@ -529,6 +529,20 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, transition_schema} = WorkflowMetal.Storage.fetch_transition(application, transition_id)
 
     {:ok, %{data | transition_schema: transition_schema}}
+  end
+
+  defp request_free_tokens(%__MODULE__{} = data) do
+    %{
+      task_schema: %Schema.Task{
+        id: task_id
+      }
+    } = data
+
+    case_server = case_server(data)
+
+    :ok = WorkflowMetal.Case.Case.request_free_tokens(case_server, task_id)
+
+    {:ok, data}
   end
 
   defp fetch_locked_tokens(%__MODULE__{} = data) do
@@ -586,6 +600,43 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, %{data | task_schema: task_schema}}
   end
 
+  defp open_or_generate_workitem(%__MODULE__{} = data) do
+    %{
+      application: application,
+      workitem_table: workitem_table
+    } = data
+
+    workitem_table
+    |> :ets.select([
+      {
+        {:_, :"$1", :"$2"},
+        [
+          {
+            :orelse,
+            {:"=:=", :"$2", :created},
+            {:"=:=", :"$2", :started}
+          }
+        ],
+        [:"$1"]
+      }
+    ])
+    |> case do
+      [_ | _] = workitem_schemas ->
+        Enum.each(workitem_schemas, fn workitem_schema ->
+          {:ok, _} =
+            WorkflowMetal.Workitem.Supervisor.open_workitem(
+              application,
+              workitem_schema
+            )
+        end)
+
+        {:ok, data}
+
+      _ ->
+        generate_workitem(data)
+    end
+  end
+
   defp generate_workitem(%__MODULE__{} = data) do
     %{
       application: application,
@@ -594,7 +645,8 @@ defmodule WorkflowMetal.Task.Task do
         workflow_id: workflow_id,
         transition_id: transition_id,
         case_id: case_id
-      }
+      },
+      workitem_table: workitem_table
     } = data
 
     workitem_params = %Schema.Workitem.Params{
@@ -605,6 +657,8 @@ defmodule WorkflowMetal.Task.Task do
     }
 
     {:ok, workitem_schema} = WorkflowMetal.Storage.create_workitem(application, workitem_params)
+
+    upsert_workitem(workitem_schema, workitem_table)
 
     {:ok, _} =
       WorkflowMetal.Workitem.Supervisor.open_workitem(
@@ -643,6 +697,7 @@ defmodule WorkflowMetal.Task.Task do
     |> :ets.tab2list()
     |> Enum.all?(fn
       {_workitem_id, _workitem, :completed} -> true
+      {_workitem_id, _workitem, :abandoned} -> true
       _ -> false
     end)
     |> case do
@@ -751,6 +806,8 @@ defmodule WorkflowMetal.Task.Task do
             workitem
           )
 
+        upsert_workitem(%{workitem | state: :abandoned}, workitem_table)
+
         :ok = WorkflowMetal.Workitem.Workitem.abandon(workitem_server)
 
       _ ->
@@ -766,6 +823,10 @@ defmodule WorkflowMetal.Task.Task do
 
   defp remove_token(%Schema.Token{} = token_schema, token_table) do
     :ets.delete(token_table, token_schema.id)
+  end
+
+  defp upsert_workitem(%Schema.Workitem{} = workitem, workitem_table) do
+    :ets.insert(workitem_table, {workitem.id, workitem, workitem.state})
   end
 
   defp describe(%__MODULE__{} = data) do

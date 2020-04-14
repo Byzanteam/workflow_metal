@@ -74,7 +74,12 @@ defmodule WorkflowMetal.Executor do
 
       @impl WorkflowMetal.Executor
       def build_token_payload(workitems, _options) do
-        {:ok, Enum.map(workitems, & &1.output)}
+        {
+          :ok,
+          workitems
+          |> Enum.filter(&(&1.state === :completed))
+          |> Enum.map(& &1.output)
+        }
       end
 
       defoverridable WorkflowMetal.Executor

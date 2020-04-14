@@ -20,8 +20,8 @@ defmodule WorkflowMetal.Controller.Join.And do
     Enum.reduce_while(places, {:ok, []}, fn %Schema.Place{} = place, {:ok, token_ids} ->
       match_spec = [
         {
-          {:"$1", %{place_id: :"$2"}, :_},
-          [{:"=:=", {:const, place.id}, :"$2"}],
+          {:"$1", %{place_id: place.id}, :_},
+          [],
           [:"$1"]
         }
       ]

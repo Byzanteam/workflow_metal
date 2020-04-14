@@ -10,6 +10,7 @@ defmodule WorkflowMetal.Task.TaskTest do
   alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
   alias WorkflowMetal.Task.Supervisor, as: TaskSupervisor
+  alias WorkflowMetal.Workitem.Workitem
 
   defmodule DummyApplication do
     use WorkflowMetal.Application,
@@ -133,6 +134,118 @@ defmodule WorkflowMetal.Task.TaskTest do
       end)
     end
 
+    test "restore from started state and request free tokens from the case" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_asynchronous_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      {:ok, _genesis_token} =
+        generate_genesis_token(
+          DummyApplication,
+          workflow_schema,
+          case_schema
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.update_case(
+          DummyApplication,
+          case_schema.id,
+          :active
+        )
+
+      {:ok, {start_place, _end_place}} =
+        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+
+      {:ok, [a_transition]} =
+        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+
+      task_params = %Schema.Task.Params{
+        workflow_id: workflow_schema.id,
+        case_id: case_schema.id,
+        transition_id: a_transition.id
+      }
+
+      {:ok, task_schema} = WorkflowMetal.Storage.create_task(DummyApplication, task_params)
+
+      refute_receive :a_completed
+
+      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+
+      until(fn ->
+        assert_receive :a_completed
+      end)
+
+      :ok = GenStateMachine.stop(pid)
+
+      {:ok, [workitem]} = WorkflowMetal.Storage.fetch_workitems(DummyApplication, task_schema.id)
+
+      {:ok, _workitem_schema} =
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem.id,
+          :abandoned
+        )
+
+      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+
+      until(fn ->
+        assert_receive :a_completed
+      end)
+
+      WorkflowMetal.Task.Task.lock_tokens(
+        WorkflowMetal.Task.Task.via_name(DummyApplication, task_schema)
+      )
+
+      {:ok, [workitem, _]} =
+        WorkflowMetal.Storage.fetch_workitems(DummyApplication, task_schema.id)
+
+      {:ok, _pid} =
+        WorkflowMetal.Workitem.Supervisor.open_workitem(
+          DummyApplication,
+          workitem
+        )
+
+      :ok =
+        Workitem.complete(
+          Workitem.via_name(DummyApplication, workitem),
+          %{reply: :a_completed}
+        )
+
+      until(fn ->
+        assert_receive :b_completed
+      end)
+
+      until(fn ->
+        {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, workflow_schema.id)
+
+        assert length(tasks) === 2
+
+        [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
+
+        assert a_task.state === :completed
+        assert a_task.token_payload === [%{reply: :a_completed}]
+
+        assert b_task.state === :completed
+        assert b_task.token_payload === [%{reply: :b_completed}]
+      end)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+        assert case_schema.state === :finished
+      end)
+    end
+
     test "restore from executing state" do
       {:ok, workflow_schema} =
         SequentialRouting.create(
@@ -213,10 +326,9 @@ defmodule WorkflowMetal.Task.TaskTest do
         assert_receive :a_completed
       end)
 
-      workitem_server =
-        WorkflowMetal.Workitem.Workitem.via_name(DummyApplication, workitem_schema)
+      workitem_server = Workitem.via_name(DummyApplication, workitem_schema)
 
-      :ok = WorkflowMetal.Workitem.Workitem.complete(workitem_server, %{reply: :a_completed})
+      :ok = Workitem.complete(workitem_server, %{reply: :a_completed})
 
       until(fn ->
         assert_receive :b_completed
@@ -270,7 +382,7 @@ defmodule WorkflowMetal.Task.TaskTest do
 
       until(fn ->
         {:ok, [a_task | _]} =
-          WorkflowMetal.Storage.Adapters.InMemory.list_tasks(
+          InMemoryStorage.list_tasks(
             DummyApplication,
             workflow_schema.id
           )
@@ -310,7 +422,8 @@ defmodule WorkflowMetal.Task.TaskTest do
 
       {:ok, task_schema} = WorkflowMetal.Storage.create_task(DummyApplication, task_params)
 
-      {:ok, task_schema} = WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, :abandoned)
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, :abandoned)
 
       assert {:error, :normal} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
     end
