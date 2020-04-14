@@ -32,7 +32,6 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @impl true
   def init({application, workflow_id}) do
     children = [
-      {WorkflowMetal.Workflow.Workflow, {application, workflow_id}},
       {WorkflowMetal.Case.Supervisor, {application, workflow_id}},
       {WorkflowMetal.Task.Supervisor, {application, workflow_id}},
       {WorkflowMetal.Workitem.Supervisor, {application, workflow_id}}
