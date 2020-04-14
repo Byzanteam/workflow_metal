@@ -3,7 +3,7 @@ defmodule WorkflowMetal.Workflow.Workflow do
   Workflow is a `GenServer` process used to provide access to a workflow.
   """
 
-  use GenServer
+  use GenServer, restart: :temporary
 
   defstruct [
     :application,

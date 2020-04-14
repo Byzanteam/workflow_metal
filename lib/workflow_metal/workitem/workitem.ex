@@ -143,17 +143,22 @@ defmodule WorkflowMetal.Workitem.Workitem do
   end
 
   @impl GenStateMachine
-  def handle_event(:enter, old_state, state, %__MODULE__{} = data) do
-    case {old_state, state} do
-      {:created, :created} ->
+  def handle_event(:enter, state, state, %__MODULE__{}) do
+    case state do
+      :created ->
         {
           :keep_state_and_data,
           {:state_timeout, 0, :start_at_created}
         }
 
-      {same, same} ->
+      _ ->
         :keep_state_and_data
+    end
+  end
 
+  @impl GenStateMachine
+  def handle_event(:enter, old_state, state, %__MODULE__{} = data) do
+    case {old_state, state} do
       {:created, :started} ->
         Logger.debug(fn -> "#{describe(data)} start executing." end)
 
