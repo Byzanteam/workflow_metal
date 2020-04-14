@@ -39,8 +39,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
   ]
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
-  @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
+  @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()

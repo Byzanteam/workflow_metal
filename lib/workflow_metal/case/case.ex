@@ -35,8 +35,8 @@ defmodule WorkflowMetal.Case.Case do
   ]
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
-  @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
+  @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()

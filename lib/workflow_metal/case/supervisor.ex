@@ -11,7 +11,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   @type application :: WorkflowMetal.Application.t()
   @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
+  @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
 

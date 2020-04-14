@@ -8,7 +8,7 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @type application :: WorkflowMetal.Application.t()
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
+  @type workflow_identifier :: {application, workflow_id}
 
   @type options :: [name: term, workflow_id: workflow_id]
 

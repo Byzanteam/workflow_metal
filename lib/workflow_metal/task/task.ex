@@ -35,9 +35,9 @@ defmodule WorkflowMetal.Task.Task do
   ]
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
+  @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
 
-  @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
   @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()

@@ -10,7 +10,7 @@ defmodule WorkflowMetal.Task.Supervisor do
   @type application :: WorkflowMetal.Application.t()
   @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
+  @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
 
   @doc false
