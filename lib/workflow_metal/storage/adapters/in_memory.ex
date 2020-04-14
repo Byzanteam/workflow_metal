@@ -136,13 +136,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def fetch_arcs(adapter_meta, workflow_id) do
-    storage = storage_name(adapter_meta)
-
-    GenServer.call(storage, {:fetch_arcs, workflow_id})
-  end
-
-  @impl WorkflowMetal.Storage.Adapter
   def fetch_arcs(adapter_meta, transition_id, arc_direction) do
     storage = storage_name(adapter_meta)
 
@@ -383,25 +376,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         |> :ets.delete(workflow_schema.id)
 
         :ok
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:fetch_arcs, workflow_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
-        arcs =
-          :arc
-          |> get_table(state)
-          |> :ets.select([{{:_, :"$1", {workflow_schema.id, :_, :_, :_}}, [], [:"$1"]}])
-
-        {:ok, arcs}
       end
 
     {:reply, reply, state}
