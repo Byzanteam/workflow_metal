@@ -207,8 +207,13 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Task.Task.via_name(DummyApplication, task_schema)
       )
 
-      {:ok, [workitem, _]} =
-        WorkflowMetal.Storage.fetch_workitems(DummyApplication, task_schema.id)
+      [workitem] =
+        WorkflowMetal.Storage.fetch_workitems(
+          DummyApplication,
+          task_schema.id
+        )
+        |> elem(1)
+        |> Enum.filter(&(&1.state === :started))
 
       {:ok, _pid} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(
