@@ -550,15 +550,18 @@ defmodule WorkflowMetal.Task.Task do
     %{
       application: application,
       task_schema: %Schema.Task{
-        id: task_id
+        id: task_id,
+        case_id: case_id
       },
       token_table: token_table
     } = data
 
     {:ok, locked_token_schemas} =
-      WorkflowMetal.Storage.fetch_locked_tokens(
+      WorkflowMetal.Storage.fetch_tokens(
         application,
-        task_id
+        case_id,
+        states: [:locked],
+        locked_by_task_id: task_id
       )
 
     Enum.each(locked_token_schemas, &insert_token(&1, token_table))

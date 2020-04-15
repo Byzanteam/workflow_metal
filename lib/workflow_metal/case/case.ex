@@ -377,7 +377,8 @@ defmodule WorkflowMetal.Case.Case do
     } = data
 
     with(
-      {:ok, tokens} <- WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free, :locked])
+      {:ok, tokens} <-
+        WorkflowMetal.Storage.fetch_tokens(application, case_id, states: [:free, :locked])
     ) do
       free_token_ids =
         Enum.reduce(tokens, MapSet.new(), fn
@@ -471,7 +472,7 @@ defmodule WorkflowMetal.Case.Case do
       WorkflowMetal.Storage.fetch_tasks(
         application,
         case_id,
-        [:executing]
+        states: [:executing]
       )
 
     Enum.each(tasks, fn task ->
@@ -580,11 +581,11 @@ defmodule WorkflowMetal.Case.Case do
   defp fetch_or_create_task(transition, %__MODULE__{} = data) do
     %{id: transition_id} = transition
 
-    case fetch_available_task(transition_id, data) do
-      {:ok, task} ->
+    case fetch_available_tasks(transition_id, data) do
+      {:ok, [task]} ->
         {:ok, task}
 
-      {:error, _} ->
+      {:ok, []} ->
         %{
           application: application,
           case_schema: %Schema.Case{
@@ -611,17 +612,20 @@ defmodule WorkflowMetal.Case.Case do
     } = data
 
     if MapSet.subset?(token_ids, free_token_ids) do
-      locked_token_schemas =
-        Enum.map(token_ids, fn token_id ->
-          :ets.update_element(token_table, token_id, [
-            {3, :locked},
-            {4, task_id}
-          ])
+      {:ok, locked_token_schemas} =
+        WorkflowMetal.Storage.lock_tokens(
+          application,
+          MapSet.to_list(token_ids),
+          task_id
+        )
 
-          {:ok, token_schema} = WorkflowMetal.Storage.lock_token(application, token_id, task_id)
-
-          token_schema
-        end)
+      Enum.each(locked_token_schemas, fn locked_token ->
+        :ets.update_element(token_table, locked_token.id, [
+          {2, locked_token},
+          {3, locked_token.state},
+          {4, locked_token.locked_by_task_id}
+        ])
+      end)
 
       free_token_ids = MapSet.difference(free_token_ids, token_ids)
 
@@ -633,12 +637,20 @@ defmodule WorkflowMetal.Case.Case do
 
   defp do_consume_tokens(token_ids, task_id, %__MODULE__{} = data) do
     %{
-      application: application
+      application: application,
+      token_table: token_table
     } = data
 
     with(
       {:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
     ) do
+      Enum.each(tokens, fn token ->
+        :ets.update_element(token_table, token.id, [
+          {2, token},
+          {3, token.state}
+        ])
+      end)
+
       {:ok, tokens, data}
     end
   end
@@ -704,10 +716,10 @@ defmodule WorkflowMetal.Case.Case do
       transitions
     end)
     |> Stream.map(fn transition ->
-      fetch_available_task(transition.id, data)
+      fetch_available_tasks(transition.id, data)
     end)
     |> Stream.each(fn
-      {:ok, %Schema.Task{id: task_id} = task} when task_id !== except_task_id ->
+      {:ok, [%Schema.Task{id: task_id} = task]} when task_id !== except_task_id ->
         task_server_name = WorkflowMetal.Task.Task.name(task)
 
         case WorkflowMetal.Registration.whereis_name(application, task_server_name) do
@@ -718,11 +730,8 @@ defmodule WorkflowMetal.Case.Case do
             WorkflowMetal.Task.Task.withdraw_token(task_server, token_schema)
         end
 
-      {:ok, _task} ->
+      {:ok, _tasks} ->
         # skip the non-running task server
-        :skip
-
-      {:error, _reason} ->
         :skip
     end)
     |> Stream.run()
@@ -730,7 +739,7 @@ defmodule WorkflowMetal.Case.Case do
     :ok
   end
 
-  defp fetch_available_task(transition_id, %__MODULE__{} = data) do
+  defp fetch_available_tasks(transition_id, %__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
@@ -738,7 +747,12 @@ defmodule WorkflowMetal.Case.Case do
       }
     } = data
 
-    WorkflowMetal.Storage.fetch_available_task(application, case_id, transition_id)
+    WorkflowMetal.Storage.fetch_tasks(
+      application,
+      case_id,
+      states: [:started, :executing],
+      transition_id: transition_id
+    )
   end
 
   defp do_request_free_tokens(task_id, %__MODULE__{} = data) do

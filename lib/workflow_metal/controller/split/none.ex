@@ -17,7 +17,12 @@ defmodule WorkflowMetal.Controller.Split.None do
       }
     } = task_data
 
-    {:ok, [arc]} = WorkflowMetal.Storage.fetch_arcs(application, transition_id, :out)
+    {:ok, [arc]} =
+      WorkflowMetal.Storage.fetch_arcs(
+        application,
+        {:transition, transition_id},
+        :out
+      )
 
     new_token = %Schema.Token.Params{
       workflow_id: workflow_id,

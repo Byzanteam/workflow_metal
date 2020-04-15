@@ -297,9 +297,9 @@ defmodule WorkflowMetal.Task.TaskTest do
 
       # lock tokens
       {:ok, _token_schema} =
-        WorkflowMetal.Storage.lock_token(
+        WorkflowMetal.Storage.lock_tokens(
           DummyApplication,
-          genesis_token.id,
+          [genesis_token.id],
           task_schema.id
         )
 

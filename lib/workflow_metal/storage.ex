@@ -1,5 +1,6 @@
 defmodule WorkflowMetal.Storage do
   alias WorkflowMetal.Application
+  alias WorkflowMetal.Storage.Adapter
 
   @moduledoc """
   Use the storage configured for a WorkflowMetal application.
@@ -64,7 +65,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec create_workflow(application, workflow_params) ::
-          WorkflowMetal.Storage.Adapter.on_create_workflow()
+          Adapter.on_create_workflow()
   def create_workflow(application, workflow_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -76,7 +77,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec fetch_workflow(application, workflow_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_workflow()
+          Adapter.on_fetch_workflow()
   def fetch_workflow(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -88,7 +89,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec delete_workflow(application, workflow_id) ::
-          WorkflowMetal.Storage.Adapter.on_delete_workflow()
+          Adapter.on_delete_workflow()
   def delete_workflow(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -98,22 +99,23 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  ## Places, Transitions, and Arcs
+
   @doc false
-  @spec fetch_arcs(application, transition_id, arc_direction) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_arcs()
-  def fetch_arcs(application, transition_id, arc_direction) do
+  @spec fetch_edge_places(application, workflow_id) ::
+          Adapter.on_fetch_edge_places()
+  def fetch_edge_places(application, workflow_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.fetch_arcs(
+    adapter.fetch_edge_places(
       adapter_meta,
-      transition_id,
-      arc_direction
+      workflow_id
     )
   end
 
   @doc false
   @spec fetch_places(application, transition_id, arc_direction) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_places()
+          Adapter.on_fetch_places()
   def fetch_places(application, transition_id, arc_direction) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -125,20 +127,8 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec fetch_edge_places(application, workflow_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_edge_places()
-  def fetch_edge_places(application, workflow_id) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.fetch_edge_places(
-      adapter_meta,
-      workflow_id
-    )
-  end
-
-  @doc false
   @spec fetch_transition(application, transition_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_transition()
+          Adapter.on_fetch_transition()
   def fetch_transition(application, transition_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -150,7 +140,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec fetch_transitions(application, place_id, arc_direction) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_transitions()
+          Adapter.on_fetch_transitions()
   def fetch_transitions(application, place_id, arc_direction) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -161,11 +151,24 @@ defmodule WorkflowMetal.Storage do
     )
   end
 
+  @doc false
+  @spec fetch_arcs(application, Adapter.arc_beginning(), arc_direction) ::
+          Adapter.on_fetch_arcs()
+  def fetch_arcs(application, arc_beginning, arc_direction) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_arcs(
+      adapter_meta,
+      arc_beginning,
+      arc_direction
+    )
+  end
+
   ## Case
 
   @doc false
   @spec create_case(application, case_params) ::
-          WorkflowMetal.Storage.Adapter.on_create_case()
+          Adapter.on_create_case()
   def create_case(application, case_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -177,7 +180,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec fetch_case(application, case_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_case()
+          Adapter.on_fetch_case()
   def fetch_case(application, case_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -188,12 +191,8 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec update_case(
-          application,
-          case_id,
-          WorkflowMetal.Storage.Adapter.update_case_params()
-        ) ::
-          WorkflowMetal.Storage.Adapter.on_update_case()
+  @spec update_case(application, case_id, Adapter.update_case_params()) ::
+          Adapter.on_update_case()
   def update_case(application, case_id, update_case_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -205,9 +204,10 @@ defmodule WorkflowMetal.Storage do
   end
 
   ## Task
+
   @doc false
   @spec create_task(application, task_params) ::
-          WorkflowMetal.Storage.Adapter.on_create_task()
+          Adapter.on_create_task()
   def create_task(application, task_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -219,7 +219,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec fetch_task(application, task_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_task()
+          Adapter.on_fetch_task()
   def fetch_task(application, task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -230,42 +230,21 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec fetch_available_task(application, case_id, transition_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_available_task()
-  def fetch_available_task(application, case_id, transition_id) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.fetch_available_task(
-      adapter_meta,
-      case_id,
-      transition_id
-    )
-  end
-
-  @doc false
-  @spec fetch_tasks(
-          application,
-          case_id,
-          WorkflowMetal.Storage.Adapter.task_states()
-        ) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_tasks()
-  def fetch_tasks(application, case_id, task_states) do
+  @spec fetch_tasks(application, case_id, Adapter.fetch_tasks_options()) ::
+          Adapter.on_fetch_tasks()
+  def fetch_tasks(application, case_id, options) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.fetch_tasks(
       adapter_meta,
       case_id,
-      task_states
+      options
     )
   end
 
   @doc false
-  @spec update_task(
-          application,
-          task_id,
-          WorkflowMetal.Storage.Adapter.update_task_params()
-        ) ::
-          WorkflowMetal.Storage.Adapter.on_update_task()
+  @spec update_task(application, task_id, Adapter.update_task_params()) ::
+          Adapter.on_update_task()
   def update_task(application, task_id, update_task_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -280,7 +259,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec issue_token(application, token_params) ::
-          WorkflowMetal.Storage.Adapter.on_issue_token()
+          Adapter.on_issue_token()
   def issue_token(application, token_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -291,53 +270,41 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec lock_token(application, token_id, task_id) ::
-          WorkflowMetal.Storage.Adapter.on_lock_token()
-  def lock_token(application, token_id, task_id) do
+  @spec lock_tokens(application, nonempty_list(token_id), task_id) ::
+          Adapter.on_lock_tokens()
+  def lock_tokens(application, token_ids, locked_by_task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.lock_token(
+    adapter.lock_tokens(
       adapter_meta,
-      token_id,
-      task_id
+      token_ids,
+      locked_by_task_id
     )
   end
 
   @doc false
   @spec consume_tokens(application, nonempty_list(token_id), task_id) ::
-          WorkflowMetal.Storage.Adapter.on_consume_tokens()
-  def consume_tokens(application, token_ids, task_id) do
+          Adapter.on_consume_tokens()
+  def consume_tokens(application, token_ids, consumed_by_task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.consume_tokens(
       adapter_meta,
       token_ids,
-      task_id
+      consumed_by_task_id
     )
   end
 
   @doc false
-  @spec fetch_locked_tokens(application, task_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_locked_tokens()
-  def fetch_locked_tokens(application, task_id) do
-    {adapter, adapter_meta} = Application.storage_adapter(application)
-
-    adapter.fetch_locked_tokens(
-      adapter_meta,
-      task_id
-    )
-  end
-
-  @doc false
-  @spec fetch_tokens(application, case_id, token_states) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_tokens()
-  def fetch_tokens(application, case_id, token_states) do
+  @spec fetch_tokens(application, case_id, Adapter.fetch_tokens_options()) ::
+          Adapter.on_fetch_tokens()
+  def fetch_tokens(application, case_id, options) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.fetch_tokens(
       adapter_meta,
       case_id,
-      token_states
+      options
     )
   end
 
@@ -345,7 +312,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec create_workitem(application, workitem_params) ::
-          WorkflowMetal.Storage.Adapter.on_create_workitem()
+          Adapter.on_create_workitem()
   def create_workitem(application, workitem_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -357,7 +324,7 @@ defmodule WorkflowMetal.Storage do
 
   @doc false
   @spec fetch_workitems(application, task_id) ::
-          WorkflowMetal.Storage.Adapter.on_fetch_workitems()
+          Adapter.on_fetch_workitems()
   def fetch_workitems(application, task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
@@ -368,12 +335,8 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec update_workitem(
-          application,
-          workitem_id,
-          WorkflowMetal.Storage.Adapter.update_workitem_params()
-        ) ::
-          WorkflowMetal.Storage.Adapter.on_update_workitem()
+  @spec update_workitem(application, workitem_id, Adapter.update_workitem_params()) ::
+          Adapter.on_update_workitem()
   def update_workitem(application, workitem_id, update_workitem_params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 

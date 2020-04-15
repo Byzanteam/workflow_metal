@@ -17,7 +17,12 @@ defmodule WorkflowMetal.Controller.Split.And do
       }
     } = task_data
 
-    {:ok, arcs} = WorkflowMetal.Storage.fetch_arcs(application, transition_id, :out)
+    {:ok, arcs} =
+      WorkflowMetal.Storage.fetch_arcs(
+        application,
+        {:transition, transition_id},
+        :out
+      )
 
     {
       :ok,
