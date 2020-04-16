@@ -285,6 +285,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_workitem(adapter_meta, workitem_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_workitem, workitem_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_workitems(adapter_meta, task_id) do
     storage = storage_name(adapter_meta)
 
@@ -766,6 +773,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
           task_id: task_schema.id
         )
       end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_workitem, workitem_id},
+        _from,
+        %State{} = state
+      ) do
+    reply = find_workitem(workitem_id, state)
 
     {:reply, reply, state}
   end

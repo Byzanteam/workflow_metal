@@ -323,6 +323,18 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec fetch_workitem(application, workitem_id) ::
+          Adapter.on_fetch_workitem()
+  def fetch_workitem(application, workitem_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_workitem(
+      adapter_meta,
+      workitem_id
+    )
+  end
+
+  @doc false
   @spec fetch_workitems(application, task_id) ::
           Adapter.on_fetch_workitems()
   def fetch_workitems(application, task_id) do
