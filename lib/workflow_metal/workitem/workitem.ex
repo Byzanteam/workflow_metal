@@ -375,6 +375,6 @@ defmodule WorkflowMetal.Workitem.Workitem do
       }
     } = data
 
-    "Workitem<#{workitem_id}@#{workflow_id}/#{transition_id}/#{case_id}/#{task_id}>"
+    "Workitem<#{workitem_id}@#{workflow_id}.#{transition_id}.#{case_id}.#{task_id}>"
   end
 end

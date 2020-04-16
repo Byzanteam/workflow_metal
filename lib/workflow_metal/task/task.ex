@@ -843,7 +843,7 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    "Task<#{task_id}@#{workflow_id}/#{transition_id}/#{case_id}>"
+    "Task<#{task_id}@#{workflow_id}.#{transition_id}.#{case_id}>"
   end
 
   defp case_server(%__MODULE__{} = data) do
