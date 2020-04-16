@@ -582,7 +582,7 @@ defmodule WorkflowMetal.Task.Task do
       {:ok, _} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(
           application,
-          workitem_schema
+          workitem_schema.id
         )
     end)
 
@@ -631,7 +631,7 @@ defmodule WorkflowMetal.Task.Task do
           {:ok, _} =
             WorkflowMetal.Workitem.Supervisor.open_workitem(
               application,
-              workitem_schema
+              workitem_schema.id
             )
         end)
 
@@ -667,7 +667,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, _} =
       WorkflowMetal.Workitem.Supervisor.open_workitem(
         application,
-        workitem_schema
+        workitem_schema.id
       )
 
     {:ok, data}

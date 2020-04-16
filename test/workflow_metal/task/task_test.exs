@@ -218,7 +218,7 @@ defmodule WorkflowMetal.Task.TaskTest do
       {:ok, _pid} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(
           DummyApplication,
-          workitem
+          workitem.id
         )
 
       :ok =

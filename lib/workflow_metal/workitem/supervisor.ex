@@ -10,7 +10,7 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
+  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -35,24 +35,29 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   end
 
   @doc """
-  Open a workitem(`GenServer').
+  Open a workitem(`:gen_statem').
   """
-  @spec open_workitem(application, workitem_schema) ::
+  @spec open_workitem(application, workitem_id) ::
           WorkflowMetal.Registration.Adapter.on_start_child()
-  def open_workitem(application, workitem_schema) do
-    workitem_supervisor = via_name(application, workitem_schema.workflow_id)
+          | {:error, :workitem_not_found}
+  def open_workitem(application, workitem_id) do
+    with(
+      {:ok, workitem_schema} <- WorkflowMetal.Storage.fetch_workitem(application, workitem_id)
+    ) do
+      workitem_supervisor = via_name(application, workitem_schema.workflow_id)
 
-    workitem_spec = {
-      WorkflowMetal.Workitem.Workitem,
-      [workitem_schema: workitem_schema]
-    }
+      workitem_spec = {
+        WorkflowMetal.Workitem.Workitem,
+        [workitem_schema: workitem_schema]
+      }
 
-    Registration.start_child(
-      application,
-      WorkflowMetal.Workitem.Workitem.name(workitem_schema),
-      workitem_supervisor,
-      workitem_spec
-    )
+      Registration.start_child(
+        application,
+        WorkflowMetal.Workitem.Workitem.name(workitem_schema),
+        workitem_supervisor,
+        workitem_spec
+      )
+    end
   end
 
   defp via_name(application, workflow_id) do
