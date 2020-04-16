@@ -271,11 +271,7 @@ defmodule WorkflowMetal.Task.Task do
         :started,
         %__MODULE__{} = data
       ) do
-    %{
-      token_table: token_table
-    } = data
-
-    insert_token(token_schema, token_table)
+    {:ok, data} = upsert_ets_token(token_schema, data)
 
     {
       :keep_state,
@@ -297,14 +293,11 @@ defmodule WorkflowMetal.Task.Task do
         :started,
         %__MODULE__{} = data
       ) do
-    %{
-      token_table: token_table
-    } = data
-
-    remove_token(token_schema, token_table)
+    {:ok, data} = remove_ets_token(token_schema, data)
 
     {
-      :keep_state_and_data,
+      :keep_state,
+      data,
       {:next_event, :cast, :force_abandon}
     }
   end
@@ -450,7 +443,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event({:call, from}, :lock_tokens, :started, %__MODULE__{} = data) do
     with(
       {:ok, token_ids} <- JoinController.task_enablement(data),
-      {:ok, locked_token_schemas, data} <- do_lock_tokens(data, token_ids)
+      {:ok, locked_token_schemas, data} <- do_lock_tokens(token_ids, data)
     ) do
       {
         :next_state,
@@ -506,17 +499,19 @@ defmodule WorkflowMetal.Task.Task do
       application: application,
       task_schema: %Schema.Task{
         id: task_id
-      },
-      workitem_table: workitem_table
+      }
     } = data
 
     {:ok, workitems} = WorkflowMetal.Storage.fetch_workitems(application, task_id)
 
-    Enum.each(workitems, fn workitem ->
-      upsert_workitem(workitem, workitem_table)
-    end)
-
-    {:ok, data}
+    {:ok, _data} =
+      Enum.reduce(
+        workitems,
+        {:ok, data},
+        fn workitem, {:ok, data} ->
+          upsert_ets_workitem(workitem, data)
+        end
+      )
   end
 
   defp fetch_transition(%__MODULE__{} = data) do
@@ -552,8 +547,7 @@ defmodule WorkflowMetal.Task.Task do
       task_schema: %Schema.Task{
         id: task_id,
         case_id: case_id
-      },
-      token_table: token_table
+      }
     } = data
 
     {:ok, locked_token_schemas} =
@@ -564,7 +558,14 @@ defmodule WorkflowMetal.Task.Task do
         locked_by_task_id: task_id
       )
 
-    Enum.each(locked_token_schemas, &insert_token(&1, token_table))
+    {:ok, data} =
+      Enum.reduce(
+        locked_token_schemas,
+        {:ok, data},
+        fn token_schema, {:ok, data} ->
+          upsert_ets_token(token_schema, data)
+        end
+      )
 
     {:ok, data}
   end
@@ -649,8 +650,7 @@ defmodule WorkflowMetal.Task.Task do
         workflow_id: workflow_id,
         transition_id: transition_id,
         case_id: case_id
-      },
-      workitem_table: workitem_table
+      }
     } = data
 
     workitem_params = %Schema.Workitem.Params{
@@ -662,7 +662,7 @@ defmodule WorkflowMetal.Task.Task do
 
     {:ok, workitem_schema} = WorkflowMetal.Storage.create_workitem(application, workitem_params)
 
-    upsert_workitem(workitem_schema, workitem_table)
+    {:ok, data} = upsert_ets_workitem(workitem_schema, data)
 
     {:ok, _} =
       WorkflowMetal.Workitem.Supervisor.open_workitem(
@@ -673,12 +673,11 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, data}
   end
 
-  defp do_lock_tokens(%__MODULE__{} = data, token_ids) do
+  defp do_lock_tokens(token_ids, %__MODULE__{} = data) do
     %{
       task_schema: %Schema.Task{
         id: task_id
-      },
-      token_table: token_table
+      }
     } = data
 
     with(
@@ -689,7 +688,14 @@ defmodule WorkflowMetal.Task.Task do
           task_id
         )
     ) do
-      Enum.each(token_ids, &:ets.update_element(token_table, &1, [{3, :locked}]))
+      {:ok, data} =
+        Enum.reduce(
+          locked_token_schemas,
+          {:ok, data},
+          fn token_schema, {:ok, data} ->
+            upsert_ets_token(token_schema, data)
+          end
+        )
 
       {:ok, locked_token_schemas, data}
     end
@@ -810,7 +816,7 @@ defmodule WorkflowMetal.Task.Task do
             workitem
           )
 
-        upsert_workitem(%{workitem | state: :abandoned}, workitem_table)
+        {:ok, _data} = upsert_ets_workitem(%{workitem | state: :abandoned}, data)
 
         :ok = WorkflowMetal.Workitem.Workitem.abandon(workitem_server)
 
@@ -821,16 +827,36 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, data}
   end
 
-  defp insert_token(%Schema.Token{} = token_schema, token_table) do
-    :ets.insert(token_table, {token_schema.id, token_schema, token_schema.state})
+  defp upsert_ets_token(%Schema.Token{} = token_schema, %__MODULE__{} = data) do
+    %{token_table: token_table} = data
+
+    true =
+      :ets.insert(token_table, {
+        token_schema.id,
+        token_schema,
+        token_schema.state
+      })
+
+    {:ok, data}
   end
 
-  defp remove_token(%Schema.Token{} = token_schema, token_table) do
-    :ets.delete(token_table, token_schema.id)
+  defp remove_ets_token(%Schema.Token{} = token_schema, %__MODULE__{} = data) do
+    %{token_table: token_table} = data
+    true = :ets.delete(token_table, token_schema.id)
+
+    {:ok, data}
   end
 
-  defp upsert_workitem(%Schema.Workitem{} = workitem, workitem_table) do
-    :ets.insert(workitem_table, {workitem.id, workitem, workitem.state})
+  defp upsert_ets_workitem(%Schema.Workitem{} = workitem, %__MODULE__{} = data) do
+    %{workitem_table: workitem_table} = data
+
+    true =
+      :ets.insert(
+        workitem_table,
+        {workitem.id, workitem, workitem.state}
+      )
+
+    {:ok, data}
   end
 
   defp describe(%__MODULE__{} = data) do

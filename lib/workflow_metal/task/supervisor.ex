@@ -40,17 +40,13 @@ defmodule WorkflowMetal.Task.Supervisor do
   """
   @spec open_task(application, task_id) ::
           WorkflowMetal.Registration.Adapter.on_start_child()
-          | {:error, :case_not_found}
           | {:error, :task_not_found}
   def open_task(application, task_id) do
-    with(
-      {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
+    with({:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id)) do
       %{
-        workflow_id: workflow_id,
-        case_id: case_id
-      } = task_schema,
-      {:ok, _} <- WorkflowMetal.Case.Supervisor.open_case(application, case_id)
-    ) do
+        workflow_id: workflow_id
+      } = task_schema
+
       task_supervisor = via_name(application, workflow_id)
       task_spec = {WorkflowMetal.Task.Task, [task_schema: task_schema]}
 

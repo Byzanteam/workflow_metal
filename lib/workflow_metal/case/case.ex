@@ -231,11 +231,11 @@ defmodule WorkflowMetal.Case.Case do
   @impl GenStateMachine
   def handle_event(
         :internal,
-        {:withdraw_tokens, locked_token_schemas, except_task_id},
+        {:revoke_tokens, locked_token_schemas, except_task_id},
         :active,
         %__MODULE__{} = data
       ) do
-    {:ok, data} = do_withdraw_tokens(locked_token_schemas, except_task_id, data)
+    {:ok, data} = do_revoke_tokens(locked_token_schemas, except_task_id, data)
 
     {:keep_state, data}
   end
@@ -284,7 +284,7 @@ defmodule WorkflowMetal.Case.Case do
           data,
           [
             {:reply, from, {:ok, locked_token_schemas}},
-            {:next_event, :internal, {:withdraw_tokens, locked_token_schemas, task_id}}
+            {:next_event, :internal, {:revoke_tokens, locked_token_schemas, task_id}}
           ]
         }
 
@@ -372,8 +372,7 @@ defmodule WorkflowMetal.Case.Case do
       application: application,
       case_schema: %Schema.Case{
         id: case_id
-      },
-      token_table: token_table
+      }
     } = data
 
     with(
@@ -383,11 +382,11 @@ defmodule WorkflowMetal.Case.Case do
       free_token_ids =
         Enum.reduce(tokens, MapSet.new(), fn
           %Schema.Token{state: :free} = token, acc ->
-            :ok = insert_token(token, token_table)
+            {:ok, _data} = upsert_ets_token(token, data)
             MapSet.put(acc, token.id)
 
           %Schema.Token{state: :locked} = token, acc ->
-            :ok = insert_token(token, token_table)
+            {:ok, _data} = upsert_ets_token(token, data)
             acc
         end)
 
@@ -484,32 +483,14 @@ defmodule WorkflowMetal.Case.Case do
 
   defp do_issue_token(token_params, %__MODULE__{} = data) do
     %{
-      application: application,
-      token_table: token_table
+      application: application
     } = data
 
     {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_params)
 
-    :ok = insert_token(token_schema, token_table)
+    {:ok, _data} = upsert_ets_token(token_schema, data)
 
     {:ok, token_schema}
-  end
-
-  defp insert_token(%Schema.Token{} = token, token_table) do
-    %{
-      id: token_id,
-      state: state,
-      locked_by_task_id: locked_by_task_id,
-      consumed_by_task_id: consumed_by_task_id
-    } = token
-
-    true =
-      :ets.insert(
-        token_table,
-        {token_id, token, state, locked_by_task_id, consumed_by_task_id}
-      )
-
-    :ok
   end
 
   defp do_issue_tokens(token_params_list, %__MODULE__{} = data) do
@@ -607,7 +588,6 @@ defmodule WorkflowMetal.Case.Case do
   defp do_lock_tokens(token_ids, task_id, %__MODULE__{} = data) do
     %{
       application: application,
-      token_table: token_table,
       free_token_ids: free_token_ids
     } = data
 
@@ -619,13 +599,14 @@ defmodule WorkflowMetal.Case.Case do
           task_id
         )
 
-      Enum.each(locked_token_schemas, fn locked_token ->
-        :ets.update_element(token_table, locked_token.id, [
-          {2, locked_token},
-          {3, locked_token.state},
-          {4, locked_token.locked_by_task_id}
-        ])
-      end)
+      {:ok, data} =
+        Enum.reduce(
+          locked_token_schemas,
+          {:ok, data},
+          fn token_schema, {:ok, data} ->
+            upsert_ets_token(token_schema, data)
+          end
+        )
 
       free_token_ids = MapSet.difference(free_token_ids, token_ids)
 
@@ -689,15 +670,15 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, data}
   end
 
-  defp do_withdraw_tokens(locked_token_schemas, except_task_id, %__MODULE__{} = data) do
+  defp do_revoke_tokens(locked_token_schemas, except_task_id, %__MODULE__{} = data) do
     Enum.each(locked_token_schemas, fn locked_token ->
-      :ok = do_withdraw_token(locked_token, except_task_id, data)
+      :ok = do_revoke_token(locked_token, except_task_id, data)
     end)
 
     {:ok, data}
   end
 
-  defp do_withdraw_token(%Schema.Token{} = token_schema, except_task_id, %__MODULE__{} = data) do
+  defp do_revoke_token(%Schema.Token{} = token_schema, except_task_id, %__MODULE__{} = data) do
     %{
       application: application,
       token_table: token_table
@@ -786,6 +767,26 @@ defmodule WorkflowMetal.Case.Case do
         :ok = WorkflowMetal.Task.Task.offer_token(task_server, token_schema)
       end)
     end
+
+    {:ok, data}
+  end
+
+  defp upsert_ets_token(%Schema.Token{} = token_schema, %__MODULE__{} = data) do
+    %{
+      token_table: token_table
+    } = data
+
+    true =
+      :ets.insert(
+        token_table,
+        {
+          token_schema.id,
+          token_schema,
+          token_schema.state,
+          token_schema.locked_by_task_id,
+          token_schema.consumed_by_task_id
+        }
+      )
 
     {:ok, data}
   end
