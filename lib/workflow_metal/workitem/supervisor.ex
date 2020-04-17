@@ -7,12 +7,15 @@ defmodule WorkflowMetal.Workitem.Supervisor do
 
   alias WorkflowMetal.Registration
 
+  alias WorkflowMetal.Storage.Schema
+
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
 
-  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+  @type workflow_id :: Schema.Workflow.id()
 
-  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
+  @type workitem_id :: Schema.Workitem.id()
+  @type workitem_schema :: Schema.Workitem.t()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -39,26 +42,50 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   @doc """
   Open a workitem(`:gen_statem').
   """
-  @spec open_workitem(application, workitem_id) ::
+  @spec open_workitem(application, workitem_schema | workitem_id) ::
           WorkflowMetal.Registration.Adapter.on_start_child()
           | {:error, :workitem_not_found}
+  def open_workitem(application, %Schema.Workitem{} = workitem_schema) do
+    workitem_supervisor = via_name(application, workitem_schema.workflow_id)
+
+    workitem_spec = {
+      WorkflowMetal.Workitem.Workitem,
+      [workitem_schema: workitem_schema]
+    }
+
+    Registration.start_child(
+      application,
+      WorkflowMetal.Workitem.Workitem.name(workitem_schema),
+      workitem_supervisor,
+      workitem_spec
+    )
+  end
+
   def open_workitem(application, workitem_id) do
     with(
       {:ok, workitem_schema} <- WorkflowMetal.Storage.fetch_workitem(application, workitem_id)
     ) do
-      workitem_supervisor = via_name(application, workitem_schema.workflow_id)
+      open_workitem(application, workitem_schema)
+    end
+  end
 
-      workitem_spec = {
-        WorkflowMetal.Workitem.Workitem,
-        [workitem_schema: workitem_schema]
-      }
-
-      Registration.start_child(
-        application,
-        WorkflowMetal.Workitem.Workitem.name(workitem_schema),
-        workitem_supervisor,
-        workitem_spec
-      )
+  @doc """
+  Abandon a workitem.
+  """
+  @spec abandon_workitem(application, workitem_id) ::
+          :ok
+          | {:error, :workitem_not_found}
+  def abandon_workitem(application, workitem_id) do
+    with(
+      {:ok, %Schema.Workitem{state: workitem_state} = workitem_schema}
+      when workitem_state in [:created, :started] <-
+        WorkflowMetal.Storage.fetch_workitem(application, workitem_id),
+      {:ok, workitem_server} <- open_workitem(application, workitem_schema)
+    ) do
+      WorkflowMetal.Workitem.Workitem.abandon(workitem_server)
+    else
+      {:ok, %Schema.Workitem{}} -> :ok
+      reply -> reply
     end
   end
 

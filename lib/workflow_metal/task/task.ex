@@ -7,7 +7,7 @@ defmodule WorkflowMetal.Task.Task do
       {token_id, token_schema, token_state}
 
   The data of `:workitem_table` is stored in ETS in the following format:
-      {workitem_id, workitem_schema, workitem_state}
+      {workitem_id, workitem_state}
 
   ## State
 
@@ -386,14 +386,7 @@ defmodule WorkflowMetal.Task.Task do
         :executing,
         %__MODULE__{} = data
       ) do
-    %{
-      workitem_table: workitem_table
-    } = data
-
-    workitem = :ets.lookup_element(workitem_table, workitem_id, 2)
-    workitem = %{workitem | state: workitem_state}
-
-    {:ok, data} = upsert_ets_workitem(workitem, data)
+    {:ok, data} = upsert_ets_workitem({workitem_id, workitem_state}, data)
 
     {
       :keep_state,
@@ -545,12 +538,12 @@ defmodule WorkflowMetal.Task.Task do
     } = data
 
     workitem_table
-    |> :ets.select([{{:_, :"$1", :created}, [], [:"$1"]}])
-    |> Enum.each(fn workitem_schema ->
+    |> :ets.select([{{:"$1", :created}, [], [:"$1"]}])
+    |> Enum.each(fn workitem_id ->
       {:ok, _} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(
           application,
-          workitem_schema.id
+          workitem_id
         )
     end)
 
@@ -582,7 +575,7 @@ defmodule WorkflowMetal.Task.Task do
     workitem_table
     |> :ets.select([
       {
-        {:_, :"$1", :"$2"},
+        {:"$1", :"$2"},
         [
           {
             :orelse,
@@ -594,12 +587,12 @@ defmodule WorkflowMetal.Task.Task do
       }
     ])
     |> case do
-      [_ | _] = workitem_schemas ->
-        Enum.each(workitem_schemas, fn workitem_schema ->
+      [_ | _] = workitem_ids ->
+        Enum.each(workitem_ids, fn workitem_id ->
           {:ok, _} =
             WorkflowMetal.Workitem.Supervisor.open_workitem(
               application,
-              workitem_schema.id
+              workitem_id
             )
         end)
 
@@ -674,8 +667,8 @@ defmodule WorkflowMetal.Task.Task do
     |> Map.fetch!(:workitem_table)
     |> :ets.tab2list()
     |> Enum.all?(fn
-      {_workitem_id, _workitem, :completed} -> true
-      {_workitem_id, _workitem, :abandoned} -> true
+      {_workitem_id, :completed} -> true
+      {_workitem_id, :abandoned} -> true
       _ -> false
     end)
     |> case do
@@ -746,7 +739,7 @@ defmodule WorkflowMetal.Task.Task do
 
     workitem_table
     |> :ets.tab2list()
-    |> Enum.all?(fn {_workitem_id, _workitem, workitem_state} ->
+    |> Enum.all?(fn {_workitem_id, workitem_state} ->
       workitem_state === :abandoned
     end)
     |> case do
@@ -777,16 +770,9 @@ defmodule WorkflowMetal.Task.Task do
     workitem_table
     |> :ets.tab2list()
     |> Enum.each(fn
-      {_workitem_id, workitem, state} when state in [:created, :started] ->
-        workitem_server =
-          WorkflowMetal.Workitem.Workitem.via_name(
-            application,
-            workitem
-          )
-
-        {:ok, _data} = upsert_ets_workitem(%{workitem | state: :abandoned}, data)
-
-        :ok = WorkflowMetal.Workitem.Workitem.abandon(workitem_server)
+      {workitem_id, state} when state in [:created, :started] ->
+        :ok = WorkflowMetal.Workitem.Supervisor.abandon_workitem(application, workitem_id)
+        {:ok, _data} = upsert_ets_workitem({workitem_id, :abandoned}, data)
 
       _ ->
         :skip
@@ -817,12 +803,14 @@ defmodule WorkflowMetal.Task.Task do
 
   defp upsert_ets_workitem(%Schema.Workitem{} = workitem, %__MODULE__{} = data) do
     %{workitem_table: workitem_table} = data
+    true = :ets.insert(workitem_table, {workitem.id, workitem.state})
 
-    true =
-      :ets.insert(
-        workitem_table,
-        {workitem.id, workitem, workitem.state}
-      )
+    {:ok, data}
+  end
+
+  defp upsert_ets_workitem({workitem_id, workitem_state}, %__MODULE__{} = data) do
+    %{workitem_table: workitem_table} = data
+    true = :ets.insert(workitem_table, {workitem_id, workitem_state})
 
     {:ok, data}
   end
