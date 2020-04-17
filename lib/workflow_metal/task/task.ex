@@ -22,6 +22,8 @@ defmodule WorkflowMetal.Task.Task do
 
   require Logger
 
+  alias WorkflowMetal.Utils.ETS, as: ETSUtil
+
   use GenStateMachine,
     callback_mode: [:handle_event_function, :state_enter],
     restart: :temporary
@@ -118,18 +120,15 @@ defmodule WorkflowMetal.Task.Task do
   @doc false
   @spec via_name(application, task_schema) :: term()
   def via_name(application, %Schema.Task{} = task_schema) do
-    WorkflowMetal.Registration.via_tuple(
-      application,
-      name(task_schema)
-    )
+    WorkflowMetal.Registration.via_tuple(application, name(task_schema))
   end
 
   @doc """
   Offer a token.
   """
-  @spec offer_token(:gen_statem.server_ref(), token_schema) :: :ok
-  def offer_token(task_server, token_schema) do
-    GenStateMachine.cast(task_server, {:offer_token, token_schema})
+  @spec offer_tokens(:gen_statem.server_ref(), [token_schema]) :: :ok
+  def offer_tokens(task_server, token_schemas) do
+    GenStateMachine.cast(task_server, {:offer_tokens, token_schemas})
   end
 
   @doc """
@@ -170,7 +169,7 @@ defmodule WorkflowMetal.Task.Task do
     } = task_schema
 
     if state in [:abandoned, :completed] do
-      {:stop, :normal}
+      {:stop, :task_not_available}
     else
       {
         :ok,
@@ -193,14 +192,14 @@ defmodule WorkflowMetal.Task.Task do
         {
           :keep_state,
           data,
-          {:state_timeout, 0, :restore_from_started}
+          {:state_timeout, 0, :start_on_started}
         }
 
       :executing ->
         {
           :keep_state,
           data,
-          {:state_timeout, 0, :restore_from_executing}
+          {:state_timeout, 0, :start_on_executing}
         }
     end
   end
@@ -228,7 +227,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :restore_from_started, :started, %__MODULE__{} = data) do
+  def handle_event(:state_timeout, :start_on_started, :started, %__MODULE__{} = data) do
     {:ok, data} = fetch_workitems(data)
     {:ok, data} = fetch_transition(data)
     {:ok, data} = request_free_tokens(data)
@@ -241,7 +240,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :restore_from_executing, :executing, %__MODULE__{} = data) do
+  def handle_event(:state_timeout, :start_on_executing, :executing, %__MODULE__{} = data) do
     {:ok, data} = fetch_workitems(data)
     {:ok, data} = fetch_transition(data)
     {:ok, data} = fetch_locked_tokens(data)
@@ -490,14 +489,14 @@ defmodule WorkflowMetal.Task.Task do
 
   defp request_free_tokens(%__MODULE__{} = data) do
     %{
+      application: application,
       task_schema: %Schema.Task{
-        id: task_id
+        id: task_id,
+        case_id: case_id
       }
     } = data
 
-    case_server = case_server(data)
-
-    :ok = WorkflowMetal.Case.Case.request_free_tokens(case_server, task_id)
+    :ok = WorkflowMetal.Case.Supervisor.request_free_tokens(application, case_id, task_id)
 
     {:ok, data}
   end
@@ -576,13 +575,7 @@ defmodule WorkflowMetal.Task.Task do
     |> :ets.select([
       {
         {:"$1", :"$2"},
-        [
-          {
-            :orelse,
-            {:"=:=", :"$2", :created},
-            {:"=:=", :"$2", :started}
-          }
-        ],
+        [ETSUtil.make_condition([:created, :started], :"$2", :in)],
         [:"$1"]
       }
     ])

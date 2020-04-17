@@ -16,6 +16,7 @@ defmodule WorkflowMetal.Task.Supervisor do
 
   @type task_id :: Schema.Task.id()
   @type task_schema :: Schema.Task.t()
+  @type token_schema :: Schema.Token.t()
   @type workitem_schema :: Schema.Workitem.t()
 
   @doc false
@@ -80,15 +81,33 @@ defmodule WorkflowMetal.Task.Supervisor do
   end
 
   @doc """
+  Offer tokens to a task.
+  """
+  @spec offer_tokens(application, task_id, [token_schema], open_task: boolean()) :: :ok
+  def offer_tokens(application, task_id, token_schemas, options \\ [])
+  def offer_tokens(_application, _task_id, [], _options), do: :ok
+
+  def offer_tokens(application, task_id, token_schemas, options) do
+    if Keyword.get(options, :open_task) do
+      with({:ok, task_server} <- open_task(application, task_id)) do
+        WorkflowMetal.Task.Task.offer_tokens(task_server, token_schemas)
+      end
+    else
+      case whereis_child(application, task_id) do
+        :undefined -> :ok
+        task_server -> WorkflowMetal.Task.Task.offer_tokens(task_server, token_schemas)
+      end
+    end
+  end
+
+  @doc """
   Update workitem state.
   """
   @spec update_workitem(application, task_id, workitem_schema) :: :ok
   def update_workitem(application, task_id, workitem_schema) do
     with(
       {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
-      task_server_name = WorkflowMetal.Task.Task.name(task_schema),
-      task_server when is_pid(task_server) <-
-        WorkflowMetal.Registration.whereis_name(application, task_server_name)
+      task_server when task_server !== :undefined <- whereis_child(application, task_schema)
     ) do
       WorkflowMetal.Task.Task.update_workitem(
         task_server,
@@ -104,5 +123,20 @@ defmodule WorkflowMetal.Task.Supervisor do
 
   defp via_name(application, workflow_id) do
     Registration.via_tuple(application, name(workflow_id))
+  end
+
+  defp whereis_child(application, %Schema.Task{} = task) do
+    WorkflowMetal.Registration.whereis_name(
+      application,
+      WorkflowMetal.Task.Task.name(task)
+    )
+  end
+
+  defp whereis_child(application, task_id) do
+    with({:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id)) do
+      whereis_child(application, task_schema)
+    else
+      _ -> :undefined
+    end
   end
 end

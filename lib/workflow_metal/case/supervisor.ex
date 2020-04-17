@@ -9,11 +9,14 @@ defmodule WorkflowMetal.Case.Supervisor do
   alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow :: WorkflowMetal.Storage.Schema.Workflow.t()
-  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
+
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
+
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
 
   alias WorkflowMetal.Application.WorkflowsSupervisor
 
@@ -32,10 +35,10 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @impl true
-  def init({application, workflow}) do
+  def init({application, workflow_id}) do
     DynamicSupervisor.init(
       strategy: :one_for_one,
-      extra_arguments: [{application, workflow}]
+      extra_arguments: [{application, workflow_id}]
     )
   end
 
@@ -71,6 +74,20 @@ defmodule WorkflowMetal.Case.Supervisor do
         case_supervisor,
         case_spec
       )
+    end
+  end
+
+  @doc """
+  Request free tokens whchi should offer to the task.
+
+  This usually happens afetr a task restore from the storage.
+  """
+  @spec request_free_tokens(application, case_id, task_id) ::
+          :ok
+          | {:error, :case_not_found}
+  def request_free_tokens(application, case_id, task_id) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.offer_tokens_to_task(case_server, task_id)
     end
   end
 

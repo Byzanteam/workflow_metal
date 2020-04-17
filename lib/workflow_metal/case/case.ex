@@ -4,7 +4,7 @@ defmodule WorkflowMetal.Case.Case do
 
   ## Storage
   The data of `:token_table` is stored in ETS in the following format:
-      {token_id, token_schema, token_state, locked_by_task_id, consumed_by_task_id}
+      {token_id, token_schema, token_state, place_id, locked_by_task_id, consumed_by_task_id}
 
   ## State
 
@@ -16,6 +16,8 @@ defmodule WorkflowMetal.Case.Case do
       +---------->canceled
   ```
   """
+
+  alias WorkflowMetal.Utils.ETS, as: ETSUtil
 
   alias WorkflowMetal.Storage.Schema
 
@@ -121,11 +123,13 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @doc """
-  Request free tokens when a task restore from storage.
+  Offer tokens to the task.
+
+  eg: request free tokens when a task restore from storage.
   """
-  @spec request_free_tokens(:gen_statem.server_ref(), task_id) :: :ok
-  def request_free_tokens(case_server, task_id) do
-    GenStateMachine.cast(case_server, {:request_free_tokens, task_id})
+  @spec offer_tokens_to_task(:gen_statem.server_ref(), task_id) :: :ok
+  def offer_tokens_to_task(case_server, task_id) do
+    GenStateMachine.cast(case_server, {:offer_tokens_to_task, task_id})
   end
 
   # Server (callbacks)
@@ -356,8 +360,8 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, {:request_free_tokens, task_id}, :active, %__MODULE__{} = data) do
-    {:ok, data} = do_request_free_tokens(task_id, data)
+  def handle_event(:cast, {:offer_tokens_to_task, task_id}, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_offer_tokens_to_task(task_id, data)
 
     {:keep_state, data}
   end
@@ -736,7 +740,7 @@ defmodule WorkflowMetal.Case.Case do
     )
   end
 
-  defp do_request_free_tokens(task_id, %__MODULE__{} = data) do
+  defp do_offer_tokens_to_task(task_id, %__MODULE__{} = data) do
     %{
       application: application,
       token_table: token_table
@@ -744,28 +748,59 @@ defmodule WorkflowMetal.Case.Case do
 
     with(
       {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
-      %Schema.Task{state: :started} <- task_schema,
-      task_server_name = WorkflowMetal.Task.Task.name(task_schema),
-      task_server when task_server !== :undefined <-
-        WorkflowMetal.Registration.whereis_name(application, task_server_name)
+      %Schema.Task{state: :started} <- task_schema
     ) do
-      token_table
-      |> :ets.select([
-        {
-          {:_, :"$1", :"$2", :"$3", :_},
-          [
+      %Schema.Task{
+        transition_id: transition_id
+      } = task_schema
+
+      {:ok, arcs} =
+        WorkflowMetal.Storage.fetch_arcs(
+          application,
+          {:transition, transition_id},
+          :in
+        )
+
+      arcs
+      |> Enum.map(& &1.place_id)
+      |> case do
+        [] ->
+          []
+
+        [_ | _] = place_ids ->
+          token_table
+          |> :ets.select([
             {
-              :orelse,
-              {:andalso, {:"=:=", :"$2", :locked}, {:"=:=", :"$3", task_id}},
-              {:"=:=", :"$2", :free}
+              {:_, :"$1", :"$2", :"$3", :"$4", :_},
+              [
+                ETSUtil.make_or([
+                  ETSUtil.make_and([
+                    ETSUtil.make_condition(:locked, :"$2", :"=:="),
+                    ETSUtil.make_condition(task_id, :"$4", :"=:=")
+                  ]),
+                  ETSUtil.make_and([
+                    ETSUtil.make_condition(:free, :"$2", :"=:="),
+                    ETSUtil.make_condition(place_ids, :"$4", :in)
+                  ])
+                ])
+              ],
+              [:"$1"]
             }
-          ],
-          [:"$1"]
-        }
-      ])
-      |> Enum.each(fn token_schema ->
-        :ok = WorkflowMetal.Task.Task.offer_token(task_server, token_schema)
-      end)
+          ])
+      end
+      |> case do
+        [] ->
+          :skip
+
+        tokens ->
+          :ok =
+            WorkflowMetal.Task.Supervisor.offer_tokens(
+              application,
+              task_schema.id,
+              tokens,
+              open_task: false
+            )
+      end
     end
 
     {:ok, data}
