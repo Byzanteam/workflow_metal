@@ -9,7 +9,9 @@ defmodule WorkflowMetal.Workitem.Supervisor do
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
+
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
 
   @doc false

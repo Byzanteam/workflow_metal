@@ -47,7 +47,10 @@ defmodule WorkflowMetal.Task.Task do
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
+  @type workitem_state :: WorkflowMetal.Storage.Schema.Workitem.state()
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
 
   @type t :: %__MODULE__{
           application: application,
@@ -151,19 +154,11 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @doc """
-  Mark a workitem completed.
+  Update the state of a workitem in the workitem_table.
   """
-  @spec complete_workitem(:gen_statem.server_ref(), workitem_id) :: :ok
-  def complete_workitem(task_server, workitem_id) do
-    GenStateMachine.cast(task_server, {:complete_workitem, workitem_id})
-  end
-
-  @doc """
-  Mark a workitem abandoned.
-  """
-  @spec abandon_workitem(:gen_statem.server_ref(), workitem_id) :: :ok
-  def abandon_workitem(task_server, workitem_id) do
-    GenStateMachine.cast(task_server, {:abandon_workitem, workitem_id})
+  @spec update_workitem(:gen_statem.server_ref(), workitem_id, workitem_state) :: :ok
+  def update_workitem(task_server, workitem_id, workitem_state) do
+    GenStateMachine.cast(task_server, {:update_workitem, workitem_id, workitem_state})
   end
 
   # callbacks
@@ -387,7 +382,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event(
         :cast,
-        {:complete_workitem, workitem_id},
+        {:update_workitem, workitem_id, workitem_state},
         :executing,
         %__MODULE__{} = data
       ) do
@@ -395,42 +390,15 @@ defmodule WorkflowMetal.Task.Task do
       workitem_table: workitem_table
     } = data
 
-    :ets.update_element(
-      workitem_table,
-      workitem_id,
-      [
-        {3, :completed}
-      ]
-    )
+    workitem = :ets.lookup_element(workitem_table, workitem_id, 2)
+    workitem = %{workitem | state: workitem_state}
+
+    {:ok, data} = upsert_ets_workitem(workitem, data)
 
     {
-      :keep_state_and_data,
+      :keep_state,
+      data,
       {:next_event, :cast, :complete}
-    }
-  end
-
-  @impl GenStateMachine
-  def handle_event(
-        :cast,
-        {:abandon_workitem, workitem_id},
-        :executing,
-        %__MODULE__{} = data
-      ) do
-    %{
-      workitem_table: workitem_table
-    } = data
-
-    :ets.update_element(
-      workitem_table,
-      workitem_id,
-      [
-        {3, :abandoned}
-      ]
-    )
-
-    {
-      :keep_state_and_data,
-      {:next_event, :cast, :abandon}
     }
   end
 

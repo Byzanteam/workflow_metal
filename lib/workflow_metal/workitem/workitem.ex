@@ -23,6 +23,10 @@ defmodule WorkflowMetal.Workitem.Workitem do
       |               v
       +---------->abandoned
   ```
+
+  ## Restore
+
+  Restore itself only.
   """
 
   require Logger
@@ -40,11 +44,13 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
+
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
@@ -52,6 +58,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
           name: term(),
           workitem_schema: workitem_schema
         ]
+
+  @type on_complete :: :ok | {:error, :workitem_not_available}
 
   @doc false
   @spec start_link(workflow_identifier, options) :: :gen_statem.start_ret()
@@ -106,8 +114,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @doc """
   Complete a workitem.
   """
-  @spec complete(:gen_statem.server_ref(), workitem_output) ::
-          :ok | {:error, :workitem_not_available}
+  @spec complete(:gen_statem.server_ref(), workitem_output) :: on_complete
   def complete(workitem_server, output) do
     GenStateMachine.call(workitem_server, {:complete, output})
   end
@@ -129,7 +136,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     } = workitem_schema
 
     if state in [:completed, :abandoned] do
-      {:stop, :normal}
+      {:stop, :workitem_not_available}
     else
       {
         :ok,
@@ -148,7 +155,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       :created ->
         {
           :keep_state_and_data,
-          {:state_timeout, 0, :start_at_created}
+          {:state_timeout, 0, :start_on_created}
         }
 
       _ ->
@@ -158,11 +165,12 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   @impl GenStateMachine
   def handle_event(:enter, old_state, state, %__MODULE__{} = data) do
+    {:ok, data} = update_workitem_in_task_server(data)
+
     case {old_state, state} do
       {:created, :started} ->
         Logger.debug(fn -> "#{describe(data)} start executing." end)
 
-        {:ok, data} = update_workitem(:started, data)
         {:keep_state, data}
 
       {:started, :completed} ->
@@ -173,43 +181,33 @@ defmodule WorkflowMetal.Workitem.Workitem do
       {_from, :abandoned} ->
         Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
 
-        {:ok, data} = do_abandon(data)
         {:keep_state, data}
     end
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :start_at_created, :created, %__MODULE__{}) do
-    {:keep_state_and_data, [{:next_event, :cast, :start}]}
+  def handle_event({:call, from}, {:complete, output}, :started, %__MODULE__{} = data) do
+    {:ok, data} = update_workitem({:completed, output}, data)
+
+    {
+      :next_state,
+      :completed,
+      data,
+      [
+        {:reply, from, :ok},
+        {:next_event, :internal, :stop}
+      ]
+    }
   end
 
   @impl GenStateMachine
-  def handle_event(:internal, :stop, _state, %__MODULE__{} = data) do
-    {:stop, :normal, data}
-  end
-
-  @impl GenStateMachine
-  def handle_event(:cast, :start, :created, %__MODULE__{} = data) do
-    case do_execute(data) do
-      {:ok, :started, data} ->
-        {:next_state, :started, data}
-
-      {:ok, {:completed, workitem_output}, data} ->
-        {
-          :next_state,
-          :started,
-          data,
-          {:next_event, :cast, {:complete, workitem_output}}
-        }
-
-      {:ok, :abandoned, data} ->
-        {:next_state, :abandoned, data}
-    end
+  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
+    {:keep_state_and_data, {:reply, from, {:error, :workitem_not_available}}}
   end
 
   @impl GenStateMachine
   def handle_event(:cast, {:complete, output}, :started, %__MODULE__{} = data) do
-    {:ok, data} = do_complete(output, data)
+    {:ok, data} = update_workitem({:completed, output}, data)
 
     {
       :next_state,
@@ -231,33 +229,41 @@ defmodule WorkflowMetal.Workitem.Workitem do
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, :abandon, _state, %__MODULE__{}) do
-    :keep_state_and_data
-  end
-
-  @impl GenStateMachine
   def handle_event(:cast, _event_content, _state, %__MODULE__{}) do
     :keep_state_and_data
   end
 
   @impl GenStateMachine
-  def handle_event({:call, from}, {:complete, output}, :started, %__MODULE__{} = data) do
-    {:ok, data} = do_complete(output, data)
-
-    {
-      :next_state,
-      :completed,
-      data,
-      [
-        {:reply, from, :ok},
-        {:next_event, :internal, :stop}
-      ]
-    }
+  def handle_event(:state_timeout, :start_on_created, :created, %__MODULE__{}) do
+    {:keep_state_and_data, [{:next_event, :internal, :execute}]}
   end
 
   @impl GenStateMachine
-  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
-    {:keep_state_and_data, {:reply, from, {:error, :workitem_not_available}}}
+  def handle_event(:internal, :execute, :created, %__MODULE__{} = data) do
+    case do_execute(data) do
+      {:ok, :started, data} ->
+        {:ok, data} = update_workitem(:started, data)
+
+        {:next_state, :started, data}
+
+      {:ok, {:completed, workitem_output}, data} ->
+        {
+          :next_state,
+          :started,
+          data,
+          {:next_event, :cast, {:complete, workitem_output}}
+        }
+
+      {:ok, :abandoned, data} ->
+        {:ok, data} = update_workitem(:abandoned, data)
+
+        {:next_state, :abandoned, data}
+    end
+  end
+
+  @impl GenStateMachine
+  def handle_event(:internal, :stop, _state, %__MODULE__{} = data) do
+    {:stop, :normal, data}
   end
 
   @impl GenStateMachine
@@ -314,37 +320,17 @@ defmodule WorkflowMetal.Workitem.Workitem do
     end
   end
 
-  defp do_complete(output, %__MODULE__{} = data) do
-    {
-      :ok,
-      %{
-        workitem_schema: workitem_schema
-      } = data
-    } = update_workitem({:completed, output}, data)
+  defp update_workitem_in_task_server(%__MODULE__{} = data) do
+    %{
+      application: application,
+      workitem_schema: workitem_schema
+    } = data
 
     :ok =
-      WorkflowMetal.Task.Task.complete_workitem(
+      WorkflowMetal.Task.Supervisor.update_workitem(
+        application,
         task_server(data),
-        workitem_schema.id
-      )
-
-    {:ok, data}
-  end
-
-  defp do_abandon(%__MODULE__{} = data) do
-    {
-      :ok,
-      %{
-        workitem_schema: %Schema.Workitem{
-          id: workitem_id
-        }
-      }
-    } = update_workitem(:abandoned, data)
-
-    :ok =
-      WorkflowMetal.Task.Task.abandon_workitem(
-        task_server(data),
-        workitem_id
+        workitem_schema
       )
 
     {:ok, data}
