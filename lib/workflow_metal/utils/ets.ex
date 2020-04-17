@@ -21,10 +21,10 @@ defmodule WorkflowMetal.Utils.ETS do
       {:"=:=", :"$1", 1}
 
       iex> WorkflowMetal.Utils.ETS.make_condition([1, 2], :"$1", :in)
-      {:andalso, {:"=:=", :"$1", 1}, {:"=:=", :"$1", 2}}
+      {:orelse, {:"=:=", :"$1", 1}, {:"=:=", :"$1", 2}}
 
       iex> WorkflowMetal.Utils.ETS.make_condition([1, 2, 3], :"$1", :in)
-      {:andalso, {:andalso, {:"=:=", :"$1", 1}, {:"=:=", :"$1", 2}}, {:"=:=", :"$1", 3}}
+      {:orelse, {:andalso, {:"=:=", :"$1", 1}, {:"=:=", :"$1", 2}}, {:"=:=", :"$1", 3}}
 
   ### `:"=:="`
 
@@ -39,7 +39,7 @@ defmodule WorkflowMetal.Utils.ETS do
   def make_condition(list, variable, :in) when is_list(list) do
     list
     |> Enum.map(&make_condition(&1, variable, :"=:="))
-    |> make_and()
+    |> make_or()
   end
 
   def make_condition(item, variable, :"=:="), do: {:"=:=", variable, item}
