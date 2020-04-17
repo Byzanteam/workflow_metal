@@ -28,6 +28,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       {workitem_id, workitem_schema, {workflow_id, case_id, task_id}}
   """
 
+  alias WorkflowMetal.Utils.ETS, as: ETSUtil
+
   alias WorkflowMetal.Storage.Schema
 
   @behaviour WorkflowMetal.Storage.Adapter
@@ -1300,7 +1302,18 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp find_tokens(case_id, options, %State{} = state) do
-    match_conditions = find_tokens_match_conditions(options)
+    states_condition =
+      ETSUtil.make_condition(
+        Keyword.get(options, :states, []),
+        :"$3",
+        :in
+      )
+
+    locked_by_task_condition =
+      case Keyword.get(options, :locked_by_task_id) do
+        nil -> nil
+        task_id -> {:"=:=", :"$2", task_id}
+      end
 
     {
       :ok,
@@ -1309,36 +1322,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       |> :ets.select([
         {
           {:_, :"$1", {:_, case_id, :_, :_, :"$2", :"$3"}},
-          match_conditions,
+          [ETSUtil.make_and([states_condition, locked_by_task_condition])],
           [:"$1"]
         }
       ])
     }
   end
-
-  defp find_tokens_match_conditions(options) do
-    merge_match_conditions(
-      :andalso,
-      find_tokens_state_conditions(Keyword.get(options, :states)) ++
-        find_tokens_locked_by_task_conditions(Keyword.get(options, :locked_by_task_id))
-    )
-  end
-
-  defp find_tokens_state_conditions(nil), do: []
-  defp find_tokens_state_conditions(state) when is_atom(state), do: {:"=:=", :"$3", state}
-  defp find_tokens_state_conditions([state]), do: [find_tokens_state_conditions(state)]
-
-  defp find_tokens_state_conditions([_ | _] = states) do
-    merge_match_conditions(
-      :orelse,
-      Enum.map(states, fn state ->
-        find_tokens_state_conditions(state)
-      end)
-    )
-  end
-
-  defp find_tokens_locked_by_task_conditions(nil), do: []
-  defp find_tokens_locked_by_task_conditions(task_id), do: [{:"=:=", :"$2", task_id}]
 
   defp prepare_lock_tokens(token_ids, %Schema.Task{} = task_schema, %State{} = state) do
     free_tokens =
@@ -1618,7 +1607,18 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_fetch_tasks(case_id, options, %State{} = state) do
-    match_conditions = find_tasks_match_conditions(options)
+    states_condition =
+      ETSUtil.make_condition(
+        Keyword.get(options, :states, []),
+        :"$2",
+        :in
+      )
+
+    transition_condition =
+      case Keyword.get(options, :transition_id) do
+        nil -> nil
+        task_id -> {:"=:=", :"$3", task_id}
+      end
 
     {
       :ok,
@@ -1627,36 +1627,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       |> :ets.select([
         {
           {:_, :"$1", {:"$2", :_, :"$3", case_id}},
-          match_conditions,
+          [ETSUtil.make_and([states_condition, transition_condition])],
           [:"$1"]
         }
       ])
     }
   end
-
-  defp find_tasks_match_conditions(options) do
-    merge_match_conditions(
-      :andalso,
-      find_tasks_state_conditions(Keyword.get(options, :states)) ++
-        find_tasks_transition_conditions(Keyword.get(options, :transition_id))
-    )
-  end
-
-  defp find_tasks_state_conditions(nil), do: []
-  defp find_tasks_state_conditions(state) when is_atom(state), do: {:"=:=", :"$2", state}
-  defp find_tasks_state_conditions([state]), do: [find_tasks_state_conditions(state)]
-
-  defp find_tasks_state_conditions([_ | _] = states) do
-    merge_match_conditions(
-      :orelse,
-      Enum.map(states, fn state ->
-        find_tasks_state_conditions(state)
-      end)
-    )
-  end
-
-  defp find_tasks_transition_conditions(nil), do: []
-  defp find_tasks_transition_conditions(transition_id), do: [{:"=:=", :"$3", transition_id}]
 
   defp persist_workitem(workitem_params, %State{} = state, options) do
     workitem_table = get_table(:workitem, state)
@@ -1802,24 +1778,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       [workitem_schema] -> {:ok, workitem_schema}
       _ -> {:error, :workitem_not_found}
     end
-  end
-
-  defp merge_match_conditions(_, nil, nil), do: []
-  defp merge_match_conditions(_, condition, nil), do: condition
-  defp merge_match_conditions(_, nil, condition), do: condition
-  defp merge_match_conditions(operator, left, right), do: {operator, left, right}
-
-  defp merge_match_conditions(_, []), do: []
-  defp merge_match_conditions(_, [condition]), do: [condition]
-
-  defp merge_match_conditions(operator, [left, right | rest]) do
-    merge_match_conditions(
-      operator,
-      [
-        merge_match_conditions(operator, left, right)
-        | rest
-      ]
-    )
   end
 
   defp get_table(table_type, %State{} = state) do
