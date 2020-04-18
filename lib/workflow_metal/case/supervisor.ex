@@ -18,6 +18,10 @@ defmodule WorkflowMetal.Case.Supervisor do
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
 
+  @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
+  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+
   alias WorkflowMetal.Application.WorkflowsSupervisor
 
   @doc false
@@ -92,6 +96,21 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @doc """
+  Lock tokens for the task.
+
+  This usually happens before a workitem execution.
+  """
+  @spec lock_tokens(application, case_id, nonempty_list(token_id), task_id) ::
+          {:ok, nonempty_list(token_schema)}
+          | {:error, :tokens_not_available}
+          | {:error, :case_not_found}
+  def lock_tokens(application, case_id, token_ids, task_id) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.lock_tokens(case_server, token_ids, task_id)
+    end
+  end
+
+  @doc """
   Free tokens that locked by the task.
 
   This usually happens afetr a task has been abandoned.
@@ -102,6 +121,33 @@ defmodule WorkflowMetal.Case.Supervisor do
   def unlock_tokens(application, case_id, task_id) do
     with({:ok, case_server} <- open_case(application, case_id)) do
       WorkflowMetal.Case.Case.free_tokens_from_task(case_server, task_id)
+    end
+  end
+
+  @doc """
+  consume tokens that locked by the task
+
+  This usually happens after a task execution.
+  """
+  @spec consume_tokens(application, case_id, task_id) ::
+          {:ok, nonempty_list(token_schema)}
+          | {:error, :tokens_not_available}
+          | {:error, :case_not_found}
+  def consume_tokens(application, case_id, task_id) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.consume_tokens(case_server, task_id)
+    end
+  end
+
+  @doc """
+  Issue tokens after a task completion.
+  """
+  @spec issue_tokens(application, case_id, nonempty_list(token_params)) ::
+          {:ok, nonempty_list(token_schema)}
+          | {:error, :case_not_found}
+  def issue_tokens(application, case_id, token_params_list) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.issue_tokens(case_server, token_params_list)
     end
   end
 

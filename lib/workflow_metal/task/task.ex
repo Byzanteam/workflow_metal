@@ -12,17 +12,19 @@ defmodule WorkflowMetal.Task.Task do
   ## State
 
   ```
-  started+-------->executing+------->completed
-      +               +
-      |               |
-      |               v
-      +---------->abandoned
+  started+-------->allocated+------->executing+------->completed
+      +                +                 +
+      |                |                 |
+      |                v                 |
+      +----------->abandoned<------------+
   ```
+
+  ## Restore
+
+  Restore a task while restoring its non-ending(`created` and `started`) workitems.
   """
 
   require Logger
-
-  alias WorkflowMetal.Utils.ETS, as: ETSUtil
 
   use GenStateMachine,
     callback_mode: [:handle_event_function, :state_enter],
@@ -197,6 +199,13 @@ defmodule WorkflowMetal.Task.Task do
           {:state_timeout, 0, :start_on_started}
         }
 
+      :allocated ->
+        {
+          :keep_state,
+          data,
+          {:state_timeout, 0, :start_on_allocated}
+        }
+
       :executing ->
         {
           :keep_state,
@@ -209,22 +218,23 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event(:enter, old_state, state, %__MODULE__{} = data) do
     case {old_state, state} do
-      {:started, :executing} ->
+      {:started, :allocated} ->
+        Logger.debug(fn -> "#{describe(data)} allocate a workitem." end)
+
+      {:allocated, :executing} ->
         Logger.debug(fn -> "#{describe(data)} start executing." end)
 
-        {:ok, data} = update_task(:executing, data)
         {:keep_state, data}
 
       {:executing, :completed} ->
         Logger.debug(fn -> "#{describe(data)} complete the execution." end)
 
-        {:keep_state, data}
+        {:keep_state, data, {:stop, :normal}}
 
-      {from, :abandoned} when from in [:started, :executing] ->
+      {from, :abandoned} when from in [:started, :allocated, :executing] ->
         Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
-        {:ok, data} = update_task(:abandoned, data)
 
-        {:keep_state, data}
+        {:keep_state, data, {:stop, :normal}}
     end
   end
 
@@ -233,6 +243,18 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, data} = fetch_workitems(data)
     {:ok, data} = fetch_transition(data)
     {:ok, data} = request_tokens(data)
+    {:ok, data} = start_created_workitems(data)
+
+    {
+      :keep_state,
+      data
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event(:state_timeout, :start_on_allocated, :allocated, %__MODULE__{} = data) do
+    {:ok, data} = fetch_workitems(data)
+    {:ok, data} = fetch_transition(data)
     {:ok, data} = start_created_workitems(data)
 
     {
@@ -251,24 +273,14 @@ defmodule WorkflowMetal.Task.Task do
     {
       :keep_state,
       data,
-      {:next_event, :cast, :complete}
+      {:next_event, :cast, :try_complete}
     }
   end
 
   @impl GenStateMachine
-  def handle_event(:internal, :stop, :completed, %__MODULE__{} = data) do
-    {:stop, :normal, data}
-  end
-
-  @impl GenStateMachine
-  def handle_event(
-        :cast,
-        {:receive_tokens, token_schemas},
-        :started,
-        %__MODULE__{} = data
-      ) do
+  def handle_event(:cast, {:receive_tokens, token_schemas}, :started, %__MODULE__{} = data) do
     {:ok, data} =
-      Enum.reduce(token_schemas, {:ok, data}, fn token_schema ->
+      Enum.reduce(token_schemas, {:ok, data}, fn token_schema, {:ok, data} ->
         upsert_ets_token(token_schema, data)
       end)
 
@@ -282,7 +294,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event(:cast, {:receive_tokens, token_schemas}, :allocated, %__MODULE__{} = data) do
     {:ok, data} =
-      Enum.reduce(token_schemas, {:ok, data}, fn token_schema ->
+      Enum.reduce(token_schemas, {:ok, data}, fn token_schema, {:ok, data} ->
         upsert_ets_token(token_schema, data)
       end)
 
@@ -293,7 +305,8 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, {:discard_tokens, token_schemas}, :started, %__MODULE__{} = data) do
+  def handle_event(:cast, {:discard_tokens, token_schemas}, state, %__MODULE__{} = data)
+      when state in [:started, :allocated, :executing] do
     {:ok, data} =
       Enum.reduce(token_schemas, {:ok, data}, fn token_schema, {:ok, data} ->
         remove_ets_token(token_schema, data)
@@ -301,63 +314,70 @@ defmodule WorkflowMetal.Task.Task do
 
     {
       :keep_state,
-      data,
-      {:next_event, :cast, :force_abandon}
+      data
     }
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, :withdraw_token, _state, %__MODULE__{}) do
-    # ignore when the task is executing or completed
-    :keep_state_and_data
-  end
-
-  @impl GenStateMachine
-  def handle_event(:cast, :execute, :started, %__MODULE__{} = data) do
+  def handle_event(:cast, :try_allocate, :started, %__MODULE__{} = data) do
     with(
       {:ok, _token_ids} <- JoinController.task_enablement(data),
-      {:ok, data} <- open_or_generate_workitem(data)
+      {:ok, data} <- allocate_workitem(data)
     ) do
-      {:keep_state, data}
-    else
-      {:error, :task_not_enabled} ->
-        :keep_state_and_data
+      {:ok, data} = update_task(:allocated, data)
 
-      {:error, :tokens_not_available} ->
-        # retry
-        {
-          :keep_state,
-          data,
-          {:next_event, :cast, :execute}
-        }
+      {
+        :next_state,
+        :allocated,
+        data
+      }
+    else
+      {:error, :task_not_enabled} -> :keep_state_and_data
+      reply -> reply
     end
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, :complete, :executing, %__MODULE__{} = data) do
+  def handle_event(:cast, :try_complete, :executing, %__MODULE__{} = data) do
     with(
       :ok <- task_completion(data),
-      {:ok, _token_ids, data} <- do_consume_tokens(data),
+      {:ok, _tokens, data} <- do_consume_tokens(data),
       {:ok, data} <- do_complete_task(data)
     ) do
       {
         :next_state,
         :completed,
-        data,
-        {:next_event, :internal, :stop}
+        data
       }
     else
-      {:error, :task_not_completed} ->
-        :keep_state_and_data
-
       _ ->
         :keep_state_and_data
     end
   end
 
   @impl GenStateMachine
+  def handle_event(:cast, :try_abandon, state, %__MODULE__{} = data)
+      when state in [:allocated, :executing] do
+    case task_abandonment(data) do
+      {:ok, data} ->
+        {:ok, data} = unlock_tokens(data)
+        {:ok, data} = update_task(:abandoned, data)
+
+        {
+          :next_state,
+          :abandoned,
+          data
+        }
+
+      _ ->
+        :keep_state_and_data
+    end
+  end
+
+  # TODO: force_abandon
+  @impl GenStateMachine
   def handle_event(:cast, :force_abandon, state, %__MODULE__{} = data)
-      when state in [:started, :executing] do
+      when state in [:started, :allocated, :executing] do
     case task_force_abandonment(data) do
       {:ok, data} ->
         {:ok, data} = do_abandon_workitems(data)
@@ -374,34 +394,41 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, :abandon, :executing, %__MODULE__{} = data) do
-    case task_abandonment(data) do
-      {:ok, data} ->
-        {
-          :next_state,
-          :abandoned,
-          data
-        }
+  def handle_event(
+        :cast,
+        {:update_workitem, workitem_id, :started},
+        state,
+        %__MODULE__{} = data
+      )
+      when state in [:allocated, :executing] do
+    {:ok, data} = upsert_ets_workitem({workitem_id, :started}, data)
 
-      _ ->
-        :keep_state_and_data
-    end
+    {:keep_state, data}
   end
 
   @impl GenStateMachine
   def handle_event(
         :cast,
-        {:update_workitem, workitem_id, workitem_state},
+        {:update_workitem, workitem_id, :completed},
         :executing,
         %__MODULE__{} = data
       ) do
-    {:ok, data} = upsert_ets_workitem({workitem_id, workitem_state}, data)
+    {:ok, data} = upsert_ets_workitem({workitem_id, :completed}, data)
 
-    {
-      :keep_state,
-      data,
-      {:next_event, :cast, :complete}
-    }
+    {:keep_state, data, {:next_event, :cast, :try_complete}}
+  end
+
+  @impl GenStateMachine
+  def handle_event(
+        :cast,
+        {:update_workitem, workitem_id, :abandoned},
+        state,
+        %__MODULE__{} = data
+      )
+      when state not in [:abandoned, :completed] do
+    {:ok, data} = upsert_ets_workitem({workitem_id, :abandoned}, data)
+
+    {:keep_state, data, {:next_event, :cast, :try_abandon}}
   end
 
   @impl GenStateMachine
@@ -410,18 +437,22 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event({:call, from}, :lock_tokens, :started, %__MODULE__{} = data) do
-    with(
-      {:ok, token_ids} <- JoinController.task_enablement(data),
-      {:ok, locked_token_schemas, data} <- do_lock_tokens(token_ids, data)
-    ) do
-      {
-        :next_state,
-        :executing,
-        data,
-        {:reply, from, {:ok, locked_token_schemas}}
-      }
-    else
+  def handle_event({:call, from}, :lock_tokens, :allocated, %__MODULE__{} = data) do
+    case do_lock_tokens(data) do
+      {:ok, locked_token_schemas, data} ->
+        {:ok, data} = update_task(:executing, data)
+
+        {
+          :next_state,
+          :executing,
+          data,
+          {:reply, from, {:ok, locked_token_schemas}}
+        }
+
+      {:error, :tokens_not_available} ->
+        # retry
+        do_lock_tokens(data)
+
       error ->
         {
           :keep_state_and_data,
@@ -440,7 +471,7 @@ defmodule WorkflowMetal.Task.Task do
       token_table
       |> :ets.tab2list()
       |> Enum.reduce({:ok, []}, fn
-        {_token_id, token_schema, :locked, _, _}, {:ok, tokens} ->
+        {_token_id, token_schema, :locked}, {:ok, tokens} ->
           {:ok, [token_schema | tokens]}
 
         _, acc ->
@@ -575,38 +606,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, %{data | task_schema: task_schema}}
   end
 
-  defp open_or_generate_workitem(%__MODULE__{} = data) do
-    %{
-      application: application,
-      workitem_table: workitem_table
-    } = data
-
-    workitem_table
-    |> :ets.select([
-      {
-        {:"$1", :"$2"},
-        [ETSUtil.make_condition([:created, :started], :"$2", :in)],
-        [:"$1"]
-      }
-    ])
-    |> case do
-      [_ | _] = workitem_ids ->
-        Enum.each(workitem_ids, fn workitem_id ->
-          {:ok, _} =
-            WorkflowMetal.Workitem.Supervisor.open_workitem(
-              application,
-              workitem_id
-            )
-        end)
-
-        {:ok, data}
-
-      _ ->
-        generate_workitem(data)
-    end
-  end
-
-  defp generate_workitem(%__MODULE__{} = data) do
+  defp allocate_workitem(%__MODULE__{} = data) do
     %{
       application: application,
       task_schema: %Schema.Task{
@@ -637,20 +637,13 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, data}
   end
 
-  defp do_lock_tokens(token_ids, %__MODULE__{} = data) do
-    %{
-      task_schema: %Schema.Task{
-        id: task_id
-      }
-    } = data
-
+  defp do_lock_tokens(%__MODULE__{} = data) do
     with(
+      {:ok, token_ids} <- JoinController.task_enablement(data),
+      %{application: application, task_schema: %Schema.Task{id: task_id, case_id: case_id}} =
+        data,
       {:ok, locked_token_schemas} <-
-        WorkflowMetal.Case.Case.lock_tokens(
-          case_server(data),
-          token_ids,
-          task_id
-        )
+        WorkflowMetal.Case.Supervisor.lock_tokens(application, case_id, token_ids, task_id)
     ) do
       {:ok, data} =
         Enum.reduce(
@@ -682,30 +675,46 @@ defmodule WorkflowMetal.Task.Task do
 
   defp do_consume_tokens(%__MODULE__{} = data) do
     %{
+      application: application,
       task_schema: %Schema.Task{
-        id: task_id
-      },
-      token_table: token_table
+        id: task_id,
+        case_id: case_id
+      }
     } = data
 
-    token_ids = :ets.select(token_table, [{{:"$1", :_, :locked}, [], [:"$1"]}])
-
-    {:ok, _tokens} =
-      WorkflowMetal.Case.Case.consume_tokens(
-        case_server(data),
-        token_ids,
+    {:ok, tokens} =
+      WorkflowMetal.Case.Supervisor.consume_tokens(
+        application,
+        case_id,
         task_id
       )
 
-    {:ok, token_ids, data}
+    {:ok, data} =
+      Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
+        upsert_ets_token(token, data)
+      end)
+
+    {:ok, tokens, data}
   end
 
   defp do_complete_task(%__MODULE__{} = data) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        case_id: case_id
+      }
+    } = data
+
     {:ok, token_payload} = build_token_payload(data)
 
     {:ok, token_params_list} = SplitController.issue_tokens(data, token_payload)
 
-    {:ok, _tokens} = WorkflowMetal.Case.Case.issue_tokens(case_server(data), token_params_list)
+    {:ok, _tokens} =
+      WorkflowMetal.Case.Supervisor.issue_tokens(
+        application,
+        case_id,
+        token_params_list
+      )
 
     update_task({:completed, token_payload}, data)
   end
@@ -749,6 +758,23 @@ defmodule WorkflowMetal.Task.Task do
       true -> {:ok, data}
       false -> {:error, :task_not_abandoned}
     end
+  end
+
+  defp unlock_tokens(%__MODULE__{} = data) do
+    %{
+      application: application,
+      task_schema: %Schema.Task{
+        id: task_id,
+        case_id: case_id
+      },
+      token_table: token_table
+    } = data
+
+    :ok = WorkflowMetal.Case.Supervisor.unlock_tokens(application, case_id, task_id)
+
+    true = :ets.delete_all_objects(token_table)
+
+    {:ok, data}
   end
 
   defp task_force_abandonment(%__MODULE__{} = data) do
@@ -829,17 +855,5 @@ defmodule WorkflowMetal.Task.Task do
     } = data
 
     "Task<#{task_id}@#{workflow_id}.#{transition_id}.#{case_id}>"
-  end
-
-  defp case_server(%__MODULE__{} = data) do
-    %{
-      application: application,
-      task_schema: %Schema.Task{
-        workflow_id: workflow_id,
-        case_id: case_id
-      }
-    } = data
-
-    WorkflowMetal.Case.Case.via_name(application, {workflow_id, case_id})
   end
 end

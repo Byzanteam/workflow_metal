@@ -99,7 +99,7 @@ defmodule WorkflowMetal.Case.Case do
   Issue tokens.
   """
   @spec issue_tokens(:gen_statem.server_ref(), nonempty_list(token_params)) ::
-          {:ok, [token_schema]}
+          {:ok, nonempty_list(token_schema)}
   def issue_tokens(case_server, [_ | _] = token_params_list) do
     GenStateMachine.call(case_server, {:issue_tokens, token_params_list})
   end
@@ -108,7 +108,8 @@ defmodule WorkflowMetal.Case.Case do
   Lock tokens.
   """
   @spec lock_tokens(:gen_statem.server_ref(), [token_id], task_id) ::
-          {:ok, nonempty_list(token_schema)} | {:error, :tokens_not_available}
+          {:ok, nonempty_list(token_schema)}
+          | {:error, :tokens_not_available}
   def lock_tokens(case_server, [_ | _] = token_ids, task_id) do
     GenStateMachine.call(case_server, {:lock_tokens, token_ids, task_id})
   end
@@ -116,10 +117,10 @@ defmodule WorkflowMetal.Case.Case do
   @doc """
   Consume tokens.
   """
-  @spec consume_tokens(:gen_statem.server_ref(), [token_id], task_id) ::
+  @spec consume_tokens(:gen_statem.server_ref(), task_id) ::
           {:ok, nonempty_list(token_schema)} | {:error, :tokens_not_available}
-  def consume_tokens(case_server, [_ | _] = token_ids, task_id) do
-    GenStateMachine.call(case_server, {:consume_tokens, token_ids, task_id})
+  def consume_tokens(case_server, task_id) do
+    GenStateMachine.call(case_server, {:consume_tokens, task_id})
   end
 
   @doc """
@@ -139,7 +140,7 @@ defmodule WorkflowMetal.Case.Case do
   """
   @spec free_tokens_from_task(:gen_statem.server_ref(), task_id) :: :ok
   def free_tokens_from_task(case_server, task_id) do
-    GenStateMachine.call(case_server, {:free_tokens_from_task, task_id})
+    GenStateMachine.cast(case_server, {:free_tokens_from_task, task_id})
   end
 
   # Server (callbacks)
@@ -327,14 +328,14 @@ defmodule WorkflowMetal.Case.Case do
   @impl GenStateMachine
   def handle_event(
         {:call, from},
-        {:consume_tokens, token_ids, task_id},
+        {:consume_tokens, task_id},
         :active,
         %__MODULE__{} = data
       ) do
-    case do_consume_tokens(token_ids, task_id, data) do
+    case do_consume_tokens(task_id, data) do
       {:ok, tokens, data} ->
         Logger.debug(fn ->
-          "#{describe(data)}: tokens(#{token_ids |> Enum.join(", ")}) have been consumed by the task(#{
+          "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{
             task_id
           })"
         end)
@@ -378,8 +379,20 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
+  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
+    {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
+  end
+
+  @impl GenStateMachine
+  def handle_event(:cast, {:offer_tokens_to_task, task_id}, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_offer_tokens_to_task(task_id, data)
+
+    {:keep_state, data}
+  end
+
+  @impl GenStateMachine
   def handle_event(
-        {:call, from},
+        :cast,
         {:free_tokens_from_task, task_id},
         :active,
         %__MODULE__{} = data
@@ -395,23 +408,8 @@ defmodule WorkflowMetal.Case.Case do
     {
       :keep_state,
       data,
-      [
-        {:reply, from, {:ok, tokens}},
-        {:next_event, :internal, {:offer_tokens, tokens}}
-      ]
+      {:next_event, :internal, {:offer_tokens, tokens}}
     }
-  end
-
-  @impl GenStateMachine
-  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
-    {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
-  end
-
-  @impl GenStateMachine
-  def handle_event(:cast, {:offer_tokens_to_task, task_id}, :active, %__MODULE__{} = data) do
-    {:ok, data} = do_offer_tokens_to_task(task_id, data)
-
-    {:keep_state, data}
   end
 
   @impl GenStateMachine
@@ -609,9 +607,7 @@ defmodule WorkflowMetal.Case.Case do
       fetch_or_create_task(transition, data)
     end)
     |> Stream.each(fn {:ok, task} ->
-      {:ok, task_server} = WorkflowMetal.Task.Supervisor.open_task(application, task.id)
-
-      :ok = WorkflowMetal.Task.Task.offer_token(task_server, token_schema)
+      :ok = WorkflowMetal.Task.Supervisor.offer_tokens(application, task.id, [token_schema])
 
       Logger.debug(fn ->
         "#{describe(data)}: offers a token(#{token_schema.id}) to the task(#{task.id})"
@@ -677,15 +673,13 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
-  defp do_consume_tokens(token_ids, task_id, %__MODULE__{} = data) do
+  defp do_consume_tokens(task_id, %__MODULE__{} = data) do
     %{
       application: application,
       token_table: token_table
     } = data
 
-    with(
-      {:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
-    ) do
+    with({:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, task_id)) do
       Enum.each(tokens, fn token ->
         :ets.update_element(token_table, token.id, [
           {2, token},
