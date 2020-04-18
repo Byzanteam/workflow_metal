@@ -146,10 +146,12 @@ defmodule WorkflowMetal.Task.Supervisor do
   end
 
   defp whereis_child(application, task_id) do
-    with({:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id)) do
-      whereis_child(application, task_schema)
-    else
-      _ -> :undefined
+    case WorkflowMetal.Storage.fetch_task(application, task_id) do
+      {:ok, task_schema} ->
+        whereis_child(application, task_schema)
+
+      _ ->
+        :undefined
     end
   end
 end

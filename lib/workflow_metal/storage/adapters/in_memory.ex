@@ -704,17 +704,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         %State{} = state
       ) do
     reply =
-      with({:ok, %Schema.Task{case_id: case_id}} <- find_task(task_id, state)) do
-        {:ok, tokens} =
-          find_tokens(
-            case_id,
-            [states: [:locked], locked_by_task_id: task_id],
-            state
-          )
+      case find_task(task_id, state) do
+        {:ok, %Schema.Task{case_id: case_id}} ->
+          {:ok, tokens} =
+            find_tokens(
+              case_id,
+              [states: [:locked], locked_by_task_id: task_id],
+              state
+            )
 
-        do_unlock_tokens(tokens, state)
-      else
-        {:error, :task_not_found} -> :ok
+          do_unlock_tokens(tokens, state)
+
+        {:error, :task_not_found} ->
+          :ok
       end
 
     {:reply, reply, state}
