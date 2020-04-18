@@ -263,6 +263,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_lock_tokens ::
           {:ok, token_schema}
           | {:error, :tokens_not_available}
+  @type on_unlock_tokens :: {:ok, [token_schema]}
   @type on_consume_tokens ::
           {:ok, [token_schema]}
           | {:error, :tokens_not_available}
@@ -288,6 +289,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               token_ids :: nonempty_list(token_id),
               locked_by_task_id :: task_id
             ) :: on_lock_tokens
+
+  @doc """
+  Unlock tokens that locked by the task.
+  """
+  @callback unlock_tokens(
+              adapter_meta,
+              locked_by_task_id :: task_id
+            ) :: on_unlock_tokens
 
   @doc """
   Consume tokens atomically.

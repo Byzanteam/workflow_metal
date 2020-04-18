@@ -283,6 +283,17 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec unlock_tokens(application, task_id) :: Adapter.on_unlock_tokens()
+  def unlock_tokens(application, locked_by_task_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.unlock_tokens(
+      adapter_meta,
+      locked_by_task_id
+    )
+  end
+
+  @doc false
   @spec consume_tokens(application, nonempty_list(token_id), task_id) ::
           Adapter.on_consume_tokens()
   def consume_tokens(application, token_ids, consumed_by_task_id) do

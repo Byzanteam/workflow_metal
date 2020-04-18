@@ -267,6 +267,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def unlock_tokens(adapter_meta, task_id) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:unlock_tokens, task_id})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def consume_tokens(adapter_meta, token_ids, task_id) do
     storage = storage_name(adapter_meta)
 
@@ -685,6 +692,29 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         {:ok, tokens} <- prepare_lock_tokens(token_ids, task_schema, state)
       ) do
         do_lock_tokens(tokens, task_schema, state)
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:unlock_tokens, task_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, %Schema.Task{case_id: case_id}} <- find_task(task_id, state)) do
+        {:ok, tokens} =
+          find_tokens(
+            case_id,
+            [states: [:locked], locked_by_task_id: task_id],
+            state
+          )
+
+        do_unlock_tokens(tokens, state)
+      else
+        {:error, :task_not_found} -> :ok
       end
 
     {:reply, reply, state}
@@ -1150,27 +1180,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
          %Schema.Case{state: :active} = case_schema,
          %State{} = state
        ) do
-    token_table = get_table(:token, state)
     {:ok, [termination_token]} = find_tokens(case_schema.id, [states: [:free]], state)
     termination_token = %{termination_token | state: :consumed}
 
-    true =
-      :ets.update_element(
-        token_table,
-        termination_token.id,
-        [
-          {2, termination_token},
-          {3,
-           {
-             termination_token.workflow_id,
-             termination_token.case_id,
-             termination_token.place_id,
-             termination_token.produced_by_task_id,
-             termination_token.locked_by_task_id,
-             termination_token.state
-           }}
-        ]
-      )
+    {:ok, state} = upsert_token(termination_token, state)
 
     case_table = get_table(:case, state)
 
@@ -1233,7 +1246,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp persist_token(token_params, %State{} = state, options) do
-    token_table = get_table(:token, state)
     workflow_id = Keyword.fetch!(options, :workflow_id)
     case_id = Keyword.fetch!(options, :case_id)
     place_id = Keyword.fetch!(options, :place_id)
@@ -1251,21 +1263,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         |> Map.put(:produced_by_task_id, produced_by_task_id)
       )
 
-    :ets.insert(
-      token_table,
-      {
-        token_schema.id,
-        token_schema,
-        {
-          token_schema.workflow_id,
-          token_schema.case_id,
-          token_schema.place_id,
-          token_schema.produced_by_task_id,
-          token_schema.locked_by_task_id,
-          token_schema.state
-        }
-      }
-    )
+    {:ok, _state} = upsert_token(token_schema, state)
 
     {:ok, token_schema}
   end
@@ -1317,31 +1315,26 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_lock_tokens(tokens, %Schema.Task{} = task_schema, %State{} = state) do
-    token_table = :token |> get_table(state)
-
     task_id = task_schema.id
 
     tokens =
       Enum.map(tokens, fn token ->
         token_schema = %{token | state: :locked, locked_by_task_id: task_id}
 
-        true =
-          token_table
-          |> :ets.update_element(
-            token_schema.id,
-            [
-              {2, token_schema},
-              {3,
-               {
-                 token_schema.workflow_id,
-                 token_schema.case_id,
-                 token_schema.place_id,
-                 token_schema.produced_by_task_id,
-                 token_schema.locked_by_task_id,
-                 token_schema.state
-               }}
-            ]
-          )
+        {:ok, _state} = upsert_token(token_schema, state)
+
+        token_schema
+      end)
+
+    {:ok, tokens}
+  end
+
+  defp do_unlock_tokens(tokens, %State{} = state) do
+    tokens =
+      Enum.map(tokens, fn token ->
+        token_schema = %{token | state: :free, locked_by_task_id: nil}
+
+        {:ok, _state} = upsert_token(token_schema, state)
 
         token_schema
       end)
@@ -1368,36 +1361,39 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_consume_tokens(tokens, %Schema.Task{} = task_schema, %State{} = state) do
-    token_table = :token |> get_table(state)
-
     task_id = task_schema.id
 
     tokens =
       Enum.map(tokens, fn token ->
         token_schema = %{token | state: :consumed, consumed_by_task_id: task_id}
 
-        true =
-          token_table
-          |> :ets.update_element(
-            token_schema.id,
-            [
-              {2, token_schema},
-              {3,
-               {
-                 token_schema.workflow_id,
-                 token_schema.case_id,
-                 token_schema.place_id,
-                 token_schema.produced_by_task_id,
-                 token_schema.locked_by_task_id,
-                 token_schema.state
-               }}
-            ]
-          )
+        {:ok, _state} = upsert_token(token_schema, state)
 
         token_schema
       end)
 
     {:ok, tokens}
+  end
+
+  defp upsert_token(%Schema.Token{} = token_schema, %State{} = state) do
+    true =
+      :ets.insert(
+        get_table(:task, state),
+        {
+          token_schema.id,
+          token_schema,
+          {
+            token_schema.workflow_id,
+            token_schema.case_id,
+            token_schema.place_id,
+            token_schema.produced_by_task_id,
+            token_schema.locked_by_task_id,
+            token_schema.state
+          }
+        }
+      )
+
+    {:ok, state}
   end
 
   defp persist_task(task_params, %State{} = state, options) do
