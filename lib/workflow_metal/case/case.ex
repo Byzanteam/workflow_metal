@@ -238,6 +238,19 @@ defmodule WorkflowMetal.Case.Case do
     {
       :keep_state,
       data,
+      # TODO: ?
+      {:next_event, :internal, :finish}
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event(:internal, {:offer_tokens, tokens}, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_offer_tokens(tokens, data)
+
+    {
+      :keep_state,
+      data,
+      # TODO: ?
       {:next_event, :internal, :finish}
     }
   end
@@ -359,7 +372,7 @@ defmodule WorkflowMetal.Case.Case do
       data,
       [
         {:reply, from, {:ok, tokens}},
-        {:next_event, :internal, :offer_tokens}
+        {:next_event, :internal, {:offer_tokens, tokens}}
       ]
     }
   end
@@ -384,7 +397,7 @@ defmodule WorkflowMetal.Case.Case do
       data,
       [
         {:reply, from, {:ok, tokens}},
-        {:next_event, :internal, :offer_tokens}
+        {:next_event, :internal, {:offer_tokens, tokens}}
       ]
     }
   end
@@ -563,6 +576,15 @@ defmodule WorkflowMetal.Case.Case do
 
     token_table
     |> :ets.select([{{:_, :"$1", :free, :_, :_}, [], [:"$1"]}])
+    |> Enum.each(fn token_schema ->
+      do_offer_token(token_schema, data)
+    end)
+
+    {:ok, data}
+  end
+
+  defp do_offer_tokens(tokens, %__MODULE__{} = data) do
+    tokens
     |> Enum.each(fn token_schema ->
       do_offer_token(token_schema, data)
     end)
