@@ -126,6 +126,14 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @doc """
+  Abandon the task forcibly.
+  """
+  @spec force_abandon(:gen_statem.server_ref()) :: :ok
+  def force_abandon(task_server) do
+    GenStateMachine.cast(task_server, :force_abandon)
+  end
+
+  @doc """
   Receive tokens from the case.
   """
   @spec receive_tokens(:gen_statem.server_ref(), [token_schema]) :: :ok
@@ -374,23 +382,17 @@ defmodule WorkflowMetal.Task.Task do
     end
   end
 
-  # TODO: force_abandon
   @impl GenStateMachine
   def handle_event(:cast, :force_abandon, state, %__MODULE__{} = data)
       when state in [:started, :allocated, :executing] do
-    case task_force_abandonment(data) do
-      {:ok, data} ->
-        {:ok, data} = do_abandon_workitems(data)
+    {:ok, data} = do_abandon_workitems(data)
+    {:ok, data} = update_task(:abandoned, data)
 
-        {
-          :next_state,
-          :abandoned,
-          data
-        }
-
-      _ ->
-        :keep_state_and_data
-    end
+    {
+      :next_state,
+      :abandoned,
+      data
+    }
   end
 
   @impl GenStateMachine
@@ -775,19 +777,6 @@ defmodule WorkflowMetal.Task.Task do
     true = :ets.delete_all_objects(token_table)
 
     {:ok, data}
-  end
-
-  defp task_force_abandonment(%__MODULE__{} = data) do
-    %{
-      token_table: token_table
-    } = data
-
-    token_table
-    |> :ets.tab2list()
-    |> case do
-      [] -> {:ok, data}
-      [_ | _] -> {:error, :task_not_force_abandoned}
-    end
   end
 
   defp do_abandon_workitems(%__MODULE__{} = data) do

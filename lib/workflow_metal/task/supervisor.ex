@@ -70,6 +70,20 @@ defmodule WorkflowMetal.Task.Supervisor do
   end
 
   @doc """
+  Abandon the task forcibly.
+  """
+  @spec force_abandon_task(application, task_id) :: :ok
+  def force_abandon_task(application, task_id) do
+    case open_task(application, task_id) do
+      {:ok, task_server} ->
+        WorkflowMetal.Task.Task.force_abandon(task_server)
+
+      _ ->
+        :ok
+    end
+  end
+
+  @doc """
   Lock tokens of a task.
   """
   @spec lock_tokens(application, task_id) ::
