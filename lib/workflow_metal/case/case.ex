@@ -123,9 +123,9 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @doc """
-  Offer tokens to the task.
+  Offer `:free` and `:locked` tokens to the task.
 
-  eg: request free tokens when a task restore from storage.
+  eg: request `:free` and `:locked` tokens when a task restore from storage.
   """
   @spec offer_tokens_to_task(:gen_statem.server_ref(), task_id) :: :ok
   def offer_tokens_to_task(case_server, task_id) do

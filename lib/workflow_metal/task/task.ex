@@ -124,11 +124,11 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @doc """
-  Offer a token.
+  Receive tokens from the case.
   """
-  @spec offer_tokens(:gen_statem.server_ref(), [token_schema]) :: :ok
-  def offer_tokens(task_server, token_schemas) do
-    GenStateMachine.cast(task_server, {:offer_tokens, token_schemas})
+  @spec receive_tokens(:gen_statem.server_ref(), [token_schema]) :: :ok
+  def receive_tokens(task_server, token_schemas) do
+    GenStateMachine.cast(task_server, {:receive_tokens, token_schemas})
   end
 
   @doc """
@@ -230,7 +230,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event(:state_timeout, :start_on_started, :started, %__MODULE__{} = data) do
     {:ok, data} = fetch_workitems(data)
     {:ok, data} = fetch_transition(data)
-    {:ok, data} = request_free_tokens(data)
+    {:ok, data} = request_tokens(data)
     {:ok, data} = start_created_workitems(data)
 
     {
@@ -261,11 +261,14 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event(
         :cast,
-        {:offer_token, token_schema},
+        {:receive_tokens, token_schemas},
         :started,
         %__MODULE__{} = data
       ) do
-    {:ok, data} = upsert_ets_token(token_schema, data)
+    {:ok, data} =
+      Enum.reduce(token_schemas, {:ok, data}, fn token_schema ->
+        upsert_ets_token(token_schema, data)
+      end)
 
     {
       :keep_state,
@@ -275,7 +278,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, :offer_token, _state, %__MODULE__{}) do
+  def handle_event(:cast, {:receive_tokens, _token_schemas}, _state, %__MODULE__{}) do
     # ignore when the task is executing or completed
     :keep_state_and_data
   end
@@ -487,7 +490,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, %{data | transition_schema: transition_schema}}
   end
 
-  defp request_free_tokens(%__MODULE__{} = data) do
+  defp request_tokens(%__MODULE__{} = data) do
     %{
       application: application,
       task_schema: %Schema.Task{
@@ -496,7 +499,7 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    :ok = WorkflowMetal.Case.Supervisor.request_free_tokens(application, case_id, task_id)
+    :ok = WorkflowMetal.Case.Supervisor.request_tokens(application, case_id, task_id)
 
     {:ok, data}
   end

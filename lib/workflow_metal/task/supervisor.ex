@@ -90,12 +90,12 @@ defmodule WorkflowMetal.Task.Supervisor do
   def offer_tokens(application, task_id, token_schemas, options) do
     if Keyword.get(options, :open_task) do
       with({:ok, task_server} <- open_task(application, task_id)) do
-        WorkflowMetal.Task.Task.offer_tokens(task_server, token_schemas)
+        WorkflowMetal.Task.Task.receive_tokens(task_server, token_schemas)
       end
     else
       case whereis_child(application, task_id) do
         :undefined -> :ok
-        task_server -> WorkflowMetal.Task.Task.offer_tokens(task_server, token_schemas)
+        task_server -> WorkflowMetal.Task.Task.receive_tokens(task_server, token_schemas)
       end
     end
   end

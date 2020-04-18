@@ -78,14 +78,14 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @doc """
-  Request free tokens whchi should offer to the task.
+  Request `:free` and `:locked`(locked by the task) tokens which should offer to the task.
 
   This usually happens afetr a task restore from the storage.
   """
-  @spec request_free_tokens(application, case_id, task_id) ::
+  @spec request_tokens(application, case_id, task_id) ::
           :ok
           | {:error, :case_not_found}
-  def request_free_tokens(application, case_id, task_id) do
+  def request_tokens(application, case_id, task_id) do
     with({:ok, case_server} <- open_case(application, case_id)) do
       WorkflowMetal.Case.Case.offer_tokens_to_task(case_server, task_id)
     end
