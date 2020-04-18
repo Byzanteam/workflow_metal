@@ -832,8 +832,7 @@ defmodule WorkflowMetal.Case.Case do
             WorkflowMetal.Task.Supervisor.offer_tokens(
               application,
               task_schema.id,
-              tokens,
-              open_task: false
+              tokens
             )
       end
     end

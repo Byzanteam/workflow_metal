@@ -97,20 +97,13 @@ defmodule WorkflowMetal.Task.Supervisor do
   @doc """
   Offer tokens to a task.
   """
-  @spec offer_tokens(application, task_id, [token_schema], open_task: boolean()) :: :ok
-  def offer_tokens(application, task_id, token_schemas, options \\ [])
-  def offer_tokens(_application, _task_id, [], _options), do: :ok
+  @spec offer_tokens(application, task_id, [token_schema]) :: :ok
+  def offer_tokens(application, task_id, token_schemas)
+  def offer_tokens(_application, _task_id, []), do: :ok
 
-  def offer_tokens(application, task_id, token_schemas, options) do
-    if Keyword.get(options, :open_task) do
-      with({:ok, task_server} <- open_task(application, task_id)) do
-        WorkflowMetal.Task.Task.receive_tokens(task_server, token_schemas)
-      end
-    else
-      case whereis_child(application, task_id) do
-        :undefined -> :ok
-        task_server -> WorkflowMetal.Task.Task.receive_tokens(task_server, token_schemas)
-      end
+  def offer_tokens(application, task_id, token_schemas) do
+    with({:ok, task_server} <- open_task(application, task_id)) do
+      WorkflowMetal.Task.Task.receive_tokens(task_server, token_schemas)
     end
   end
 
