@@ -1205,11 +1205,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
          %Schema.Case{state: :active} = case_schema,
          %State{} = state
        ) do
-    {:ok, [termination_token]} = find_tokens(case_schema.id, [states: [:free]], state)
-    termination_token = %{termination_token | state: :consumed}
-
-    {:ok, state} = upsert_token(termination_token, state)
-
     case_table = get_table(:case, state)
 
     case_schema = %{
