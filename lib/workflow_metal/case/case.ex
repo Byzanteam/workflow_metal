@@ -15,6 +15,10 @@ defmodule WorkflowMetal.Case.Case do
       |              v
       +---------->canceled
   ```
+
+  ## Restore
+
+  Restore a case while offering tokens.
   """
 
   alias WorkflowMetal.Utils.ETS, as: ETSUtil
@@ -96,6 +100,14 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @doc """
+  Cancel a case.
+  """
+  @spec cancel(:gen_statem.server_ref()) :: :ok
+  def cancel(case_server) do
+    GenStateMachine.cast(case_server, :cancel)
+  end
+
+  @doc """
   Issue tokens.
   """
   @spec issue_tokens(:gen_statem.server_ref(), nonempty_list(token_params)) ::
@@ -173,13 +185,13 @@ defmodule WorkflowMetal.Case.Case do
       :created ->
         {
           :keep_state_and_data,
-          {:state_timeout, 0, :restore_from_created}
+          {:state_timeout, 0, :start_on_created}
         }
 
       :active ->
         {
           :keep_state_and_data,
-          {:state_timeout, 0, :restore_from_active}
+          {:state_timeout, 0, :start_on_active}
         }
     end
   end
@@ -190,26 +202,25 @@ defmodule WorkflowMetal.Case.Case do
       {:created, :active} ->
         Logger.debug(fn -> "#{describe(data)} is activated." end)
 
-        {:ok, data} = update_case(:active, data)
         {:keep_state, data}
 
       {:active, :finished} ->
         Logger.debug(fn -> "#{describe(data)} is finished." end)
 
-        {:keep_state, data}
+        {:keep_state, data, {:stop, :normal}}
 
       {_, :canceled} ->
         Logger.debug(fn -> "#{describe(data)} is canceled." end)
 
-        {:ok, data} = update_case(:canceled, data)
-        {:keep_state, data}
+        {:keep_state, data, {:stop, :normal}}
     end
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :restore_from_created, :created, %__MODULE__{} = data) do
+  def handle_event(:state_timeout, :start_on_created, :created, %__MODULE__{} = data) do
     {:ok, data} = fetch_edge_places(data)
     {:ok, data} = do_activate_case(data)
+    {:ok, data} = update_case(:active, data)
 
     {
       :next_state,
@@ -220,10 +231,9 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :restore_from_active, :active, %__MODULE__{} = data) do
-    {:ok, data} = rebuild_tokens(data)
+  def handle_event(:state_timeout, :start_on_active, :active, %__MODULE__{} = data) do
+    {:ok, data} = fetch_tokens(data)
     {:ok, data} = fetch_edge_places(data)
-    {:ok, data} = do_start_executing_tasks(data)
 
     {
       :keep_state,
@@ -239,8 +249,7 @@ defmodule WorkflowMetal.Case.Case do
     {
       :keep_state,
       data,
-      # TODO: ?
-      {:next_event, :internal, :finish}
+      {:next_event, :internal, :try_finish}
     }
   end
 
@@ -251,8 +260,7 @@ defmodule WorkflowMetal.Case.Case do
     {
       :keep_state,
       data,
-      # TODO: ?
-      {:next_event, :internal, :finish}
+      {:next_event, :internal, :try_finish}
     }
   end
 
@@ -269,27 +277,22 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event(:internal, :finish, :active, %__MODULE__{} = data) do
+  def handle_event(:internal, :try_finish, :active, %__MODULE__{} = data) do
     with(
       {:finished, data} <- case_finishment(data),
       {:ok, data} <- do_finish_case(data)
     ) do
+      {:ok, data} = update_case(:finished, data)
+
       {
         :next_state,
         :finished,
-        data,
-        {:next_event, :internal, :stop}
+        data
       }
     else
       _ ->
         :keep_state_and_data
     end
-  end
-
-  @impl GenStateMachine
-  def handle_event(:internal, :stop, state, %__MODULE__{} = data)
-      when state in [:canceled, :finished] do
-    {:stop, :normal, data}
   end
 
   @impl GenStateMachine
@@ -365,7 +368,7 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, tokens, data} = do_issue_tokens(token_params_list, data)
 
     Logger.debug(fn ->
-      "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been issued"
+      "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been issued"
     end)
 
     {
@@ -413,11 +416,19 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
+  def handle_event(:cast, :cancel, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_cancel(data)
+    {:ok, data} = update_case(:canceled, data)
+
+    {:next_state, :canceled, data}
+  end
+
+  @impl GenStateMachine
   def format_status(_reason, [_pdict, state, data]) do
     {:state, %{current_state: state, data: data}}
   end
 
-  defp rebuild_tokens(%__MODULE__{} = data) do
+  defp fetch_tokens(%__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
@@ -507,28 +518,6 @@ defmodule WorkflowMetal.Case.Case do
       :ok,
       %{data | free_token_ids: MapSet.put(free_token_ids, token_schema.id)}
     }
-  end
-
-  defp do_start_executing_tasks(%__MODULE__{} = data) do
-    %{
-      application: application,
-      case_schema: %Schema.Case{
-        id: case_id
-      }
-    } = data
-
-    {:ok, tasks} =
-      WorkflowMetal.Storage.fetch_tasks(
-        application,
-        case_id,
-        states: [:executing]
-      )
-
-    Enum.each(tasks, fn task ->
-      {:ok, _pid} = WorkflowMetal.Task.Supervisor.open_task(application, task.id)
-    end)
-
-    {:ok, data}
   end
 
   defp do_issue_token(token_params, %__MODULE__{} = data) do
@@ -675,17 +664,14 @@ defmodule WorkflowMetal.Case.Case do
 
   defp do_consume_tokens(task_id, %__MODULE__{} = data) do
     %{
-      application: application,
-      token_table: token_table
+      application: application
     } = data
 
     with({:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, task_id)) do
-      Enum.each(tokens, fn token ->
-        :ets.update_element(token_table, token.id, [
-          {2, token},
-          {3, token.state}
-        ])
-      end)
+      {:ok, data} =
+        Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
+          upsert_ets_token(token, data)
+        end)
 
       {:ok, tokens, data}
     end
@@ -714,13 +700,19 @@ defmodule WorkflowMetal.Case.Case do
 
   defp do_finish_case(%__MODULE__{} = data) do
     %{
-      token_table: token_table,
-      free_token_ids: free_token_ids
+      application: application,
+      case_schema: %Schema.Case{
+        id: case_id
+      }
     } = data
 
-    [free_token_id] = MapSet.to_list(free_token_ids)
-    true = :ets.update_element(token_table, free_token_id, [{3, :consumed}])
-    {:ok, data} = update_case(:finished, data)
+    {:ok, [termination_token]} =
+      WorkflowMetal.Storage.consume_tokens(
+        application,
+        {case_id, :termination}
+      )
+
+    {:ok, data} = upsert_ets_token(termination_token, data)
 
     {:ok, data}
   end
@@ -735,22 +727,17 @@ defmodule WorkflowMetal.Case.Case do
 
   defp do_revoke_token(%Schema.Token{} = token_schema, except_task_id, %__MODULE__{} = data) do
     %{
-      application: application,
-      token_table: token_table
+      application: application
     } = data
 
-    token_table
-    |> :ets.select([{{token_schema.id, :"$1", :locked, :_, :_}, [], [:"$1"]}])
-    |> Enum.flat_map(fn token_schema ->
-      {:ok, transitions} =
-        WorkflowMetal.Storage.fetch_transitions(
-          application,
-          token_schema.place_id,
-          :out
-        )
+    {:ok, transitions} =
+      WorkflowMetal.Storage.fetch_transitions(
+        application,
+        token_schema.place_id,
+        :out
+      )
 
-      transitions
-    end)
+    transitions
     |> Stream.map(fn transition ->
       fetch_available_tasks(transition.id, data)
     end)
@@ -850,6 +837,29 @@ defmodule WorkflowMetal.Case.Case do
             )
       end
     end
+
+    {:ok, data}
+  end
+
+  defp do_cancel(%__MODULE__{} = data) do
+    %{
+      application: application,
+      case_schema: %Schema.Case{
+        id: case_id
+      }
+    } = data
+
+    {:ok, tasks} =
+      WorkflowMetal.Storage.fetch_tasks(
+        application,
+        case_id,
+        states: [:started, :allocated, :executing]
+      )
+
+    tasks
+    |> Enum.each(fn task ->
+      WorkflowMetal.Task.Supervisor.force_abandon_task(application, task.id)
+    end)
 
     {:ok, data}
   end
