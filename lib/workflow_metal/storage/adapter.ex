@@ -299,12 +299,11 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_unlock_tokens
 
   @doc """
-  Consume tokens atomically.
+  Consume tokens that locked by the task.
   """
   @callback consume_tokens(
               adapter_meta,
-              token_ids :: nonempty_list(token_id),
-              consumed_by_task_id :: task_id
+              locked_by_task_id :: task_id
             ) :: on_consume_tokens
 
   @doc """

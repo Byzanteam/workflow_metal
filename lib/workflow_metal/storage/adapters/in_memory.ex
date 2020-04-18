@@ -274,10 +274,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def consume_tokens(adapter_meta, token_ids, task_id) do
+  def consume_tokens(adapter_meta, task_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:consume_tokens, token_ids, task_id})
+    GenServer.call(storage, {:consume_tokens, task_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -722,14 +722,15 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:consume_tokens, token_ids, task_id},
+        {:consume_tokens, task_id},
         _from,
         %State{} = state
       ) do
     reply =
       with(
-        {:ok, task_schema} <- find_task(task_id, state),
-        {:ok, tokens} <- prepare_consume_tokens(token_ids, task_schema, state)
+        {:ok, %Schema.Task{case_id: case_id} = task_schema} <- find_task(task_id, state),
+        {:ok, tokens} <-
+          find_tokens(case_id, [state: [:locked], locked_by_task_id: task_id], state)
       ) do
         do_consume_tokens(tokens, task_schema, state)
       end
@@ -1340,24 +1341,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       end)
 
     {:ok, tokens}
-  end
-
-  defp prepare_consume_tokens(token_ids, %Schema.Task{} = task_schema, %State{} = state) do
-    locked_tokens =
-      task_schema.case_id
-      |> find_tokens([state: [:locked], locked_by_task_id: task_schema.id], state)
-      |> elem(1)
-      |> Enum.into(%{}, &{&1.id, &1})
-
-    Enum.reduce_while(token_ids, {:ok, []}, fn token_id, {:ok, tokens} ->
-      case locked_tokens[token_id] do
-        nil ->
-          {:halt, {:error, :tokens_not_available}}
-
-        token ->
-          {:cont, {:ok, [token | tokens]}}
-      end
-    end)
   end
 
   defp do_consume_tokens(tokens, %Schema.Task{} = task_schema, %State{} = state) do
