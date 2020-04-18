@@ -176,12 +176,12 @@ defmodule WorkflowMetal.Workitem.Workitem do
       {:started, :completed} ->
         Logger.debug(fn -> "#{describe(data)} complete the execution." end)
 
-        {:keep_state, data}
+        {:keep_state, data, {:stop, :normal}}
 
       {_from, :abandoned} ->
         Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
 
-        {:keep_state, data}
+        {:keep_state, data, {:stop, :normal}}
     end
   end
 
@@ -193,10 +193,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       :next_state,
       :completed,
       data,
-      [
-        {:reply, from, :ok},
-        {:next_event, :internal, :stop}
-      ]
+      {:reply, from, :ok}
     }
   end
 
@@ -212,8 +209,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {
       :next_state,
       :completed,
-      data,
-      {:next_event, :internal, :stop}
+      data
     }
   end
 
@@ -223,8 +219,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {
       :next_state,
       :abandoned,
-      data,
-      {:next_event, :internal, :stop}
+      data
     }
   end
 
@@ -259,11 +254,6 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
         {:next_state, :abandoned, data}
     end
-  end
-
-  @impl GenStateMachine
-  def handle_event(:internal, :stop, _state, %__MODULE__{} = data) do
-    {:stop, :normal, data}
   end
 
   @impl GenStateMachine
