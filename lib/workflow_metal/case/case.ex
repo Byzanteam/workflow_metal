@@ -132,6 +132,16 @@ defmodule WorkflowMetal.Case.Case do
     GenStateMachine.cast(case_server, {:offer_tokens_to_task, task_id})
   end
 
+  @doc """
+  Free tokens that locked by the task.
+
+  eg: free `:locked` tokens when a task has been abandoned.
+  """
+  @spec free_tokens_from_task(:gen_statem.server_ref(), task_id) :: :ok
+  def free_tokens_from_task(case_server, task_id) do
+    GenStateMachine.call(case_server, {:free_tokens_from_task, task_id})
+  end
+
   # Server (callbacks)
 
   @impl true
@@ -342,6 +352,31 @@ defmodule WorkflowMetal.Case.Case do
 
     Logger.debug(fn ->
       "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been issued"
+    end)
+
+    {
+      :keep_state,
+      data,
+      [
+        {:reply, from, {:ok, tokens}},
+        {:next_event, :internal, :offer_tokens}
+      ]
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event(
+        {:call, from},
+        {:free_tokens_from_task, task_id},
+        :active,
+        %__MODULE__{} = data
+      ) do
+    {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, task_id)
+
+    Logger.debug(fn ->
+      "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been freed by the task(#{
+        task_id
+      })"
     end)
 
     {

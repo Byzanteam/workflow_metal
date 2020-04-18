@@ -91,6 +91,20 @@ defmodule WorkflowMetal.Case.Supervisor do
     end
   end
 
+  @doc """
+  Free tokens that locked by the task.
+
+  This usually happens afetr a task has been abandoned.
+  """
+  @spec unlock_tokens(application, case_id, task_id) ::
+          :ok
+          | {:error, :case_not_found}
+  def unlock_tokens(application, case_id, task_id) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.free_tokens_from_task(case_server, task_id)
+    end
+  end
+
   defp via_name(application, workflow_id) do
     Registration.via_tuple(application, name(workflow_id))
   end
