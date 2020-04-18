@@ -294,7 +294,7 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec consume_tokens(application, task_id) ::
+  @spec consume_tokens(application, task_id | {case_id, :termination}) ::
           Adapter.on_consume_tokens()
   def consume_tokens(application, locked_by_task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)

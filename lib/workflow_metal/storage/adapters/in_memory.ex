@@ -724,6 +724,26 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
+        {:consume_tokens, {case_id, :termination}},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with(
+        {:ok, %Schema.Case{id: case_id}} <- find_case(case_id, state),
+        {:ok, [token]} <- find_tokens(case_id, [state: [:free]], state)
+      ) do
+        do_consume_termination_token(token, state)
+      else
+        {:ok, _} -> {:error, :tokens_not_available}
+        reply -> reply
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
         {:consume_tokens, task_id},
         _from,
         %State{} = state
@@ -1358,6 +1378,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       end)
 
     {:ok, tokens}
+  end
+
+  defp do_consume_termination_token(token, %State{} = state) do
+    token_schema = %{token | state: :consumed}
+    {:ok, _state} = upsert_token(token_schema, state)
+
+    {:ok, [token_schema]}
   end
 
   defp upsert_token(%Schema.Token{} = token_schema, %State{} = state) do
