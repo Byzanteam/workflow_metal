@@ -733,7 +733,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     reply =
       with(
         {:ok, %Schema.Case{id: case_id}} <- find_case(case_id, state),
-        {:ok, [token]} <- find_tokens(case_id, [state: [:free]], state)
+        {:ok, [token]} <- find_tokens(case_id, [states: [:free]], state)
       ) do
         do_consume_termination_token(token, state)
       else
@@ -754,7 +754,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       with(
         {:ok, %Schema.Task{case_id: case_id} = task_schema} <- find_task(task_id, state),
         {:ok, tokens} <-
-          find_tokens(case_id, [state: [:locked], locked_by_task_id: task_id], state)
+          find_tokens(case_id, [states: [:locked], locked_by_task_id: task_id], state)
       ) do
         do_consume_tokens(tokens, task_schema, state)
       end
