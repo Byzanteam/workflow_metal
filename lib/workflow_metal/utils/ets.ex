@@ -24,7 +24,7 @@ defmodule WorkflowMetal.Utils.ETS do
       {:orelse, {:"=:=", :"$1", 1}, {:"=:=", :"$1", 2}}
 
       iex> WorkflowMetal.Utils.ETS.make_condition([1, 2, 3], :"$1", :in)
-      {:orelse, {:andalso, {:"=:=", :"$1", 1}, {:"=:=", :"$1", 2}}, {:"=:=", :"$1", 3}}
+      {:orelse, {:orelse, {:"=:=", :"$1", 1}, {:"=:=", :"$1", 2}}, {:"=:=", :"$1", 3}}
 
   ### `:"=:="`
 
