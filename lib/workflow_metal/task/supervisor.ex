@@ -101,6 +101,19 @@ defmodule WorkflowMetal.Task.Supervisor do
   end
 
   @doc """
+  Withdraw tokens from a task.
+  """
+  @spec withdraw_tokens(application, task_id, [token_schema]) :: :ok
+  def withdraw_tokens(_application, _task_id, []), do: :ok
+
+  def withdraw_tokens(application, task_id, token_schemas) do
+    case whereis_child(application, task_id) do
+      :undefined -> :ok
+      task_server -> WorkflowMetal.Task.Task.discard_tokens(task_server, token_schemas)
+    end
+  end
+
+  @doc """
   Update workitem state.
   """
   @spec update_workitem(application, task_id, workitem_schema) :: :ok

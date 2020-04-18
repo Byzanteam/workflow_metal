@@ -132,11 +132,13 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @doc """
-  Withdraw a token.
+  Discard tokens when the case withdraw them.
+
+  eg: these tokens has been locked by the other token.
   """
-  @spec withdraw_token(:gen_statem.server_ref(), token_schema) :: :ok
-  def withdraw_token(task_server, token_schema) do
-    GenStateMachine.cast(task_server, {:withdraw_token, token_schema})
+  @spec discard_tokens(:gen_statem.server_ref(), [token_schema]) :: :ok
+  def discard_tokens(task_server, token_schemas) do
+    GenStateMachine.cast(task_server, {:discard_tokens, token_schemas})
   end
 
   @doc """
@@ -273,24 +275,29 @@ defmodule WorkflowMetal.Task.Task do
     {
       :keep_state,
       data,
-      {:next_event, :cast, :execute}
+      {:next_event, :cast, :try_allocate}
     }
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, {:receive_tokens, _token_schemas}, _state, %__MODULE__{}) do
-    # ignore when the task is executing or completed
-    :keep_state_and_data
+  def handle_event(:cast, {:receive_tokens, token_schemas}, :allocated, %__MODULE__{} = data) do
+    {:ok, data} =
+      Enum.reduce(token_schemas, {:ok, data}, fn token_schema ->
+        upsert_ets_token(token_schema, data)
+      end)
+
+    {
+      :keep_state,
+      data
+    }
   end
 
   @impl GenStateMachine
-  def handle_event(
-        :cast,
-        {:withdraw_token, token_schema},
-        :started,
-        %__MODULE__{} = data
-      ) do
-    {:ok, data} = remove_ets_token(token_schema, data)
+  def handle_event(:cast, {:discard_tokens, token_schemas}, :started, %__MODULE__{} = data) do
+    {:ok, data} =
+      Enum.reduce(token_schemas, {:ok, data}, fn token_schema, {:ok, data} ->
+        remove_ets_token(token_schema, data)
+      end)
 
     {
       :keep_state,

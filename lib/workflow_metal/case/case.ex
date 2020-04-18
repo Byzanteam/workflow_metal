@@ -761,16 +761,13 @@ defmodule WorkflowMetal.Case.Case do
       fetch_available_tasks(transition.id, data)
     end)
     |> Stream.each(fn
-      {:ok, [%Schema.Task{id: task_id} = task]} when task_id !== except_task_id ->
-        task_server_name = WorkflowMetal.Task.Task.name(task)
-
-        case WorkflowMetal.Registration.whereis_name(application, task_server_name) do
-          :undefined ->
-            :skip
-
-          task_server ->
-            WorkflowMetal.Task.Task.withdraw_token(task_server, token_schema)
-        end
+      {:ok, [%Schema.Task{id: task_id}]} when task_id !== except_task_id ->
+        :ok =
+          WorkflowMetal.Task.Supervisor.withdraw_tokens(
+            application,
+            task_id,
+            [token_schema]
+          )
 
       {:ok, _tasks} ->
         # skip the non-running task server
