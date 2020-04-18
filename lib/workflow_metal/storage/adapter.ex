@@ -179,7 +179,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type task_state :: WorkflowMetal.Storage.Schema.Task.state()
   @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
-  @type update_task_params :: :executing | {:completed, token_payload} | :abandoned
+  @type update_task_params :: :allocated | :executing | {:completed, token_payload} | :abandoned
   @type fetch_tasks_options :: [
           states: nonempty_list(task_state) | nil,
           transition_id: transition_id

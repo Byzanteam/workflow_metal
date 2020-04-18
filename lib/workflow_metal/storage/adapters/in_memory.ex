@@ -236,14 +236,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     storage = storage_name(adapter_meta)
 
     case state_and_options do
+      :allocated ->
+        GenServer.call(storage, {:update_task, task_id, :allocate})
+
       :executing ->
-        GenServer.call(storage, {:execute_task, task_id})
+        GenServer.call(storage, {:update_task, task_id, :execute})
 
       {:completed, token_payload} ->
-        GenServer.call(storage, {:complete_task, task_id, token_payload})
+        GenServer.call(storage, {:update_task, task_id, {:complete, token_payload}})
 
       :abandoned ->
-        GenServer.call(storage, {:abandon_task, task_id})
+        GenServer.call(storage, {:update_task, task_id, :abandon})
     end
   end
 
@@ -619,47 +622,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:execute_task, task_id},
+        {:update_task, task_id, action},
         _from,
         %State{} = state
       ) do
     reply =
       with({:ok, task_schema} <- find_task(task_id, state)) do
-        do_execute_task(
-          task_schema,
-          state
-        )
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:complete_task, task_id, token_payload},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, task_schema} <- find_task(task_id, state)) do
-        do_complete_task(task_schema, token_payload, state)
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:abandon_task, task_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, task_schema} <- find_task(task_id, state)) do
-        do_abandon_task(
-          task_schema,
-          state
-        )
+        do_update_task(action, task_schema, state)
       end
 
     {:reply, reply, state}
@@ -1468,133 +1437,77 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp find_produced_by_task(:genesis, %State{}), do: {:ok, nil}
   defp find_produced_by_task(task_id, %State{} = state), do: find_task(task_id, state)
 
-  defp do_execute_task(
-         %Schema.Task{state: :executing} = task_schema,
-         %State{} = _state
-       ) do
-    {:ok, task_schema}
-  end
-
-  defp do_execute_task(
-         %Schema.Task{state: :started} = task_schema,
+  defp do_update_task(
+         :allocate,
+         %Schema.Task{state: :allocated} = task_schema,
          %State{} = state
-       ) do
-    task_table = get_table(:task, state)
+       ),
+       do: {:ok, task_schema, state}
 
-    task_schema = %{
-      task_schema
-      | state: :executing
-    }
+  defp do_update_task(
+         :execute,
+         %Schema.Task{state: :executing} = task_schema,
+         %State{} = state
+       ),
+       do: {:ok, task_schema, state}
 
-    true =
-      :ets.update_element(
-        task_table,
-        task_schema.id,
-        [
-          {2, task_schema},
-          {3,
-           {
-             task_schema.state,
-             task_schema.workflow_id,
-             task_schema.transition_id,
-             task_schema.case_id
-           }}
-        ]
-      )
-
-    {:ok, task_schema}
-  end
-
-  defp do_execute_task(
-         %Schema.Task{},
-         %State{} = _state
-       ) do
-    {:error, :task_not_available}
-  end
-
-  defp do_complete_task(
+  defp do_update_task(
+         {:complete, _token_payload},
          %Schema.Task{state: :completed} = task_schema,
-         _token_payload,
-         %State{}
-       ) do
-    {:ok, task_schema}
+         %State{} = state
+       ),
+       do: {:ok, task_schema, state}
+
+  defp do_update_task(
+         :abandon,
+         %Schema.Task{state: :abandoned} = task_schema,
+         %State{} = state
+       ),
+       do: {:ok, task_schema, state}
+
+  defp do_update_task(:allocate, %Schema.Task{state: :started} = task_schema, %State{} = state) do
+    task_schema = %{task_schema | state: :allocated}
+
+    {:ok, state} = upsert_task(task_schema, state)
+
+    {:ok, task_schema, state}
   end
 
-  defp do_complete_task(
+  defp do_update_task(:execute, %Schema.Task{state: :allocated} = task_schema, %State{} = state) do
+    task_schema = %{task_schema | state: :executing}
+
+    {:ok, state} = upsert_task(task_schema, state)
+
+    {:ok, task_schema, state}
+  end
+
+  defp do_update_task(
+         {:complete, token_payload},
          %Schema.Task{state: :executing} = task_schema,
-         token_payload,
          %State{} = state
        ) do
-    task_schema = %{
-      task_schema
-      | state: :completed,
-        token_payload: token_payload
-    }
+    task_schema = %{task_schema | state: :completed, token_payload: token_payload}
 
-    true =
-      :task
-      |> get_table(state)
-      |> :ets.update_element(
-        task_schema.id,
-        [
-          {2, task_schema},
-          {3,
-           {
-             task_schema.state,
-             task_schema.workflow_id,
-             task_schema.transition_id,
-             task_schema.case_id
-           }}
-        ]
-      )
+    {:ok, state} = upsert_task(task_schema, state)
 
-    {:ok, task_schema}
+    {:ok, task_schema, state}
   end
 
-  defp do_abandon_task(
-         %Schema.Task{state: :abandoned} = task_schema,
-         %State{} = _state
-       ) do
-    {:ok, task_schema}
-  end
-
-  defp do_abandon_task(
+  defp do_update_task(
+         :abandon,
          %Schema.Task{state: task_state} = task_schema,
          %State{} = state
        )
-       when task_state in [:started, :executing] do
-    task_table = get_table(:task, state)
+       when task_state in [:started, :allocated, :executing] do
+    task_schema = %{task_schema | state: :abandoned}
 
-    task_schema = %{
-      task_schema
-      | state: :abandoned
-    }
+    {:ok, state} = upsert_task(task_schema, state)
 
-    true =
-      :ets.update_element(
-        task_table,
-        task_schema.id,
-        [
-          {2, task_schema},
-          {3,
-           {
-             task_schema.state,
-             task_schema.workflow_id,
-             task_schema.transition_id,
-             task_schema.case_id
-           }}
-        ]
-      )
-
-    {:ok, task_schema}
+    {:ok, task_schema, state}
   end
 
-  defp do_abandon_task(
-         %Schema.Task{},
-         %State{} = _state
-       ) do
-    {:error, :task_not_available}
-  end
+  defp do_update_task(_action, %Schema.Task{}, %State{} = _state),
+    do: {:error, :task_not_available}
 
   defp find_task(task_id, %State{} = state) do
     :task
@@ -1632,6 +1545,25 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       ])
     }
+  end
+
+  defp upsert_task(%Schema.Task{} = task_schema, %State{} = state) do
+    true =
+      :ets.insert(
+        get_table(:task, state),
+        {
+          task_schema.id,
+          task_schema,
+          {
+            task_schema.state,
+            task_schema.workflow_id,
+            task_schema.transition_id,
+            task_schema.case_id
+          }
+        }
+      )
+
+    {:ok, state}
   end
 
   defp persist_workitem(workitem_params, %State{} = state, options) do
