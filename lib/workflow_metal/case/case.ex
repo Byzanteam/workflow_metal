@@ -207,12 +207,12 @@ defmodule WorkflowMetal.Case.Case do
       {:active, :finished} ->
         Logger.debug(fn -> "#{describe(data)} is finished." end)
 
-        {:keep_state, data, {:stop, :normal}}
+        {:stop, :normal}
 
       {_, :canceled} ->
         Logger.debug(fn -> "#{describe(data)} is canceled." end)
 
-        {:keep_state, data, {:stop, :normal}}
+        {:stop, :normal}
     end
   end
 

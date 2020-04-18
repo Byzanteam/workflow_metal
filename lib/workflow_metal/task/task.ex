@@ -237,12 +237,12 @@ defmodule WorkflowMetal.Task.Task do
       {:executing, :completed} ->
         Logger.debug(fn -> "#{describe(data)} complete the execution." end)
 
-        {:keep_state, data, {:stop, :normal}}
+        {:stop, :normal}
 
       {from, :abandoned} when from in [:started, :allocated, :executing] ->
         Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
 
-        {:keep_state, data, {:stop, :normal}}
+        {:stop, :normal}
     end
   end
 
