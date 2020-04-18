@@ -33,7 +33,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   use GenStateMachine,
     callback_mode: [:handle_event_function, :state_enter],
-    restart: :temporary
+    restart: :transient
 
   alias WorkflowMetal.Storage.Schema
 

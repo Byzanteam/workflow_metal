@@ -29,7 +29,7 @@ defmodule WorkflowMetal.Case.Case do
 
   use GenStateMachine,
     callback_mode: [:handle_event_function, :state_enter],
-    restart: :temporary
+    restart: :transient
 
   defstruct [
     :application,
