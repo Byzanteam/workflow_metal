@@ -313,31 +313,20 @@ defmodule WorkflowMetal.Workitem.Workitem do
   defp update_workitem_in_task_server(%__MODULE__{} = data) do
     %{
       application: application,
-      workitem_schema: workitem_schema
+      workitem_schema:
+        %Schema.Workitem{
+          task_id: task_id
+        } = workitem_schema
     } = data
 
     :ok =
       WorkflowMetal.Task.Supervisor.update_workitem(
         application,
-        task_server(data),
+        task_id,
         workitem_schema
       )
 
     {:ok, data}
-  end
-
-  defp task_server(%__MODULE__{} = data) do
-    %{
-      application: application,
-      workitem_schema: %Schema.Workitem{
-        workflow_id: workflow_id,
-        case_id: case_id,
-        transition_id: transition_id,
-        task_id: task_id
-      }
-    } = data
-
-    WorkflowMetal.Task.Task.via_name(application, {workflow_id, transition_id, case_id, task_id})
   end
 
   defp describe(%__MODULE__{} = data) do

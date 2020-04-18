@@ -131,8 +131,8 @@ defmodule WorkflowMetal.Task.Supervisor do
     ) do
       WorkflowMetal.Task.Task.update_workitem(
         task_server,
-        workitem_schema.workitem_id,
-        workitem_schema.workitem_state
+        workitem_schema.id,
+        workitem_schema.state
       )
     else
       {:error, :task_not_found} -> :ok
