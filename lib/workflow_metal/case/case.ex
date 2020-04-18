@@ -205,11 +205,13 @@ defmodule WorkflowMetal.Case.Case do
         {:keep_state, data}
 
       {:active, :finished} ->
+        {:ok, _data} = force_abandon_tasks(data)
         Logger.debug(fn -> "#{describe(data)} is finished." end)
 
         {:stop, :normal}
 
       {_, :canceled} ->
+        {:ok, _data} = force_abandon_tasks(data)
         Logger.debug(fn -> "#{describe(data)} is canceled." end)
 
         {:stop, :normal}
@@ -417,7 +419,6 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl GenStateMachine
   def handle_event(:cast, :cancel, :active, %__MODULE__{} = data) do
-    {:ok, data} = do_cancel(data)
     {:ok, data} = update_case(:canceled, data)
 
     {:next_state, :canceled, data}
@@ -840,7 +841,7 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, data}
   end
 
-  defp do_cancel(%__MODULE__{} = data) do
+  defp force_abandon_tasks(%__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
