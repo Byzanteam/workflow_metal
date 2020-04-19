@@ -5,6 +5,7 @@ defmodule WorkflowMetal.Case.Supervisor do
 
   use DynamicSupervisor
 
+  alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Registration
   alias WorkflowMetal.Storage.Schema
 
@@ -21,8 +22,6 @@ defmodule WorkflowMetal.Case.Supervisor do
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
-
-  alias WorkflowMetal.Application.WorkflowsSupervisor
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()

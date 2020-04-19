@@ -5,6 +5,8 @@ defmodule WorkflowMetal.Task.Supervisor do
 
   use DynamicSupervisor
 
+  alias WorkflowMetal.Application.WorkflowsSupervisor
+
   alias WorkflowMetal.Registration
 
   alias WorkflowMetal.Storage.Schema
@@ -52,15 +54,17 @@ defmodule WorkflowMetal.Task.Supervisor do
       workflow_id: workflow_id
     } = task_schema
 
-    task_supervisor = via_name(application, workflow_id)
-    task_spec = {WorkflowMetal.Task.Task, [task_schema: task_schema]}
+    with({:ok, _} <- WorkflowsSupervisor.open_workflow(application, workflow_id)) do
+      task_supervisor = via_name(application, workflow_id)
+      task_spec = {WorkflowMetal.Task.Task, [task_schema: task_schema]}
 
-    Registration.start_child(
-      application,
-      WorkflowMetal.Task.Task.name(task_schema),
-      task_supervisor,
-      task_spec
-    )
+      Registration.start_child(
+        application,
+        WorkflowMetal.Task.Task.name(task_schema),
+        task_supervisor,
+        task_spec
+      )
+    end
   end
 
   def open_task(application, task_id) do

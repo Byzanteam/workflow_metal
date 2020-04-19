@@ -5,6 +5,8 @@ defmodule WorkflowMetal.Workitem.Supervisor do
 
   use DynamicSupervisor
 
+  alias WorkflowMetal.Application.WorkflowsSupervisor
+
   alias WorkflowMetal.Registration
 
   alias WorkflowMetal.Storage.Schema
@@ -47,19 +49,23 @@ defmodule WorkflowMetal.Workitem.Supervisor do
           WorkflowMetal.Registration.Adapter.on_start_child()
           | {:error, :workitem_not_found}
   def open_workitem(application, %Schema.Workitem{} = workitem_schema) do
-    workitem_supervisor = via_name(application, workitem_schema.workflow_id)
+    with(
+      {:ok, _} <- WorkflowsSupervisor.open_workflow(application, workitem_schema.workflow_id)
+    ) do
+      workitem_supervisor = via_name(application, workitem_schema.workflow_id)
 
-    workitem_spec = {
-      WorkflowMetal.Workitem.Workitem,
-      [workitem_schema: workitem_schema]
-    }
+      workitem_spec = {
+        WorkflowMetal.Workitem.Workitem,
+        [workitem_schema: workitem_schema]
+      }
 
-    Registration.start_child(
-      application,
-      WorkflowMetal.Workitem.Workitem.name(workitem_schema),
-      workitem_supervisor,
-      workitem_spec
-    )
+      Registration.start_child(
+        application,
+        WorkflowMetal.Workitem.Workitem.name(workitem_schema),
+        workitem_supervisor,
+        workitem_spec
+      )
+    end
   end
 
   def open_workitem(application, workitem_id) do
