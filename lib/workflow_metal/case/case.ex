@@ -164,7 +164,7 @@ defmodule WorkflowMetal.Case.Case do
     } = case_schema
 
     if state in [:canceled, :finished] do
-      {:stop, :normal}
+      {:stop, :case_not_available}
     else
       {
         :ok,
@@ -205,7 +205,6 @@ defmodule WorkflowMetal.Case.Case do
         {:keep_state, data}
 
       {:active, :finished} ->
-        {:ok, _data} = force_abandon_tasks(data)
         Logger.debug(fn -> "#{describe(data)} is finished." end)
 
         {:stop, :normal}

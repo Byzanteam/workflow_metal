@@ -16,6 +16,7 @@ defmodule WorkflowMetal.Workitem.Supervisor do
 
   @type workitem_id :: Schema.Workitem.id()
   @type workitem_schema :: Schema.Workitem.t()
+  @type workitem_output :: Schema.Workitem.output()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -70,22 +71,52 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   end
 
   @doc """
+  Lock tokens before a workitem execution.
+  """
+  @spec lock_tokens(application, workitem_id) ::
+          WorkflowMetal.Task.Task.on_lock_tokens()
+          | {:error, :workitem_not_found}
+          | {:error, :task_not_available}
+  def lock_tokens(application, workitem_id) do
+    with(
+      {:ok, %Schema.Workitem{task_id: task_id}} <-
+        WorkflowMetal.Storage.fetch_workitem(application, workitem_id)
+    ) do
+      WorkflowMetal.Task.Supervisor.lock_tokens(application, task_id)
+    end
+  end
+
+  @doc """
+  Complete a workitem.
+  """
+  @spec complete_workitem(application, workitem_id, workitem_output) ::
+          WorkflowMetal.Workitem.Workitem.on_complete()
+          | {:error, :workitem_not_found}
+          | {:error, :workitem_not_available}
+  def complete_workitem(application, workitem_id, output) do
+    with(
+      {:ok, %Schema.Workitem{} = workitem_schema} <-
+        WorkflowMetal.Storage.fetch_workitem(application, workitem_id),
+      {:ok, workitem_server} <- open_workitem(application, workitem_schema)
+    ) do
+      WorkflowMetal.Workitem.Workitem.complete(workitem_server, output)
+    end
+  end
+
+  @doc """
   Abandon a workitem.
   """
   @spec abandon_workitem(application, workitem_id) ::
-          :ok
+          WorkflowMetal.Workitem.Workitem.on_abandon()
           | {:error, :workitem_not_found}
+          | {:error, :workitem_not_available}
   def abandon_workitem(application, workitem_id) do
     with(
-      {:ok, %Schema.Workitem{state: workitem_state} = workitem_schema}
-      when workitem_state in [:created, :started] <-
+      {:ok, %Schema.Workitem{} = workitem_schema} <-
         WorkflowMetal.Storage.fetch_workitem(application, workitem_id),
       {:ok, workitem_server} <- open_workitem(application, workitem_schema)
     ) do
       WorkflowMetal.Workitem.Workitem.abandon(workitem_server)
-    else
-      {:ok, %Schema.Workitem{}} -> :ok
-      reply -> reply
     end
   end
 

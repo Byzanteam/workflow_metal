@@ -60,6 +60,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
         ]
 
   @type on_complete :: :ok | {:error, :workitem_not_available}
+  @type on_abandon :: :ok
 
   @doc false
   @spec start_link(workflow_identifier, options) :: :gen_statem.start_ret()
@@ -216,6 +217,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @impl GenStateMachine
   def handle_event(:cast, :abandon, state, %__MODULE__{} = data)
       when state not in [:abandoned, :completed] do
+    {:ok, data} = update_workitem(:abandoned, data)
+
     {
       :next_state,
       :abandoned,

@@ -327,7 +327,8 @@ defmodule WorkflowMetal.Task.Task do
 
     {
       :keep_state,
-      data
+      data,
+      {:next_state, :cast, :try_abandon_by_tokens}
     }
   end
 
@@ -365,11 +366,29 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, :try_abandon, state, %__MODULE__{} = data)
+  def handle_event(:cast, :try_abandon_by_workitems, state, %__MODULE__{} = data)
       when state in [:allocated, :executing] do
-    case task_abandonment(data) do
+    case workitems_abandonment(data) do
       {:ok, data} ->
         {:ok, data} = unlock_tokens(data)
+        {:ok, data} = update_task(:abandoned, data)
+
+        {
+          :next_state,
+          :abandoned,
+          data
+        }
+
+      _ ->
+        :keep_state_and_data
+    end
+  end
+
+  @impl GenStateMachine
+  def handle_event(:cast, :try_abandon_by_tokens, state, %__MODULE__{} = data)
+      when state in [:started, :allocated, :executing] do
+    case tokens_abandonment(data) do
+      {:ok, data} ->
         {:ok, data} = update_task(:abandoned, data)
 
         {
@@ -431,7 +450,7 @@ defmodule WorkflowMetal.Task.Task do
       when state not in [:abandoned, :completed] do
     {:ok, data} = upsert_ets_workitem({workitem_id, :abandoned}, data)
 
-    {:keep_state, data, {:next_event, :cast, :try_abandon}}
+    {:keep_state, data, {:next_event, :cast, :try_abandon_by_workitems}}
   end
 
   @impl GenStateMachine
@@ -747,7 +766,7 @@ defmodule WorkflowMetal.Task.Task do
     )
   end
 
-  defp task_abandonment(%__MODULE__{} = data) do
+  defp workitems_abandonment(%__MODULE__{} = data) do
     %{
       workitem_table: workitem_table
     } = data
@@ -763,6 +782,19 @@ defmodule WorkflowMetal.Task.Task do
     end
   end
 
+  defp tokens_abandonment(%__MODULE__{} = data) do
+    %{
+      token_table: token_table
+    } = data
+
+    token_table
+    |> :ets.tab2list()
+    |> case do
+      [] -> {:ok, data}
+      _ -> {:error, :task_not_abandoned}
+    end
+  end
+
   defp unlock_tokens(%__MODULE__{} = data) do
     %{
       application: application,
@@ -773,7 +805,10 @@ defmodule WorkflowMetal.Task.Task do
       token_table: token_table
     } = data
 
-    :ok = WorkflowMetal.Case.Supervisor.unlock_tokens(application, case_id, task_id)
+    case WorkflowMetal.Case.Supervisor.unlock_tokens(application, case_id, task_id) do
+      :ok -> :ok
+      {:error, :case_not_available} -> :ok
+    end
 
     true = :ets.delete_all_objects(token_table)
 

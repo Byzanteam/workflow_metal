@@ -23,13 +23,13 @@ defmodule TrafficLight do
   defmodule Init do
     @moduledoc false
 
-    use WorkflowMetal.Executor
+    use WorkflowMetal.Executor, application: Workflow
 
     alias WorkflowMetal.Storage.Schema
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, options) do
-      {:ok, _tokens} = lock_tokens(workitem, options)
+    def execute(%Schema.Workitem{} = workitem, _options) do
+      {:ok, _tokens} = lock_tokens(workitem)
 
       IO.puts("\n#{TrafficLight.now()} the light is on.")
 
@@ -40,7 +40,7 @@ defmodule TrafficLight do
   defmodule Y2R do
     @moduledoc false
 
-    use WorkflowMetal.Executor
+    use WorkflowMetal.Executor, application: Workflow
 
     alias WorkflowMetal.Storage.Schema
 
@@ -52,12 +52,12 @@ defmodule TrafficLight do
       :started
     end
 
-    def run(%Schema.Workitem{} = workitem, options) do
+    def run(%Schema.Workitem{} = workitem, _options) do
       Process.sleep(1000)
 
-      {:ok, _tokens} = lock_tokens(workitem, options)
+      {:ok, _tokens} = lock_tokens(workitem)
 
-      TrafficLight.complete_workitem(workitem, options, :turn_red)
+      complete_workitem(workitem, :turn_red)
 
       TrafficLight.log_light(:red)
     end
@@ -66,7 +66,7 @@ defmodule TrafficLight do
   defmodule R2G do
     @moduledoc false
 
-    use WorkflowMetal.Executor
+    use WorkflowMetal.Executor, application: Workflow
 
     alias WorkflowMetal.Storage.Schema
 
@@ -78,17 +78,17 @@ defmodule TrafficLight do
       :started
     end
 
-    def run(%Schema.Workitem{} = workitem, options) do
+    def run(%Schema.Workitem{} = workitem, _options) do
       Process.sleep(5000)
 
-      case lock_tokens(workitem, options) do
+      case lock_tokens(workitem) do
         {:ok, _tokens} ->
-          TrafficLight.complete_workitem(workitem, options, :turn_green)
+          complete_workitem(workitem, :turn_green)
 
           TrafficLight.log_light(:green)
 
         _ ->
-          :skip
+          abandon_workitem(workitem)
       end
     end
   end
@@ -96,7 +96,7 @@ defmodule TrafficLight do
   defmodule G2Y do
     @moduledoc false
 
-    use WorkflowMetal.Executor
+    use WorkflowMetal.Executor, application: Workflow
 
     alias WorkflowMetal.Storage.Schema
 
@@ -108,12 +108,12 @@ defmodule TrafficLight do
       :started
     end
 
-    def run(%Schema.Workitem{} = workitem, options) do
+    def run(%Schema.Workitem{} = workitem, _options) do
       Process.sleep(4000)
 
-      {:ok, _tokens} = lock_tokens(workitem, options)
+      {:ok, _tokens} = lock_tokens(workitem)
 
-      TrafficLight.complete_workitem(workitem, options, :turn_yellow)
+      complete_workitem(workitem, :turn_yellow)
 
       TrafficLight.log_light(:yellow)
     end
@@ -122,15 +122,15 @@ defmodule TrafficLight do
   defmodule WillEnd do
     @moduledoc false
 
-    use WorkflowMetal.Executor
+    use WorkflowMetal.Executor, application: Workflow
 
     alias WorkflowMetal.Storage.Schema
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, options) do
+    def execute(%Schema.Workitem{} = workitem, _options) do
       # 50% chance
       if :rand.uniform(10) <= 5 do
-        case lock_tokens(workitem, options) do
+        case lock_tokens(workitem) do
           {:ok, _tokens} ->
             IO.puts("\n#{TrafficLight.now()} the light is off.")
 
@@ -143,22 +143,6 @@ defmodule TrafficLight do
         :abandoned
       end
     end
-  end
-
-  def complete_workitem(workitem, options, output) do
-    WorkflowMetal.Workitem.Workitem.complete(
-      workitem_server(workitem, options),
-      output
-    )
-  end
-
-  defp workitem_server(workitem, options) do
-    application = Keyword.fetch!(options, :application)
-
-    WorkflowMetal.Workitem.Workitem.via_name(
-      application,
-      workitem
-    )
   end
 
   def now do

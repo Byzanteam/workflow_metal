@@ -70,14 +70,42 @@ defmodule WorkflowMetal.Application do
       end
 
       @doc """
-      Lock tokens of a task.
-
-      This usually happens before execute the workitem.
+      Lock tokens before a workitem execution.
       """
-      def lock_tokens(task_id) do
-        WorkflowMetal.Task.Supervisor.lock_tokens(
+      @spec lock_tokens(workitem_id :: WorkflowMetal.Workitem.Workitem.id()) ::
+              WorkflowMetal.Task.Task.on_lock_tokens()
+      def lock_tokens(workitem_id) do
+        WorkflowMetal.Workitem.Supervisor.lock_tokens(
           application(),
-          task_id
+          workitem_id
+        )
+      end
+
+      @doc """
+      Complete a workitem
+      """
+      @spec complete_workitem(
+              workitem_id :: WorkflowMetal.Workitem.Workitem.id(),
+              output :: WorkflowMetal.Workitem.Workitem.output()
+            ) ::
+              WorkflowMetal.Workitem.Workitem.on_complete()
+      def complete_workitem(workitem_id, output) do
+        WorkflowMetal.Workitem.Supervisor.complete_workitem(
+          application(),
+          workitem_id,
+          output
+        )
+      end
+
+      @doc """
+      Abandon a workitem.
+      """
+      @spec abandon_workitem(workitem_id :: WorkflowMetal.Workitem.Workitem.id()) ::
+              WorkflowMetal.Workitem.Workitem.on_abandon()
+      def abandon_workitem(workitem_id) do
+        WorkflowMetal.Workitem.Supervisor.abandon_workitem(
+          application(),
+          workitem_id
         )
       end
 

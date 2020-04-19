@@ -117,6 +117,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   """
   @spec unlock_tokens(application, case_id, task_id) ::
           :ok
+          | {:error, :case_not_available}
           | {:error, :case_not_found}
   def unlock_tokens(application, case_id, task_id) do
     with({:ok, case_server} <- open_case(application, case_id)) do
