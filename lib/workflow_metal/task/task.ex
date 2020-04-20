@@ -268,6 +268,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event(:state_timeout, :start_on_allocated, :allocated, %__MODULE__{} = data) do
     {:ok, data} = fetch_workitems(data)
     {:ok, data} = fetch_transition(data)
+    {:ok, data} = request_tokens(data)
     {:ok, data} = start_created_workitems(data)
 
     {

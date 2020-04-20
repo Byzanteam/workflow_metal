@@ -198,4 +198,110 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       end)
     end
   end
+
+  describe "restore" do
+    setup do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      {:ok, _genesis_token} =
+        generate_genesis_token(
+          DummyApplication,
+          workflow_schema,
+          case_schema
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.update_case(
+          DummyApplication,
+          case_schema.id,
+          :active
+        )
+
+      {:ok, {start_place, _end_place}} =
+        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+
+      {:ok, [a_transition]} =
+        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.create_task(
+          DummyApplication,
+          %Schema.Task.Params{
+            workflow_id: workflow_schema.id,
+            case_id: case_schema.id,
+            transition_id: a_transition.id
+          }
+        )
+
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.update_task(
+          DummyApplication,
+          task_schema.id,
+          :allocated
+        )
+
+      {:ok, workitem_schema} =
+        WorkflowMetal.Storage.create_workitem(
+          DummyApplication,
+          %Schema.Workitem.Params{
+            workflow_id: workflow_schema.id,
+            transition_id: a_transition.id,
+            case_id: case_schema.id,
+            task_id: task_schema.id
+          }
+        )
+
+      [workitem_schema: workitem_schema]
+    end
+
+    test "from created", %{workitem_schema: workitem_schema} do
+      {:ok, _} =
+        WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
+
+      until(fn -> assert_receive :a_completed end)
+      until(fn -> assert_receive :b_completed end)
+    end
+
+    test "from started", %{workitem_schema: workitem_schema} do
+      WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+
+      {:ok, _pid} =
+        WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
+
+      refute_receive :a_completed
+    end
+
+    test "from completed", %{workitem_schema: workitem_schema} do
+      WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, {:completed, nil})
+
+      assert {:error, :workitem_not_available} =
+               WorkflowMetal.Workitem.Supervisor.open_workitem(
+                 DummyApplication,
+                 workitem_schema.id
+               )
+    end
+
+    test "from abandoned", %{workitem_schema: workitem_schema} do
+      WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :abandoned)
+
+      assert {:error, :workitem_not_available} =
+               WorkflowMetal.Workitem.Supervisor.open_workitem(
+                 DummyApplication,
+                 workitem_schema.id
+               )
+    end
+  end
 end
