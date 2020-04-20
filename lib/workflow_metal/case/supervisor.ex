@@ -86,7 +86,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   This usually happens afetr a task restore from the storage.
   """
   @spec request_tokens(application, case_id, task_id) ::
-          :ok
+          {:ok, [token_schema]}
           | {:error, :case_not_found}
   def request_tokens(application, case_id, task_id) do
     with({:ok, case_server} <- open_case(application, case_id)) do

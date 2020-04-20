@@ -1615,19 +1615,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
          %Schema.Workitem{state: :created} = workitem_schema,
          %State{} = state
        ) do
-    workitem_table = get_table(:workitem, state)
+    workitem_schema = %{workitem_schema | state: :started}
 
-    workitem_schema = %{
-      workitem_schema
-      | state: :started
-    }
-
-    true =
-      :ets.update_element(
-        workitem_table,
-        workitem_schema.id,
-        [{2, workitem_schema}]
-      )
+    {:ok, _state} = upsert_workitem(workitem_schema, state)
 
     {:ok, workitem_schema}
   end
@@ -1650,20 +1640,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
          %State{} = state
        )
        when workitem_state in [:created, :started] do
-    workitem_table = get_table(:workitem, state)
+    workitem_schema = %{workitem_schema | state: :completed, output: workitem_output}
 
-    workitem_schema = %{
-      workitem_schema
-      | state: :completed,
-        output: workitem_output
-    }
-
-    true =
-      :ets.update_element(
-        workitem_table,
-        workitem_schema.id,
-        [{2, workitem_schema}]
-      )
+    {:ok, _state} = upsert_workitem(workitem_schema, state)
 
     {:ok, workitem_schema}
   end
@@ -1690,19 +1669,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
          %Schema.Workitem{} = workitem_schema,
          %State{} = state
        ) do
-    workitem_table = get_table(:workitem, state)
+    workitem_schema = %{workitem_schema | state: :abandoned}
 
-    workitem_schema = %{
-      workitem_schema
-      | state: :abandoned
-    }
-
-    true =
-      :ets.update_element(
-        workitem_table,
-        workitem_schema.id,
-        [{2, workitem_schema}]
-      )
+    {:ok, _state} = upsert_workitem(workitem_schema, state)
 
     {:ok, workitem_schema}
   end
@@ -1715,6 +1684,24 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       [workitem_schema] -> {:ok, workitem_schema}
       _ -> {:error, :workitem_not_found}
     end
+  end
+
+  defp upsert_workitem(%Schema.Workitem{} = workitem_schema, %State{} = state) do
+    true =
+      :ets.insert(
+        get_table(:workitem, state),
+        {
+          workitem_schema.id,
+          workitem_schema,
+          {
+            workitem_schema.workflow_id,
+            workitem_schema.case_id,
+            workitem_schema.task_id
+          }
+        }
+      )
+
+    {:ok, state}
   end
 
   defp get_table(table_type, %State{} = state) do

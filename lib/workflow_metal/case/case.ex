@@ -140,9 +140,9 @@ defmodule WorkflowMetal.Case.Case do
 
   eg: request `:free` and `:locked` tokens when a task restore from storage.
   """
-  @spec offer_tokens_to_task(:gen_statem.server_ref(), task_id) :: :ok
+  @spec offer_tokens_to_task(:gen_statem.server_ref(), task_id) :: {:ok, [token_schema]}
   def offer_tokens_to_task(case_server, task_id) do
-    GenStateMachine.cast(case_server, {:offer_tokens_to_task, task_id})
+    GenStateMachine.call(case_server, {:offer_tokens_to_task, task_id})
   end
 
   @doc """
@@ -383,15 +383,15 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
-    {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
+  def handle_event({:call, from}, {:offer_tokens_to_task, task_id}, :active, %__MODULE__{} = data) do
+    {:ok, tokens, data} = do_offer_tokens_to_task(task_id, data)
+
+    {:keep_state, data, {:reply, from, {:ok, tokens}}}
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, {:offer_tokens_to_task, task_id}, :active, %__MODULE__{} = data) do
-    {:ok, data} = do_offer_tokens_to_task(task_id, data)
-
-    {:keep_state, data}
+  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
+    {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
   end
 
   @impl GenStateMachine
@@ -562,7 +562,7 @@ defmodule WorkflowMetal.Case.Case do
     } = data
 
     token_table
-    |> :ets.select([{{:_, :"$1", :free, :_, :_}, [], [:"$1"]}])
+    |> :ets.select([{{:_, :"$1", :free, :_, :_, :_}, [], [:"$1"]}])
     |> Enum.each(fn token_schema ->
       do_offer_token(token_schema, data)
     end)
@@ -688,7 +688,7 @@ defmodule WorkflowMetal.Case.Case do
 
     with(
       [free_token_id] <- MapSet.to_list(free_token_ids),
-      match_spec = [{{free_token_id, :"$1", :free, :_, :_}, [], [:"$1"]}],
+      match_spec = [{{free_token_id, :"$1", :free, :_, :_, :_}, [], [:"$1"]}],
       [%Schema.Token{place_id: ^end_place_id}] <- :ets.select(token_table, match_spec)
     ) do
       {:finished, data}
@@ -781,28 +781,28 @@ defmodule WorkflowMetal.Case.Case do
       token_table: token_table
     } = data
 
-    with(
-      {:ok, task_schema} <- WorkflowMetal.Storage.fetch_task(application, task_id),
-      %Schema.Task{state: :started} <- task_schema
-    ) do
+    {
+      :ok,
       %Schema.Task{
         transition_id: transition_id
-      } = task_schema
+      }
+    } = WorkflowMetal.Storage.fetch_task(application, task_id)
 
-      {:ok, arcs} =
-        WorkflowMetal.Storage.fetch_arcs(
-          application,
-          {:transition, transition_id},
-          :in
-        )
+    {:ok, arcs} =
+      WorkflowMetal.Storage.fetch_arcs(
+        application,
+        {:transition, transition_id},
+        :in
+      )
 
-      arcs
-      |> Enum.map(& &1.place_id)
-      |> case do
-        [] ->
-          []
+    arcs
+    |> Enum.map(& &1.place_id)
+    |> case do
+      [] ->
+        {:ok, [], data}
 
-        [_ | _] = place_ids ->
+      [_ | _] = place_ids ->
+        tokens =
           token_table
           |> :ets.select([
             {
@@ -815,29 +815,16 @@ defmodule WorkflowMetal.Case.Case do
                   ]),
                   ETSUtil.make_and([
                     ETSUtil.make_condition(:free, :"$2", :"=:="),
-                    ETSUtil.make_condition(place_ids, :"$4", :in)
+                    ETSUtil.make_condition(place_ids, :"$3", :in)
                   ])
                 ])
               ],
               [:"$1"]
             }
           ])
-      end
-      |> case do
-        [] ->
-          :skip
 
-        tokens ->
-          :ok =
-            WorkflowMetal.Task.Supervisor.offer_tokens(
-              application,
-              task_schema.id,
-              tokens
-            )
-      end
+        {:ok, tokens, data}
     end
-
-    {:ok, data}
   end
 
   defp force_abandon_tasks(%__MODULE__{} = data) do
@@ -875,6 +862,7 @@ defmodule WorkflowMetal.Case.Case do
           token_schema.id,
           token_schema,
           token_schema.state,
+          token_schema.place_id,
           token_schema.locked_by_task_id,
           token_schema.consumed_by_task_id
         }

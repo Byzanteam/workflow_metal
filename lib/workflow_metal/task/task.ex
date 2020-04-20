@@ -560,7 +560,21 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    :ok = WorkflowMetal.Case.Supervisor.request_tokens(application, case_id, task_id)
+    {:ok, tokens} =
+      WorkflowMetal.Case.Supervisor.request_tokens(
+        application,
+        case_id,
+        task_id
+      )
+
+    {:ok, data} =
+      Enum.reduce(
+        tokens,
+        {:ok, data},
+        fn token_schema, {:ok, data} ->
+          upsert_ets_token(token_schema, data)
+        end
+      )
 
     {:ok, data}
   end
