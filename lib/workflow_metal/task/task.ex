@@ -199,26 +199,35 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   # init
   def handle_event(:enter, state, state, %__MODULE__{} = data) do
+    {:ok, data} = fetch_workitems(data)
+    {:ok, data} = fetch_transition(data)
+
     case state do
       :started ->
+        {:ok, data} = request_tokens(data)
+
         {
           :keep_state,
           data,
-          {:state_timeout, 0, :start_on_started}
+          {:state_timeout, 1, :after_start}
         }
 
       :allocated ->
+        {:ok, data} = request_tokens(data)
+
         {
           :keep_state,
           data,
-          {:state_timeout, 0, :start_on_allocated}
+          {:state_timeout, 1, :after_start}
         }
 
       :executing ->
+        {:ok, data} = fetch_locked_tokens(data)
+
         {
           :keep_state,
           data,
-          {:state_timeout, 0, :start_on_executing}
+          {:state_timeout, 1, :after_start}
         }
     end
   end
@@ -252,43 +261,20 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :start_on_started, :started, %__MODULE__{} = data) do
-    {:ok, data} = fetch_workitems(data)
-    {:ok, data} = fetch_transition(data)
-    {:ok, data} = request_tokens(data)
+  def handle_event(:state_timeout, :after_start, state, %__MODULE__{} = data) do
     {:ok, data} = start_created_workitems(data)
 
-    {
-      :keep_state,
-      data
-    }
-  end
+    case state do
+      :executing ->
+        {
+          :keep_state,
+          data,
+          {:next_event, :cast, :try_complete}
+        }
 
-  @impl GenStateMachine
-  def handle_event(:state_timeout, :start_on_allocated, :allocated, %__MODULE__{} = data) do
-    {:ok, data} = fetch_workitems(data)
-    {:ok, data} = fetch_transition(data)
-    {:ok, data} = request_tokens(data)
-    {:ok, data} = start_created_workitems(data)
-
-    {
-      :keep_state,
-      data
-    }
-  end
-
-  @impl GenStateMachine
-  def handle_event(:state_timeout, :start_on_executing, :executing, %__MODULE__{} = data) do
-    {:ok, data} = fetch_workitems(data)
-    {:ok, data} = fetch_transition(data)
-    {:ok, data} = fetch_locked_tokens(data)
-    {:ok, data} = start_created_workitems(data)
-
-    {
-      :keep_state,
-      data,
-      {:next_event, :cast, :try_complete}
-    }
+      _ ->
+        :keep_state_and_data
+    end
   end
 
   @impl GenStateMachine
@@ -560,23 +546,26 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    {:ok, tokens} =
-      WorkflowMetal.Case.Supervisor.request_tokens(
-        application,
-        case_id,
-        task_id
-      )
+    case WorkflowMetal.Case.Supervisor.request_tokens(
+           application,
+           case_id,
+           task_id
+         ) do
+      {:ok, tokens} ->
+        {:ok, data} =
+          Enum.reduce(
+            tokens,
+            {:ok, data},
+            fn token_schema, {:ok, data} ->
+              upsert_ets_token(token_schema, data)
+            end
+          )
 
-    {:ok, data} =
-      Enum.reduce(
-        tokens,
-        {:ok, data},
-        fn token_schema, {:ok, data} ->
-          upsert_ets_token(token_schema, data)
-        end
-      )
+        {:ok, data}
 
-    {:ok, data}
+      _ ->
+        {:ok, data}
+    end
   end
 
   defp fetch_locked_tokens(%__MODULE__{} = data) do
