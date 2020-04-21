@@ -117,13 +117,7 @@ defmodule WorkflowMetal.Workitem.Supervisor do
           | {:error, :workitem_not_found}
           | {:error, :workitem_not_available}
   def abandon_workitem(application, workitem_id) do
-    with(
-      {:ok, %Schema.Workitem{} = workitem_schema} <-
-        WorkflowMetal.Storage.fetch_workitem(application, workitem_id),
-      {:ok, workitem_server} <- open_workitem(application, workitem_schema)
-    ) do
-      WorkflowMetal.Workitem.Workitem.abandon(workitem_server)
-    end
+    WorkflowMetal.Workitem.Workitem.abandon(application, workitem_id)
   end
 
   defp via_name(application, workflow_id) do

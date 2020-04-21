@@ -123,9 +123,49 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @doc """
   Abandon a workitem.
   """
-  @spec abandon(:gen_statem.server_ref()) :: :ok
-  def abandon(workitem_server) do
-    GenStateMachine.cast(workitem_server, :abandon)
+  @spec abandon(application, workitem_id) :: :ok
+  def abandon(application, workitem_id) do
+    with(
+      {:ok, workitem_schema} <-
+        WorkflowMetal.Storage.fetch_workitem(application, workitem_id)
+    ) do
+      do_abandon(application, workitem_schema)
+    end
+  end
+
+  defp do_abandon(_application, %Schema.Workitem{state: :abandoned}), do: :ok
+
+  defp do_abandon(_application, %Schema.Workitem{state: :completed}),
+    do: {:error, :workitem_not_available}
+
+  defp do_abandon(application, %Schema.Workitem{} = workitem_schema) do
+    workitem_server_name = name(workitem_schema)
+
+    case WorkflowMetal.Registration.whereis_name(application, workitem_server_name) do
+      :undefined ->
+        :ok
+
+      workitem_server ->
+        :ok = GenStateMachine.stop(workitem_server, :shutdown)
+    end
+
+    {:ok, workitem_schema} =
+      WorkflowMetal.Storage.update_workitem(
+        application,
+        workitem_schema.id,
+        :abandoned
+      )
+
+    :ok =
+      WorkflowMetal.Task.Supervisor.update_workitem(
+        application,
+        workitem_schema.task_id,
+        workitem_schema
+      )
+
+    Logger.debug(fn -> "#{describe(workitem_schema)} has been abandoned." end)
+
+    :ok
   end
 
   # callbacks
@@ -210,18 +250,6 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {
       :next_state,
       :completed,
-      data
-    }
-  end
-
-  @impl GenStateMachine
-  def handle_event(:cast, :abandon, state, %__MODULE__{} = data)
-      when state not in [:abandoned, :completed] do
-    {:ok, data} = update_workitem(:abandoned, data)
-
-    {
-      :next_state,
-      :abandoned,
       data
     }
   end
@@ -333,15 +361,17 @@ defmodule WorkflowMetal.Workitem.Workitem do
   end
 
   defp describe(%__MODULE__{} = data) do
+    describe(data.workitem_schema)
+  end
+
+  defp describe(%Schema.Workitem{} = workitem_schema) do
     %{
-      workitem_schema: %Schema.Workitem{
-        id: workitem_id,
-        workflow_id: workflow_id,
-        case_id: case_id,
-        task_id: task_id,
-        transition_id: transition_id
-      }
-    } = data
+      id: workitem_id,
+      workflow_id: workflow_id,
+      case_id: case_id,
+      task_id: task_id,
+      transition_id: transition_id
+    } = workitem_schema
 
     "Workitem<#{workitem_id}@#{workflow_id}.#{transition_id}.#{case_id}.#{task_id}>"
   end
