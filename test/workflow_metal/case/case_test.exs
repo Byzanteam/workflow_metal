@@ -187,7 +187,8 @@ defmodule WorkflowMetal.Case.CaseTest do
 
       until(fn -> refute Process.alive?(pid) end)
 
-      assert {:error, :case_not_available} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:error, :case_not_available} =
+               CaseSupervisor.open_case(DummyApplication, case_schema.id)
     end
   end
 end
