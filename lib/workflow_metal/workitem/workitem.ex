@@ -157,7 +157,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
         {
           :keep_state_and_data,
           # Give some time to handle request on init
-          {:state_timeout, 100, :start_on_created}
+          {:state_timeout, 1, :start_on_created}
         }
 
       _ ->
