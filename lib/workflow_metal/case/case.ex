@@ -180,18 +180,24 @@ defmodule WorkflowMetal.Case.Case do
 
   @impl GenStateMachine
   # init
-  def handle_event(:enter, state, state, %__MODULE__{}) do
+  def handle_event(:enter, state, state, %__MODULE__{} = data) do
+    {:ok, data} = fetch_edge_places(data)
+
     case state do
       :created ->
         {
-          :keep_state_and_data,
-          {:state_timeout, 0, :start_on_created}
+          :keep_state,
+          data,
+          {:state_timeout, 1, :after_start}
         }
 
       :active ->
+        {:ok, data} = fetch_tokens(data)
+
         {
-          :keep_state_and_data,
-          {:state_timeout, 0, :start_on_active}
+          :keep_state,
+          data,
+          {:state_timeout, 1, :after_start}
         }
     end
   end
@@ -218,29 +224,25 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event(:state_timeout, :start_on_created, :created, %__MODULE__{} = data) do
-    {:ok, data} = fetch_edge_places(data)
-    {:ok, data} = do_activate_case(data)
-    {:ok, data} = update_case(:active, data)
+  def handle_event(:state_timeout, :after_start, state, %__MODULE__{} = data) do
+    case state do
+      :created ->
+        {:ok, data} = do_activate_case(data)
+        {:ok, data} = update_case(:active, data)
 
-    {
-      :next_state,
-      :active,
-      data,
-      {:next_event, :internal, :offer_tokens}
-    }
-  end
+        {
+          :next_state,
+          :active,
+          data,
+          {:next_event, :internal, :offer_tokens}
+        }
 
-  @impl GenStateMachine
-  def handle_event(:state_timeout, :start_on_active, :active, %__MODULE__{} = data) do
-    {:ok, data} = fetch_tokens(data)
-    {:ok, data} = fetch_edge_places(data)
-
-    {
-      :keep_state,
-      data,
-      {:next_event, :internal, :offer_tokens}
-    }
+      :active ->
+        {
+          :keep_state_and_data,
+          {:next_event, :internal, :offer_tokens}
+        }
+    end
   end
 
   @impl GenStateMachine
