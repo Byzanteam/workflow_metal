@@ -1,15 +1,35 @@
 defmodule WorkflowMetal.Case.Case do
   @moduledoc """
-  `GenServer` process to present a workflow case.
+  `GenStateMachine` process to present a workflow case.
 
   ## Storage
   The data of `:token_table` is stored in ETS in the following format:
-      {token_id, token_state, place_id, locked_by_task_id}
+      {token_id, token_schema, token_state, place_id, locked_by_task_id, consumed_by_task_id}
+
+  ## State
+
+  ```
+  created+------->active+------->finished
+      +              +
+      |              |
+      |              v
+      +---------->canceled
+  ```
+
+  ## Restore
+
+  Restore a case while offering tokens.
   """
+
+  alias WorkflowMetal.Utils.ETS, as: ETSUtil
 
   alias WorkflowMetal.Storage.Schema
 
-  use GenServer
+  require Logger
+
+  use GenStateMachine,
+    callback_mode: [:handle_event_function, :state_enter],
+    restart: :transient
 
   defstruct [
     :application,
@@ -21,8 +41,8 @@ defmodule WorkflowMetal.Case.Case do
   ]
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
-  @type workflow_id :: WorkflowMetal.Workflow.Workflow.workflow_id()
+  @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
+  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
@@ -30,21 +50,35 @@ defmodule WorkflowMetal.Case.Case do
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
-  @type options :: [name: term(), case_schema: case_schema]
+  @type options :: [
+          name: term(),
+          case_schema: case_schema
+        ]
 
   @doc false
-  @spec start_link(workflow_identifier, options) :: GenServer.on_start()
+  @spec start_link(workflow_identifier, options) :: :gen_statem.start_ret()
   def start_link(workflow_identifier, options) do
     name = Keyword.fetch!(options, :name)
     case_schema = Keyword.fetch!(options, :case_schema)
 
-    GenServer.start_link(__MODULE__, {workflow_identifier, case_schema}, name: name)
+    GenStateMachine.start_link(__MODULE__, {workflow_identifier, case_schema}, name: name)
   end
 
   @doc false
   @spec name({workflow_id, case_id}) :: term
   def name({workflow_id, case_id}) do
     {__MODULE__, {workflow_id, case_id}}
+  end
+
+  @doc false
+  @spec name(case_schema) :: term
+  def name(%Schema.Case{} = case_schema) do
+    %{
+      id: case_id,
+      workflow_id: workflow_id
+    } = case_schema
+
+    name({workflow_id, case_id})
   end
 
   @doc false
@@ -56,157 +90,373 @@ defmodule WorkflowMetal.Case.Case do
     )
   end
 
+  @doc false
+  @spec via_name(application, case_schema) :: term
+  def via_name(application, %Schema.Case{} = case_schema) do
+    WorkflowMetal.Registration.via_tuple(
+      application,
+      name(case_schema)
+    )
+  end
+
+  @doc """
+  Cancel a case.
+  """
+  @spec cancel(:gen_statem.server_ref()) :: :ok
+  def cancel(case_server) do
+    GenStateMachine.cast(case_server, :cancel)
+  end
+
   @doc """
   Issue tokens.
   """
-  @spec issue_tokens(GenServer.server(), nonempty_list(token_params)) ::
-          {:ok, [token_schema]}
+  @spec issue_tokens(:gen_statem.server_ref(), nonempty_list(token_params)) ::
+          {:ok, nonempty_list(token_schema)}
   def issue_tokens(case_server, [_ | _] = token_params_list) do
-    GenServer.call(case_server, {:issue_tokens, token_params_list})
+    GenStateMachine.call(case_server, {:issue_tokens, token_params_list})
   end
 
   @doc """
   Lock tokens.
   """
-  @spec lock_tokens(GenServer.server(), [token_id], task_id) ::
-          :ok | {:error, :tokens_not_available}
+  @spec lock_tokens(:gen_statem.server_ref(), [token_id], task_id) ::
+          {:ok, nonempty_list(token_schema)}
+          | {:error, :tokens_not_available}
   def lock_tokens(case_server, [_ | _] = token_ids, task_id) do
-    GenServer.call(case_server, {:lock_tokens, token_ids, task_id})
+    GenStateMachine.call(case_server, {:lock_tokens, token_ids, task_id})
   end
 
   @doc """
   Consume tokens.
   """
-  @spec consume_tokens(GenServer.server(), [token_id], task_id) ::
-          :ok | {:error, :tokens_not_available}
-  def consume_tokens(case_server, [_ | _] = token_ids, task_id) do
-    GenServer.call(case_server, {:consume_tokens, token_ids, task_id})
+  @spec consume_tokens(:gen_statem.server_ref(), task_id) ::
+          {:ok, nonempty_list(token_schema)} | {:error, :tokens_not_available}
+  def consume_tokens(case_server, task_id) do
+    GenStateMachine.call(case_server, {:consume_tokens, task_id})
+  end
+
+  @doc """
+  Offer `:free` and `:locked` tokens to the task.
+
+  eg: request `:free` and `:locked` tokens when a task restore from storage.
+  """
+  @spec offer_tokens_to_task(:gen_statem.server_ref(), task_id) :: {:ok, [token_schema]}
+  def offer_tokens_to_task(case_server, task_id) do
+    GenStateMachine.call(case_server, {:offer_tokens_to_task, task_id})
+  end
+
+  @doc """
+  Free tokens that locked by the task.
+
+  eg: free `:locked` tokens when a task has been abandoned.
+  """
+  @spec free_tokens_from_task(:gen_statem.server_ref(), task_id) :: :ok
+  def free_tokens_from_task(case_server, task_id) do
+    GenStateMachine.cast(case_server, {:free_tokens_from_task, task_id})
   end
 
   # Server (callbacks)
 
   @impl true
   def init({{application, _workflow_id}, case_schema}) do
-    token_table = :ets.new(:token_table, [:set, :private])
+    %{
+      state: state
+    } = case_schema
+
+    if state in [:canceled, :finished] do
+      {:stop, :case_not_available}
+    else
+      {
+        :ok,
+        state,
+        %__MODULE__{
+          application: application,
+          case_schema: case_schema,
+          token_table: :ets.new(:token_table, [:set, :private])
+        }
+      }
+    end
+  end
+
+  @impl GenStateMachine
+  # init
+  def handle_event(:enter, state, state, %__MODULE__{} = data) do
+    {:ok, data} = fetch_edge_places(data)
+
+    case state do
+      :created ->
+        {
+          :keep_state,
+          data,
+          {:state_timeout, 1, :after_start}
+        }
+
+      :active ->
+        {:ok, data} = fetch_tokens(data)
+
+        {
+          :keep_state,
+          data,
+          {:state_timeout, 1, :after_start}
+        }
+    end
+  end
+
+  @impl GenStateMachine
+  def handle_event(:enter, old_state, state, %__MODULE__{} = data) do
+    case {old_state, state} do
+      {:created, :active} ->
+        Logger.debug(fn -> "#{describe(data)} is activated." end)
+
+        {:keep_state, data}
+
+      {:active, :finished} ->
+        Logger.debug(fn -> "#{describe(data)} is finished." end)
+
+        {:stop, :normal}
+
+      {_, :canceled} ->
+        {:ok, _data} = force_abandon_tasks(data)
+        Logger.debug(fn -> "#{describe(data)} is canceled." end)
+
+        {:stop, :normal}
+    end
+  end
+
+  @impl GenStateMachine
+  def handle_event(:state_timeout, :after_start, state, %__MODULE__{} = data) do
+    case state do
+      :created ->
+        {:ok, data} = do_activate_case(data)
+        {:ok, data} = update_case(:active, data)
+
+        {
+          :next_state,
+          :active,
+          data,
+          {:next_event, :internal, :offer_tokens}
+        }
+
+      :active ->
+        {
+          :keep_state_and_data,
+          {:next_event, :internal, :offer_tokens}
+        }
+    end
+  end
+
+  @impl GenStateMachine
+  def handle_event(:internal, :offer_tokens, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_offer_tokens(data)
 
     {
-      :ok,
-      %__MODULE__{
-        application: application,
-        case_schema: case_schema,
-        token_table: token_table
-      },
-      {:continue, :rebuild_from_storage}
+      :keep_state,
+      data,
+      {:next_event, :internal, :try_finish}
     }
   end
 
-  @impl true
-  def handle_continue(:rebuild_from_storage, %__MODULE__{} = state) do
-    with(
-      {:ok, state} <- rebuild_tokens(state),
-      {:ok, state} <- fetch_edge_places(state)
-    ) do
-      {:noreply, state, {:continue, :activate_case}}
-    end
+  @impl GenStateMachine
+  def handle_event(:internal, {:offer_tokens, tokens}, :active, %__MODULE__{} = data) do
+    {:ok, data} = do_offer_tokens(tokens, data)
+
+    {
+      :keep_state,
+      data,
+      {:next_event, :internal, :try_finish}
+    }
   end
 
-  @impl true
-  def handle_continue(
-        :activate_case,
-        %__MODULE__{case_schema: %Schema.Case{state: :created}} = state
+  @impl GenStateMachine
+  def handle_event(
+        :internal,
+        {:revoke_tokens, locked_token_schemas, except_task_id},
+        :active,
+        %__MODULE__{} = data
       ) do
-    {:ok, state} = do_activate_case(state)
-    {:noreply, state, {:continue, :offer_tokens}}
+    {:ok, data} = do_revoke_tokens(locked_token_schemas, except_task_id, data)
+
+    {:keep_state, data}
   end
 
-  def handle_continue(:activate_case, state),
-    do: {:noreply, state, {:continue, :finish_case}}
-
-  @impl true
-  def handle_continue(
-        :finish_case,
-        %__MODULE__{case_schema: %Schema.Case{state: :active}} = state
-      ) do
+  @impl GenStateMachine
+  def handle_event(:internal, :try_finish, :active, %__MODULE__{} = data) do
     with(
-      {:finished, state} <- case_finishment(state),
-      {:ok, state} <- do_finish_case(state)
+      {:finished, data} <- case_finishment(data),
+      {:ok, data} <- do_finish_case(data)
     ) do
-      {:stop, :normal, state}
+      {:ok, data} = update_case(:finished, data)
+
+      {
+        :next_state,
+        :finished,
+        data
+      }
     else
       _ ->
-        {:noreply, state}
+        :keep_state_and_data
     end
   end
 
-  def handle_continue(:finish_case, state),
-    do: {:stop, :normal, state}
+  @impl GenStateMachine
+  def handle_event(
+        {:call, from},
+        {:lock_tokens, token_ids, task_id},
+        :active,
+        %__MODULE__{} = data
+      ) do
+    case do_lock_tokens(MapSet.new(token_ids), task_id, data) do
+      {:ok, locked_token_schemas, data} ->
+        Logger.debug(fn ->
+          "#{describe(data)}: tokens(#{token_ids |> Enum.join(", ")}) have been locked by the task(#{
+            task_id
+          })"
+        end)
 
-  @impl true
-  def handle_continue(:offer_tokens, %__MODULE__{} = state) do
-    :ok = do_offer_tokens(state)
-    {:noreply, state, {:continue, :finish_case}}
-  end
-
-  @impl true
-  def handle_continue({:withdraw_tokens, token_ids, task_id}, %__MODULE__{} = state) do
-    {:ok, state} = do_withdraw_tokens(token_ids, task_id, state)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_continue(:fire_transitions, %__MODULE__{} = state) do
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_call({:issue_tokens, token_params_list}, _from, %__MODULE__{} = state) do
-    with({:ok, tokens, state} <- do_issue_tokens(token_params_list, state)) do
-      {:reply, {:ok, tokens}, state, {:continue, :offer_tokens}}
-    end
-  end
-
-  @impl true
-  def handle_call({:lock_tokens, token_ids, task_id}, _from, %__MODULE__{} = state) do
-    case do_lock_tokens(state, MapSet.new(token_ids), task_id) do
-      {:ok, state} ->
-        {:reply, :ok, state, {:continue, {:withdraw_tokens, token_ids, task_id}}}
+        {
+          :keep_state,
+          data,
+          [
+            {:reply, from, {:ok, locked_token_schemas}},
+            {:next_event, :internal, {:revoke_tokens, locked_token_schemas, task_id}}
+          ]
+        }
 
       error ->
-        {:reply, error, state}
+        {
+          :keep_state,
+          data,
+          {:reply, from, error}
+        }
     end
   end
 
-  @impl true
-  def handle_call(
-        {:consume_tokens, token_ids, task_id},
-        _from,
-        %__MODULE__{} = state
+  @impl GenStateMachine
+  def handle_event(
+        {:call, from},
+        {:consume_tokens, task_id},
+        :active,
+        %__MODULE__{} = data
       ) do
-    with({:ok, state} <- do_consume_tokens(token_ids, task_id, state)) do
-      {:reply, :ok, state}
+    case do_consume_tokens(task_id, data) do
+      {:ok, tokens, data} ->
+        Logger.debug(fn ->
+          "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{
+            task_id
+          })"
+        end)
+
+        {
+          :keep_state,
+          data,
+          {:reply, from, {:ok, tokens}}
+        }
+
+      error ->
+        {
+          :keep_state,
+          data,
+          {:reply, from, error}
+        }
     end
   end
 
-  defp rebuild_tokens(%__MODULE__{} = state) do
+  @impl GenStateMachine
+  def handle_event(
+        {:call, from},
+        {:issue_tokens, token_params_list},
+        :active,
+        %__MODULE__{} = data
+      ) do
+    {:ok, tokens, data} = do_issue_tokens(token_params_list, data)
+
+    Logger.debug(fn ->
+      "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been issued"
+    end)
+
+    {
+      :keep_state,
+      data,
+      [
+        {:reply, from, {:ok, tokens}},
+        {:next_event, :internal, {:offer_tokens, tokens}}
+      ]
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event({:call, from}, {:offer_tokens_to_task, task_id}, :active, %__MODULE__{} = data) do
+    {:ok, tokens, data} = do_offer_tokens_to_task(task_id, data)
+
+    {:keep_state, data, {:reply, from, {:ok, tokens}}}
+  end
+
+  @impl GenStateMachine
+  def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
+    {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
+  end
+
+  @impl GenStateMachine
+  def handle_event(
+        :cast,
+        {:free_tokens_from_task, task_id},
+        :active,
+        %__MODULE__{} = data
+      ) do
+    {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, task_id)
+
+    Logger.debug(fn ->
+      "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been freed by the task(#{
+        task_id
+      })"
+    end)
+
+    {
+      :keep_state,
+      data,
+      {:next_event, :internal, {:offer_tokens, tokens}}
+    }
+  end
+
+  @impl GenStateMachine
+  def handle_event(:cast, :cancel, :active, %__MODULE__{} = data) do
+    {:ok, data} = update_case(:canceled, data)
+
+    {:next_state, :canceled, data}
+  end
+
+  @impl GenStateMachine
+  def format_status(_reason, [_pdict, state, data]) do
+    {:state, %{current_state: state, data: data}}
+  end
+
+  defp fetch_tokens(%__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
         id: case_id
-      },
-      token_table: token_table
-    } = state
+      }
+    } = data
 
-    with({:ok, tokens} <- WorkflowMetal.Storage.fetch_tokens(application, case_id, [:free])) do
+    with(
+      {:ok, tokens} <-
+        WorkflowMetal.Storage.fetch_tokens(application, case_id, states: [:free, :locked])
+    ) do
       free_token_ids =
-        MapSet.new(tokens, fn token ->
-          :ok = insert_token(token_table, token)
-          token.id
+        Enum.reduce(tokens, MapSet.new(), fn
+          %Schema.Token{state: :free} = token, acc ->
+            {:ok, _data} = upsert_ets_token(token, data)
+            MapSet.put(acc, token.id)
+
+          %Schema.Token{state: :locked} = token, acc ->
+            {:ok, _data} = upsert_ets_token(token, data)
+            acc
         end)
 
       {
         :ok,
         Map.update!(
-          state,
+          data,
           :free_token_ids,
           &MapSet.union(&1, MapSet.new(free_token_ids))
         )
@@ -214,88 +464,80 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
-  defp fetch_edge_places(%__MODULE__{} = state) do
+  defp fetch_edge_places(%__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
         workflow_id: workflow_id
       }
-    } = state
+    } = data
 
     {:ok, {start_place, end_place}} =
       WorkflowMetal.Storage.fetch_edge_places(application, workflow_id)
 
-    {:ok, %{state | start_place: start_place, end_place: end_place}}
+    {:ok, %{data | start_place: start_place, end_place: end_place}}
   end
 
-  defp insert_token(token_table, %Schema.Token{} = token) do
-    %{
-      id: token_id,
-      state: state,
-      place_id: place_id,
-      locked_by_task_id: locked_by_task_id
-    } = token
-
-    true = :ets.insert(token_table, {token_id, state, place_id, locked_by_task_id})
-
-    :ok
-  end
-
-  defp do_activate_case(%__MODULE__{} = state) do
+  defp update_case(state_and_options, %__MODULE__{} = data) do
     %{
       application: application,
+      case_schema: case_schema
+    } = data
+
+    {:ok, case_schema} =
+      WorkflowMetal.Storage.update_case(
+        application,
+        case_schema.id,
+        state_and_options
+      )
+
+    {:ok, %{data | case_schema: case_schema}}
+  end
+
+  defp do_activate_case(%__MODULE__{} = data) do
+    %{
       start_place: %Schema.Place{
         id: start_place_id
       },
-      case_schema: case_schema,
-      free_token_ids: free_token_ids
-    } = state
-
-    {
-      :ok,
-      %Schema.Case{
+      case_schema: %Schema.Case{
         id: case_id,
         workflow_id: workflow_id
-      } = case_schema
-    } = WorkflowMetal.Storage.activate_case(application, case_schema.id)
+      },
+      free_token_ids: free_token_ids
+    } = data
 
     genesis_token_params = %Schema.Token.Params{
       workflow_id: workflow_id,
-      case_id: case_id,
       place_id: start_place_id,
+      case_id: case_id,
       produced_by_task_id: :genesis,
       payload: nil
     }
 
-    {:ok, token_schema} = do_issue_token(genesis_token_params, state)
+    {:ok, token_schema} = do_issue_token(genesis_token_params, data)
 
     {
       :ok,
-      %{
-        state
-        | case_schema: case_schema,
-          free_token_ids: MapSet.put(free_token_ids, token_schema.id)
-      }
+      %{data | free_token_ids: MapSet.put(free_token_ids, token_schema.id)}
     }
   end
 
-  defp do_issue_token(token_params, %__MODULE__{} = state) do
+  defp do_issue_token(token_params, %__MODULE__{} = data) do
     %{
-      application: application,
-      token_table: token_table
-    } = state
+      application: application
+    } = data
 
     {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_params)
 
-    :ok = insert_token(token_table, token_schema)
+    {:ok, _data} = upsert_ets_token(token_schema, data)
 
     {:ok, token_schema}
   end
 
-  defp do_issue_tokens(token_params_list, %__MODULE__{} = state) do
+  defp do_issue_tokens(token_params_list, %__MODULE__{} = data) do
     new_tokens =
       Enum.map(token_params_list, fn token_schema ->
-        {:ok, token_schema} = do_issue_token(token_schema, state)
+        {:ok, token_schema} = do_issue_token(token_schema, data)
 
         token_schema
       end)
@@ -304,7 +546,7 @@ defmodule WorkflowMetal.Case.Case do
       :ok,
       new_tokens,
       Map.update!(
-        state,
+        data,
         :free_token_ids,
         fn free_token_ids ->
           MapSet.union(
@@ -316,53 +558,71 @@ defmodule WorkflowMetal.Case.Case do
     }
   end
 
-  defp do_offer_tokens(%__MODULE__{} = state) do
-    %{token_table: token_table} = state
-
-    match_spec = [{{:"$1", :free, :"$2", :_}, [], [{{:"$2", :"$1"}}]}]
+  defp do_offer_tokens(%__MODULE__{} = data) do
+    %{
+      token_table: token_table
+    } = data
 
     token_table
-    |> :ets.select(match_spec)
-    |> Enum.each(fn {place_id, token_id} ->
-      do_offer_token(state, place_id, token_id)
+    |> :ets.select([{{:_, :"$1", :free, :_, :_, :_}, [], [:"$1"]}])
+    |> Enum.each(fn token_schema ->
+      do_offer_token(token_schema, data)
     end)
 
-    :ok
+    {:ok, data}
   end
 
-  defp do_offer_token(%__MODULE__{} = state, place_id, token_id) do
-    %{application: application} = state
+  defp do_offer_tokens(tokens, %__MODULE__{} = data) do
+    tokens
+    |> Enum.each(fn token_schema ->
+      do_offer_token(token_schema, data)
+    end)
 
-    {:ok, transitions} = WorkflowMetal.Storage.fetch_transitions(application, place_id, :out)
+    {:ok, data}
+  end
+
+  defp do_offer_token(%Schema.Token{} = token_schema, %__MODULE__{} = data) do
+    %{
+      application: application
+    } = data
+
+    {:ok, transitions} =
+      WorkflowMetal.Storage.fetch_transitions(
+        application,
+        token_schema.place_id,
+        :out
+      )
 
     transitions
     |> Stream.map(fn transition ->
-      fetch_or_create_task(state, transition)
+      fetch_or_create_task(transition, data)
     end)
     |> Stream.each(fn {:ok, task} ->
-      {:ok, task_server} = WorkflowMetal.Task.Supervisor.open_task(application, task.id)
+      :ok = WorkflowMetal.Task.Supervisor.offer_tokens(application, task.id, [token_schema])
 
-      WorkflowMetal.Task.Task.offer_token(task_server, place_id, token_id)
+      Logger.debug(fn ->
+        "#{describe(data)}: offers a token(#{token_schema.id}) to the task(#{task.id})"
+      end)
     end)
     |> Stream.run()
   end
 
-  defp fetch_or_create_task(%__MODULE__{} = state, transition) do
-    %{
-      application: application,
-      case_schema: %Schema.Case{
-        id: case_id,
-        workflow_id: workflow_id
-      }
-    } = state
-
+  defp fetch_or_create_task(transition, %__MODULE__{} = data) do
     %{id: transition_id} = transition
 
-    case WorkflowMetal.Storage.fetch_task(application, case_id, transition_id) do
-      {:ok, task} ->
+    case fetch_available_tasks(transition_id, data) do
+      {:ok, [task]} ->
         {:ok, task}
 
-      {:error, _} ->
+      {:ok, []} ->
+        %{
+          application: application,
+          case_schema: %Schema.Case{
+            id: case_id,
+            workflow_id: workflow_id
+          }
+        } = data
+
         task_params = %Schema.Task.Params{
           workflow_id: workflow_id,
           case_id: case_id,
@@ -373,142 +633,127 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
-  @state_position 2
-  @locked_by_task_id_position 4
-  defp do_lock_tokens(%__MODULE__{} = state, token_ids, task_id) do
+  defp do_lock_tokens(token_ids, task_id, %__MODULE__{} = data) do
     %{
       application: application,
-      token_table: token_table,
       free_token_ids: free_token_ids
-    } = state
+    } = data
 
     if MapSet.subset?(token_ids, free_token_ids) do
-      Enum.each(token_ids, fn token_id ->
-        :ets.update_element(token_table, token_id, [
-          {@state_position, :locked},
-          {@locked_by_task_id_position, task_id}
-        ])
+      {:ok, locked_token_schemas} =
+        WorkflowMetal.Storage.lock_tokens(
+          application,
+          MapSet.to_list(token_ids),
+          task_id
+        )
 
-        {:ok, _token_schema} = WorkflowMetal.Storage.lock_token(application, token_id, task_id)
-      end)
+      {:ok, data} =
+        Enum.reduce(
+          locked_token_schemas,
+          {:ok, data},
+          fn token_schema, {:ok, data} ->
+            upsert_ets_token(token_schema, data)
+          end
+        )
 
       free_token_ids = MapSet.difference(free_token_ids, token_ids)
 
-      {:ok, %{state | free_token_ids: free_token_ids}}
+      {:ok, locked_token_schemas, %{data | free_token_ids: free_token_ids}}
     else
       {:error, :tokens_not_available}
     end
   end
 
-  defp do_consume_tokens(token_ids, task_id, state) do
+  defp do_consume_tokens(task_id, %__MODULE__{} = data) do
     %{
       application: application
-    } = state
+    } = data
 
-    {:ok, _tokens} = WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
+    with({:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, task_id)) do
+      {:ok, data} =
+        Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
+          upsert_ets_token(token, data)
+        end)
 
-    {:ok, state}
+      {:ok, tokens, data}
+    end
   end
 
-  defp case_finishment(%__MODULE__{} = state) do
+  defp case_finishment(%__MODULE__{} = data) do
     %{
       end_place: %Schema.Place{
         id: end_place_id
       },
-      case_schema: case_schema,
       token_table: token_table,
       free_token_ids: free_token_ids
-    } = state
+    } = data
 
     with(
       [free_token_id] <- MapSet.to_list(free_token_ids),
-      match_spec = [{{free_token_id, :free, :"$1", :_}, [], [:"$1"]}],
-      [^end_place_id] <- :ets.select(token_table, match_spec)
+      match_spec = [{{free_token_id, :"$1", :free, :_, :_, :_}, [], [:"$1"]}],
+      [%Schema.Token{place_id: ^end_place_id}] <- :ets.select(token_table, match_spec)
     ) do
-      {
-        :finished,
-        %{
-          state
-          | case_schema: %{
-              case_schema
-              | state: :finished
-            }
-        }
-      }
+      {:finished, data}
     else
       _ ->
-        {:active, state}
+        {:active, data}
     end
   end
 
-  defp do_finish_case(%__MODULE__{} = state) do
+  defp do_finish_case(%__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
         id: case_id
-      },
-      token_table: token_table,
-      free_token_ids: free_token_ids
-    } = state
+      }
+    } = data
 
-    [free_token_id] = MapSet.to_list(free_token_ids)
-    true = :ets.update_element(token_table, free_token_id, [{2, :consumed}])
-    {:ok, case_schema} = WorkflowMetal.Storage.finish_case(application, case_id)
+    {:ok, [termination_token]} =
+      WorkflowMetal.Storage.consume_tokens(
+        application,
+        {case_id, :termination}
+      )
 
-    {:ok, %{state | case_schema: case_schema}}
+    {:ok, data} = upsert_ets_token(termination_token, data)
+
+    {:ok, data}
   end
 
-  defp do_withdraw_tokens(token_ids, except_task_id, %__MODULE__{} = state) do
-    Enum.each(token_ids, fn token_id ->
-      :ok = do_withdraw_token(token_id, except_task_id, state)
+  defp do_revoke_tokens(locked_token_schemas, except_task_id, %__MODULE__{} = data) do
+    Enum.each(locked_token_schemas, fn locked_token ->
+      :ok = do_revoke_token(locked_token, except_task_id, data)
     end)
 
-    {:ok, state}
+    {:ok, data}
   end
 
-  defp do_withdraw_token(token_id, except_task_id, %__MODULE__{} = state) do
+  defp do_revoke_token(%Schema.Token{} = token_schema, except_task_id, %__MODULE__{} = data) do
     %{
-      application: application,
-      token_table: token_table
-    } = state
+      application: application
+    } = data
 
-    token_table
-    |> :ets.select([{{token_id, :locked, :"$2", :_}, [], [:"$2"]}])
-    |> Enum.flat_map(fn place_id ->
-      {:ok, transitions} = WorkflowMetal.Storage.fetch_transitions(application, place_id, :out)
+    {:ok, transitions} =
+      WorkflowMetal.Storage.fetch_transitions(
+        application,
+        token_schema.place_id,
+        :out
+      )
 
-      transitions
-    end)
+    transitions
     |> Stream.map(fn transition ->
-      fetch_active_task(transition.id, state)
+      fetch_available_tasks(transition.id, data)
     end)
     |> Stream.each(fn
-      {:ok, %Schema.Task{id: task_id} = task} when task_id !== except_task_id ->
-        %{
-          workflow_id: workflow_id,
-          case_id: case_id,
-          transition_id: transition_id
-        } = task
-
-        task_server_name =
-          WorkflowMetal.Task.Task.via_name(
+      {:ok, [%Schema.Task{id: task_id}]} when task_id !== except_task_id ->
+        :ok =
+          WorkflowMetal.Task.Supervisor.withdraw_tokens(
             application,
-            {workflow_id, case_id, transition_id, task_id}
+            task_id,
+            [token_schema]
           )
 
-        case WorkflowMetal.Registration.whereis_name(application, task_server_name) do
-          :undefined ->
-            :skip
-
-          task_server ->
-            WorkflowMetal.Task.Task.withdraw_token(task_server, token_id)
-        end
-
-      {:ok, _task} ->
+      {:ok, _tasks} ->
         # skip the non-running task server
-        :skip
-
-      {:error, _reason} ->
         :skip
     end)
     |> Stream.run()
@@ -516,14 +761,126 @@ defmodule WorkflowMetal.Case.Case do
     :ok
   end
 
-  defp fetch_active_task(transition_id, %__MODULE__{} = state) do
+  defp fetch_available_tasks(transition_id, %__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
         id: case_id
       }
-    } = state
+    } = data
 
-    WorkflowMetal.Storage.fetch_task(application, case_id, transition_id)
+    WorkflowMetal.Storage.fetch_tasks(
+      application,
+      case_id,
+      states: [:started, :allocated, :executing],
+      transition_id: transition_id
+    )
+  end
+
+  defp do_offer_tokens_to_task(task_id, %__MODULE__{} = data) do
+    %{
+      application: application,
+      token_table: token_table
+    } = data
+
+    {
+      :ok,
+      %Schema.Task{
+        transition_id: transition_id
+      }
+    } = WorkflowMetal.Storage.fetch_task(application, task_id)
+
+    {:ok, arcs} =
+      WorkflowMetal.Storage.fetch_arcs(
+        application,
+        {:transition, transition_id},
+        :in
+      )
+
+    arcs
+    |> Enum.map(& &1.place_id)
+    |> case do
+      [] ->
+        {:ok, [], data}
+
+      [_ | _] = place_ids ->
+        tokens =
+          token_table
+          |> :ets.select([
+            {
+              {:_, :"$1", :"$2", :"$3", :"$4", :_},
+              [
+                ETSUtil.make_or([
+                  ETSUtil.make_and([
+                    ETSUtil.make_condition(:locked, :"$2", :"=:="),
+                    ETSUtil.make_condition(task_id, :"$4", :"=:=")
+                  ]),
+                  ETSUtil.make_and([
+                    ETSUtil.make_condition(:free, :"$2", :"=:="),
+                    ETSUtil.make_condition(place_ids, :"$3", :in)
+                  ])
+                ])
+              ],
+              [:"$1"]
+            }
+          ])
+
+        {:ok, tokens, data}
+    end
+  end
+
+  defp force_abandon_tasks(%__MODULE__{} = data) do
+    %{
+      application: application,
+      case_schema: %Schema.Case{
+        id: case_id
+      }
+    } = data
+
+    {:ok, tasks} =
+      WorkflowMetal.Storage.fetch_tasks(
+        application,
+        case_id,
+        states: [:started, :allocated, :executing]
+      )
+
+    tasks
+    |> Enum.each(fn task ->
+      WorkflowMetal.Task.Supervisor.force_abandon_task(application, task.id)
+    end)
+
+    {:ok, data}
+  end
+
+  defp upsert_ets_token(%Schema.Token{} = token_schema, %__MODULE__{} = data) do
+    %{
+      token_table: token_table
+    } = data
+
+    true =
+      :ets.insert(
+        token_table,
+        {
+          token_schema.id,
+          token_schema,
+          token_schema.state,
+          token_schema.place_id,
+          token_schema.locked_by_task_id,
+          token_schema.consumed_by_task_id
+        }
+      )
+
+    {:ok, data}
+  end
+
+  defp describe(%__MODULE__{} = data) do
+    %{
+      case_schema: %Schema.Case{
+        id: case_id,
+        workflow_id: workflow_id
+      }
+    } = data
+
+    "Case<#{case_id}@#{workflow_id}>"
   end
 end

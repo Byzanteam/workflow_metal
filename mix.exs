@@ -20,7 +20,7 @@ defmodule WorkflowMetal.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :gen_state_machine]
     ]
   end
 
@@ -29,7 +29,8 @@ defmodule WorkflowMetal.MixProject do
     [
       {:credo, "~> 1.2", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0.0-rc.7", only: [:dev], runtime: false},
-      {:doctor, "~> 0.11.0", only: [:dev]}
+      {:doctor, "~> 0.11.0", only: [:dev]},
+      {:gen_state_machine, "~> 2.0"}
     ]
   end
 

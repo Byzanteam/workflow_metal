@@ -1,5 +1,6 @@
 defmodule WorkflowMetal.Task.TaskTest do
   use ExUnit.Case, async: true
+  use WorkflowMetal.Support.InMemoryStorageCase
 
   import WorkflowMetal.Helpers.Wait
 
@@ -8,6 +9,8 @@ defmodule WorkflowMetal.Task.TaskTest do
   alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
   alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
+  alias WorkflowMetal.Task.Supervisor, as: TaskSupervisor
+  alias WorkflowMetal.Workitem.Workitem
 
   defmodule DummyApplication do
     use WorkflowMetal.Application,
@@ -52,6 +55,283 @@ defmodule WorkflowMetal.Task.TaskTest do
 
         assert a_task.token_payload === [%{reply: :a_completed}]
         assert b_task.token_payload === [%{reply: :b_completed}]
+      end)
+    end
+  end
+
+  describe "restore_from_storage" do
+    setup do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      {:ok, _genesis_token} =
+        generate_genesis_token(
+          DummyApplication,
+          workflow_schema,
+          case_schema
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.update_case(
+          DummyApplication,
+          case_schema.id,
+          :active
+        )
+
+      {:ok, {start_place, _end_place}} =
+        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+
+      {:ok, [a_transition]} =
+        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.create_task(
+          DummyApplication,
+          %Schema.Task.Params{
+            workflow_id: workflow_schema.id,
+            case_id: case_schema.id,
+            transition_id: a_transition.id
+          }
+        )
+
+      [a_transition: a_transition, case_schema: case_schema, task_schema: task_schema]
+    end
+
+    test "restore from started state", %{case_schema: case_schema, task_schema: task_schema} do
+      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+
+      until(fn -> assert_receive :a_completed end)
+      until(fn -> assert_receive :b_completed end)
+
+      until(fn ->
+        {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
+
+        assert length(tasks) === 2
+
+        [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
+
+        assert a_task.state === :completed
+        assert a_task.token_payload === [%{reply: :a_completed}]
+
+        assert b_task.state === :completed
+        assert b_task.token_payload === [%{reply: :b_completed}]
+      end)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+        assert case_schema.state === :finished
+      end)
+    end
+
+    test "restore from allocated state", %{
+      a_transition: a_transition,
+      case_schema: case_schema,
+      task_schema: task_schema
+    } do
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.update_task(
+          DummyApplication,
+          task_schema.id,
+          :allocated
+        )
+
+      {:ok, _workitem_schema} =
+        WorkflowMetal.Storage.create_workitem(
+          DummyApplication,
+          %Schema.Workitem.Params{
+            workflow_id: task_schema.workflow_id,
+            transition_id: a_transition.id,
+            case_id: case_schema.id,
+            task_id: task_schema.id
+          }
+        )
+
+      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+
+      until(fn -> assert_receive :a_completed end)
+      until(fn -> assert_receive :b_completed end)
+
+      until(fn ->
+        {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
+
+        assert length(tasks) === 2
+
+        [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
+
+        assert a_task.state === :completed
+        assert a_task.token_payload === [%{reply: :a_completed}]
+
+        assert b_task.state === :completed
+        assert b_task.token_payload === [%{reply: :b_completed}]
+      end)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+        assert case_schema.state === :finished
+      end)
+    end
+
+    test "restore from completed state", %{task_schema: task_schema} do
+      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+
+      until(fn -> assert_receive :a_completed end)
+      until(fn -> assert_receive :b_completed end)
+
+      until(fn ->
+        {:ok, tasks} =
+          InMemoryStorage.list_tasks(
+            DummyApplication,
+            task_schema.workflow_id
+          )
+
+        assert length(tasks) === 2
+
+        Enum.each(tasks, fn task ->
+          assert task.state === :completed
+
+          assert {:error, :task_not_available} =
+                   TaskSupervisor.open_task(DummyApplication, task.id)
+        end)
+      end)
+    end
+
+    test "restore from abandoned state", %{task_schema: task_schema} do
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, :abandoned)
+
+      assert {:error, :task_not_available} =
+               TaskSupervisor.open_task(DummyApplication, task_schema.id)
+    end
+  end
+
+  describe "restore and request tokens" do
+    setup do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_asynchronous_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      {:ok, genesis_token} =
+        generate_genesis_token(
+          DummyApplication,
+          workflow_schema,
+          case_schema
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.update_case(
+          DummyApplication,
+          case_schema.id,
+          :active
+        )
+
+      {:ok, {start_place, _end_place}} =
+        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+
+      {:ok, [a_transition]} =
+        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.create_task(
+          DummyApplication,
+          %Schema.Task.Params{
+            workflow_id: workflow_schema.id,
+            case_id: case_schema.id,
+            transition_id: a_transition.id
+          }
+        )
+
+      [
+        a_transition: a_transition,
+        genesis_token: genesis_token,
+        case_schema: case_schema,
+        task_schema: task_schema
+      ]
+    end
+
+    test "restore from executing state", %{
+      a_transition: a_transition,
+      genesis_token: genesis_token,
+      case_schema: case_schema,
+      task_schema: task_schema
+    } do
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.update_task(
+          DummyApplication,
+          task_schema.id,
+          :allocated
+        )
+
+      {:ok, workitem_schema} =
+        WorkflowMetal.Storage.create_workitem(
+          DummyApplication,
+          %Schema.Workitem.Params{
+            workflow_id: task_schema.workflow_id,
+            transition_id: a_transition.id,
+            case_id: case_schema.id,
+            task_id: task_schema.id
+          }
+        )
+
+      {:ok, _} =
+        WorkflowMetal.Storage.lock_tokens(DummyApplication, [genesis_token.id], task_schema.id)
+
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.update_task(
+          DummyApplication,
+          task_schema.id,
+          :executing
+        )
+
+      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+
+      until(fn -> assert_receive :a_completed end)
+
+      workitem_server = Workitem.via_name(DummyApplication, workitem_schema)
+
+      :ok = Workitem.complete(workitem_server, %{reply: :a_completed})
+
+      until(fn -> assert_receive :b_completed end)
+
+      until(fn ->
+        {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
+
+        assert length(tasks) === 2
+
+        [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
+
+        assert a_task.state === :completed
+        assert a_task.token_payload === [%{reply: :a_completed}]
+
+        assert b_task.state === :completed
+        assert b_task.token_payload === [%{reply: :b_completed}]
+      end)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+        assert case_schema.state === :finished
       end)
     end
   end

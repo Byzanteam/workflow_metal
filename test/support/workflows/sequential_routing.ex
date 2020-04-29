@@ -9,8 +9,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def execute(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(options[:application], workitem)
 
       {:completed, :ok}
     end
@@ -22,8 +22,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     use WorkflowMetal.Executor
 
     @impl WorkflowMetal.Executor
-    def execute(%Schema.Workitem{} = workitem, _tokens, options) do
-      :ok = lock_tokens(workitem, options)
+    def execute(%Schema.Workitem{} = workitem, options) do
+      {:ok, _tokens} = lock_tokens(options[:application], workitem)
 
       executor_params = Keyword.fetch!(options, :executor_params)
 
@@ -33,6 +33,24 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
       send(request, reply)
 
       {:completed, %{reply: reply}}
+    end
+  end
+
+  defmodule AsynchronousTransition do
+    @moduledoc false
+
+    use WorkflowMetal.Executor
+
+    @impl true
+    def execute(_workitem, options) do
+      executor_params = Keyword.fetch!(options, :executor_params)
+
+      request = Keyword.fetch!(executor_params, :request)
+      reply = Keyword.fetch!(executor_params, :reply)
+
+      send(request, reply)
+
+      :started
     end
   end
 
@@ -76,6 +94,15 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     %Schema.Transition.Params{
       rid: rid,
       executor: EchoTransition,
+      executor_params: Keyword.put_new(params, :request, self())
+    }
+  end
+
+  @doc false
+  def build_asynchronous_transition(rid, params \\ []) do
+    %Schema.Transition.Params{
+      rid: rid,
+      executor: AsynchronousTransition,
       executor_params: Keyword.put_new(params, :request, self())
     }
   end

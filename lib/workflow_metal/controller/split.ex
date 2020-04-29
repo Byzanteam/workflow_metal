@@ -3,7 +3,7 @@ defmodule WorkflowMetal.Controller.Split do
 
   alias WorkflowMetal.Storage.Schema
 
-  @type task_state :: WorkflowMetal.Task.Task.t()
+  @type task_data :: WorkflowMetal.Task.Task.t()
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
@@ -11,20 +11,20 @@ defmodule WorkflowMetal.Controller.Split do
 
   @doc false
   @callback issue_tokens(
-              task_state,
+              task_data,
               token_payload
             ) :: on_issue_tokens
 
   @doc false
-  @spec issue_tokens(task_state, token_payload) :: on_issue_tokens
-  def issue_tokens(task_state, token_payload) do
+  @spec issue_tokens(task_data, token_payload) :: on_issue_tokens
+  def issue_tokens(task_data, token_payload) do
     %{
       transition_schema: %Schema.Transition{
         split_type: split_type
       }
-    } = task_state
+    } = task_data
 
-    controller(split_type).issue_tokens(task_state, token_payload)
+    controller(split_type).issue_tokens(task_data, token_payload)
   end
 
   defp controller(:none), do: WorkflowMetal.Controller.Split.None

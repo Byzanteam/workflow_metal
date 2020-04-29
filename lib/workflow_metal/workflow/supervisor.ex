@@ -8,7 +8,7 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @type application :: WorkflowMetal.Application.t()
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type workflow_identifier :: WorkflowMetal.Workflow.Workflow.workflow_identifier()
+  @type workflow_identifier :: {application, workflow_id}
 
   @type options :: [name: term, workflow_id: workflow_id]
 
@@ -32,7 +32,6 @@ defmodule WorkflowMetal.Workflow.Supervisor do
   @impl true
   def init({application, workflow_id}) do
     children = [
-      {WorkflowMetal.Workflow.Workflow, {application, workflow_id}},
       {WorkflowMetal.Case.Supervisor, {application, workflow_id}},
       {WorkflowMetal.Task.Supervisor, {application, workflow_id}},
       {WorkflowMetal.Workitem.Supervisor, {application, workflow_id}}

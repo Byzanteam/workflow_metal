@@ -7,35 +7,9 @@
   - Storage
   - WorkflowsSupervisor(DynamicSupervisor)
     - WorkflowSupervisor(Supervisor)
-      - Workflow(GenServer)
       - TaskSupervisor(DynamicSupervisor)
-        - Task(GenServer)
+        - Task(:gen_statem)
       - CaseSupervisor(DynamicSupervisor)
-        - Case(GenServer)
+        - Case(:gen_statem)
       - WorkitemSupervisor(DynamicSupervisor)
-        - Workitem(GenServer)
-      - VertexSupervisor(DynamicSupervisor)
-        - Vertex(GenServer)
-          - Vertex.Arc
-          - Vertex.Transition
-          - Vertex.Task
-
-## functions
-create_workflow(application, workflow_schema)
-
-create_workflow_case(application, workflow_id)
-
-
-## Lagecy
-- WorkflowApplicationSupervisor(Supervisor)
-  - Registry(Registry)
-  - WorkflowSupervisor(DynamicSupervisor)
-    - Workflow(GenServer)
-      - WorkflowVersionManager(DynamicSupervisor)
-        - VersionedWorkflow(GenServer)
-          - CaseSupervisor(DynamicSupervisor)
-            - Case(GenServer)
-              - VertexSupervisor(DynamicSupervisor)
-                - Vertex(GenServer)
-                  - Vertex.Arc
-                  - Vertex.Transition
+        - Workitem(:gen_statem)

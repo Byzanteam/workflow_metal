@@ -7,40 +7,17 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type application :: WorkflowMetal.Application.t()
   @type config :: keyword
 
+  @doc """
+  Return a child spec for the storage
+  """
+  @callback child_spec(application, config) ::
+              {:ok, :supervisor.child_spec() | {module, term} | module, adapter_meta}
+
+  # Workflow
+
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
-
-  @type arc_schema :: WorkflowMetal.Storage.Schema.Arc.t()
-  @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
-
-  @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
-  @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
-
-  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
-  @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
-
-  @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
-  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
-
-  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
-  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
-  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
-
-  @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
-  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
-  @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
-  @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
-  @type token_states :: nonempty_list(token_state)
-
-  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
-  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
-  @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
-  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
-
-  @type error :: term()
 
   @type on_create_workflow ::
           :ok
@@ -49,94 +26,6 @@ defmodule WorkflowMetal.Storage.Adapter do
           {:ok, workflow_schema}
           | {:error, :workflow_not_found}
   @type on_delete_workflow :: :ok
-
-  @type on_fetch_arcs ::
-          {:ok, [arc_schema]}
-          | {:error, :workflow_not_found}
-  @type on_fetch_edge_places ::
-          {:ok, {place_schema, place_schema}}
-          | {:error, :workflow_not_found}
-  @type on_fetch_places ::
-          {:ok, [place_schema]}
-          | {:error, :transition_not_found}
-  @type on_fetch_transition ::
-          {:ok, transition_schema}
-          | {:error, :transition_not_found}
-  @type on_fetch_transitions ::
-          {:ok, [transition_schema]}
-          | {:error, :place_not_found}
-
-  @type on_create_case ::
-          {:ok, case_schema}
-          | {:error, :workflow_not_found}
-  @type on_fetch_case ::
-          {:ok, case_schema}
-          | {:error, :case_not_found}
-  @type on_activate_case ::
-          {:ok, case_schema}
-          | {:error, :case_not_found}
-  @type on_finish_case ::
-          {:ok, case_schema}
-          | {:error, :case_not_found}
-
-  @type on_create_task ::
-          {:ok, task_schema}
-          | {:error, :workflow_not_found}
-          | {:error, :transition_not_found}
-          | {:error, :case_not_found}
-  @type on_fetch_task ::
-          {:ok, task_schema}
-          | {:error, :task_not_found}
-  @type on_execute_task ::
-          {:ok, task_schema}
-          | {:error, :task_not_found}
-          | {:error, :task_not_available}
-  @type on_complete_task ::
-          {:ok, task_schema}
-          | {:error, :task_not_found}
-          | {:error, :task_not_available}
-
-  @type on_issue_token ::
-          {:ok, token_schema}
-          | {:error, :workflow_not_found}
-          | {:error, :case_not_found}
-          | {:error, :place_not_found}
-          | {:error, :produced_by_task_not_found}
-  @type on_lock_token ::
-          {:ok, token_schema}
-          | {:error, :token_not_found}
-          | {:error, :token_not_available}
-  @type on_consume_tokens ::
-          {:ok, [token_schema]}
-          | {:error, :token_not_available}
-  @type on_fetch_tokens ::
-          {:ok, [token_schema]}
-  @type on_fetch_locked_tokens ::
-          {:ok, [token_schema]}
-          | {:error, :task_not_found}
-
-  @type on_create_workitem ::
-          {:ok, workitem_schema}
-          | {:error, :workflow_not_found}
-          | {:error, :case_not_found}
-          | {:error, :task_not_found}
-  @type on_fetch_workitems ::
-          {:ok, [workitem_schema]}
-          | {:error, :task_not_found}
-  @type on_start_workitem ::
-          {:ok, workitem_schema}
-          | {:error, :workitem_not_found}
-          | {:error, :workitem_not_available}
-  @type on_complete_workitem ::
-          {:ok, workitem_schema}
-          | {:error, :workitem_not_found}
-          | {:error, :workitem_not_available}
-
-  @doc """
-  Return a child spec for the storage 
-  """
-  @callback child_spec(application, config) ::
-              {:ok, :supervisor.child_spec() | {module, term} | module, adapter_meta}
 
   @doc """
   Create a workflow.
@@ -162,18 +51,33 @@ defmodule WorkflowMetal.Storage.Adapter do
               workflow_id
             ) :: on_delete_workflow
 
-  @doc """
-  Retrive arcs of a workflow.
-  """
-  @callback fetch_arcs(
-              adapter_meta,
-              workflow_id
-            ) :: on_fetch_arcs
-  @callback fetch_arcs(
-              adapter_meta,
-              transition_id,
-              arc_direction
-            ) :: on_fetch_arcs
+  # Places, Transitions, and Arcs
+
+  @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
+  @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
+
+  @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
+  @type transition_schema :: WorkflowMetal.Storage.Schema.Transition.t()
+
+  @type arc_schema :: WorkflowMetal.Storage.Schema.Arc.t()
+  @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
+  @type arc_beginning :: {:transition, transition_id} | {:place, place_id}
+
+  @type on_fetch_arcs ::
+          {:ok, [arc_schema]}
+          | {:error, :workflow_not_found}
+  @type on_fetch_edge_places ::
+          {:ok, {place_schema, place_schema}}
+          | {:error, :workflow_not_found}
+  @type on_fetch_places ::
+          {:ok, [place_schema]}
+          | {:error, :transition_not_found}
+  @type on_fetch_transition ::
+          {:ok, transition_schema}
+          | {:error, :transition_not_found}
+  @type on_fetch_transitions ::
+          {:ok, [transition_schema]}
+          | {:error, :place_not_found}
 
   @doc """
   Retrive start and end of a workflow.
@@ -210,6 +114,33 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_fetch_transitions
 
   @doc """
+  Retrive arcs of a workflow.
+  """
+  @callback fetch_arcs(
+              adapter_meta,
+              arc_beginning,
+              arc_direction
+            ) :: on_fetch_arcs
+
+  # Case
+
+  @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
+  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
+  @type update_case_params :: :active | :finished | :canceled
+
+  @type on_create_case ::
+          {:ok, case_schema}
+          | {:error, :workflow_not_found}
+  @type on_fetch_case ::
+          {:ok, case_schema}
+          | {:error, :case_not_found}
+  @type on_update_case ::
+          {:ok, case_schema}
+          | {:error, :case_not_found}
+          | {:error, :case_not_available}
+
+  @doc """
   Create a case.
   """
   @callback create_case(
@@ -226,22 +157,50 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_fetch_case
 
   @doc """
-  Activate a case.
-  """
-  @callback activate_case(
-              adapter_meta,
-              case_id
-            ) :: on_activate_case
+  Update the case.
 
-  @doc """
-  Finish a case.
+  ### update_case_params:
+  - `:active`
+  - `:canceled`
+  - `:finished`
+
+  note: if the state of the case is the state in the update_case,
+  it returns `{:ok, case_schema}` too.
   """
-  @callback finish_case(
+  @callback update_case(
               adapter_meta,
-              case_id
-            ) :: on_finish_case
+              case_id,
+              update_case_params
+            ) :: on_update_case
 
   # Task
+
+  @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
+  @type task_state :: WorkflowMetal.Storage.Schema.Task.state()
+  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
+  @type update_task_params :: :allocated | :executing | {:completed, token_payload} | :abandoned
+  @type fetch_tasks_options :: [
+          states: nonempty_list(task_state) | nil,
+          transition_id: transition_id
+        ]
+
+  @type on_create_task ::
+          {:ok, task_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :transition_not_found}
+          | {:error, :case_not_found}
+  @type on_fetch_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
+  @type on_fetch_tasks ::
+          {:ok, [task_schema]}
+          | {:error, :case_not_found}
+  @type on_update_task ::
+          {:ok, task_schema}
+          | {:error, :task_not_found}
+          | {:error, :task_not_available}
+
   @doc """
   Create a task.
   """
@@ -257,74 +216,128 @@ defmodule WorkflowMetal.Storage.Adapter do
               adapter_meta,
               task_id
             ) :: on_fetch_task
-  @callback fetch_task(
+
+  @doc """
+  Retrive tasks of a case.
+  """
+  @callback fetch_tasks(
               adapter_meta,
               case_id,
-              transition_id
-            ) :: on_fetch_task
+              fetch_tasks_options
+            ) :: on_fetch_tasks
 
   @doc """
-  Start to execute a task.
+  Update the task.
 
-  Return `{:ok, task_schema}` if it is already `executing`.
-  """
-  @callback execute_task(
-              adapter_meta,
-              workitem_id
-            ) :: on_execute_task
+  ### update_task_params:
+  - `:executing`
+  - `{:completed, task_output}`
 
-  @doc """
-  Complete a task.
+  note: if the state of the task is the state in the update_task,
+  it returns `{:ok, task_schema}` too.
   """
-  @callback complete_task(
+  @callback update_task(
               adapter_meta,
               task_id,
-              token_payload
-            ) :: on_complete_task
+              update_task_params
+            ) :: on_update_task
 
   # Token
+
+  @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
+  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
+  @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
+  @type fetch_tokens_options :: [
+          states: nonempty_list(token_state) | nil,
+          locked_by_task_id: task_id
+        ]
+
+  @type on_issue_token ::
+          {:ok, token_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, :place_not_found}
+          | {:error, :produced_by_task_not_found}
+  @type on_lock_tokens ::
+          {:ok, token_schema}
+          | {:error, :tokens_not_available}
+  @type on_unlock_tokens :: {:ok, [token_schema]}
+  @type on_consume_tokens ::
+          {:ok, [token_schema]}
+          | {:error, :tokens_not_available}
+  @type on_fetch_tokens ::
+          {:ok, [token_schema]}
+          | {:error, :task_not_found}
+
   @doc """
   Issue a token.
 
-  If produced_by_task_id not provided, the token is a genesis token.
+  If produced_by_task_id is `:genesis`, the token is a genesis token.
   """
   @callback issue_token(
               adapter_meta,
               token_params
             ) :: on_issue_token
+
   @doc """
-  Lock a token.
+  Lock tokens atomically.
   """
-  @callback lock_token(
+  @callback lock_tokens(
               adapter_meta,
-              token_id,
-              task_id
-            ) :: on_lock_token
+              token_ids :: nonempty_list(token_id),
+              locked_by_task_id :: task_id
+            ) :: on_lock_tokens
+
   @doc """
-  Consume tokens.
+  Unlock tokens that locked by the task.
+  """
+  @callback unlock_tokens(
+              adapter_meta,
+              locked_by_task_id :: task_id
+            ) :: on_unlock_tokens
+
+  @doc """
+  Consume tokens that locked by the task.
   """
   @callback consume_tokens(
               adapter_meta,
-              nonempty_list(token_id),
-              task_id
+              locked_by_task_id :: task_id | {case_id, :termination}
             ) :: on_consume_tokens
-  @doc """
-  Retrive tokens locked by the task.
-  """
-  @callback fetch_locked_tokens(
-              adapter_meta,
-              task_id
-            ) :: on_fetch_locked_tokens
 
-  # Workitem
   @doc """
-  Fetch tokens by states
+  Retrive tokens of the task.
   """
   @callback fetch_tokens(
               adapter_meta,
               case_id,
-              token_states
+              fetch_tokens_options
             ) :: on_fetch_tokens
+
+  # Workitem
+
+  @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
+  @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+  @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
+  @type update_workitem_params :: :started | {:completed, workitem_output} | :abandoned
+
+  @type on_create_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+          | {:error, :task_not_found}
+  @type on_fetch_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workitem_not_found}
+  @type on_fetch_workitems ::
+          {:ok, [workitem_schema]}
+          | {:error, :task_not_found}
+  @type on_update_workitem ::
+          {:ok, workitem_schema}
+          | {:error, :workitem_not_found}
+          | {:error, :workitem_not_available}
 
   @doc """
   Create a workitem of a task.
@@ -335,30 +348,35 @@ defmodule WorkflowMetal.Storage.Adapter do
             ) :: on_create_workitem
 
   @doc """
+  Fetch a workitem of a task.
+  """
+  @callback fetch_workitem(
+              adapter_meta,
+              workitem_id
+            ) :: on_fetch_workitem
+
+  @doc """
   Retrive workitems generated by the task.
   """
   @callback fetch_workitems(
               adapter_meta,
               task_id
             ) :: on_fetch_workitems
-  @doc """
-  Start to execute a `created` workitem of a task.
-
-  Return `{:ok, workitem_schema}` if it is already `started`.
-  """
-  @callback start_workitem(
-              adapter_meta,
-              workitem_id
-            ) :: on_start_workitem
 
   @doc """
-  Complete a `started` workitem of a task, and put an output into the workitem.
+  Update the workitem.
 
-  Return `{:ok, workitem_schema}` if it is already `completed`.
+  ### update_workitem_params:
+  - `:started`
+  - `{:completed, workitem_output}`
+  - `:abandoned`
+
+  note: if the state of the workitem is the state in the update_workitem,
+  it returns `{:ok, workitem_schema}` too.
   """
-  @callback complete_workitem(
+  @callback update_workitem(
               adapter_meta,
               workitem_id,
-              workitem_output
-            ) :: on_complete_workitem
+              update_workitem_params
+            ) :: on_update_workitem
 end

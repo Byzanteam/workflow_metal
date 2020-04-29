@@ -1,19 +1,26 @@
 defmodule WorkflowMetal.Support.InMemoryStorageCase do
   @moduledoc false
 
-  alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
-
   use ExUnit.CaseTemplate
 
-  setup context do
-    case Map.get(context, :application) do
-      nil ->
-        :ok
+  using do
+    quote do
+      alias WorkflowMetal.Storage.Schema
 
-      storage ->
-        on_exit(fn ->
-          :ok = InMemoryStorage.reset!(storage)
-        end)
+      def generate_genesis_token(application, workflow_schema, case_schema) do
+        {:ok, {start_place, _end_place}} =
+          WorkflowMetal.Storage.fetch_edge_places(application, workflow_schema.id)
+
+        genesis_token_params = %Schema.Token.Params{
+          workflow_id: workflow_schema.id,
+          place_id: start_place.id,
+          case_id: case_schema.id,
+          produced_by_task_id: :genesis,
+          payload: nil
+        }
+
+        WorkflowMetal.Storage.issue_token(application, genesis_token_params)
+      end
     end
   end
 end

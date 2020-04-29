@@ -6,23 +6,23 @@ defmodule WorkflowMetal.Controller.Join do
   alias WorkflowMetal.Storage.Schema
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
-  @type task_state :: WorkflowMetal.Task.Task.t()
+  @type task_data :: WorkflowMetal.Task.Task.t()
 
   @type on_task_enablement :: {:ok, nonempty_list(token_id)} | {:error, :task_not_enabled}
 
   @doc false
-  @callback task_enablement(task_state) :: on_task_enablement
+  @callback task_enablement(task_data) :: on_task_enablement
 
   @doc false
-  @spec task_enablement(task_state) :: on_task_enablement
-  def task_enablement(task_state) do
+  @spec task_enablement(task_data) :: on_task_enablement
+  def task_enablement(task_data) do
     %{
       transition_schema: %Schema.Transition{
         join_type: join_type
       }
-    } = task_state
+    } = task_data
 
-    controller(join_type).task_enablement(task_state)
+    controller(join_type).task_enablement(task_data)
   end
 
   defp controller(:none), do: WorkflowMetal.Controller.Join.None

@@ -13,7 +13,7 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
   ]
 
   @type id :: term()
-  @type state :: :created | :started | :suspended | :failed | :completed
+  @type state :: :created | :started | :completed | :abandoned
   @type output :: term()
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
@@ -24,9 +24,9 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
   @type t() :: %__MODULE__{
           id: id,
           workflow_id: workflow_id,
+          transition_id: transition_id,
           case_id: case_id,
           task_id: task_id,
-          transition_id: transition_id,
           state: state,
           output: output
         }

@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/Byzanteam/workflow_metal/workflows/CI/badge.svg)
 
-**TODO: Add description**
+**Workflow engine based on PetriNet**
 
 ## Installation
 
@@ -21,3 +21,8 @@ Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_do
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at [https://hexdocs.pm/workflow_metal](https://hexdocs.pm/workflow_metal).
 
+## Test in shell
+
+```shell
+iex --dot-iex examples/traffic_light.exs -S mix
+```

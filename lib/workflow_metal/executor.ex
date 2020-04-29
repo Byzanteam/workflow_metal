@@ -17,8 +17,8 @@ defmodule WorkflowMetal.Executor do
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
-        def execute(%Schema.Workitem{}, _tokens, options) do
-          :ok = lock_tokens(workitem, options)
+        def execute(%Schema.Workitem{}, options) do
+          {:ok, _tokens} = lock_tokens(workitem, options)
 
           {:completed, {:output, :ok}}
         end
@@ -30,8 +30,8 @@ defmodule WorkflowMetal.Executor do
         alias WorkflowMetal.Storage.Schema
 
         @impl WorkflowMetal.Executor
-        def execute(%Schema.Workitem{} = workitem, tokens, options) do
-          :ok = lock_tokens(workitem, options)
+        def execute(%Schema.Workitem{} = workitem, options) do
+          {:ok, tokens} = lock_tokens(workitem, options)
 
           Task.async(__MODULE__, :run, [workitem, tokens, options])
           :started
@@ -51,14 +51,13 @@ defmodule WorkflowMetal.Executor do
         ]
 
   @type workitem :: Schema.Workitem.t()
-  @type token :: Schema.Token.t()
   @type token_payload :: Schema.Token.payload()
   @type workitem_output :: Schema.Workitem.output()
 
   @doc """
   Run an executor and return its state to the `workitem` process.
   """
-  @callback execute(workitem, nonempty_list(token), options) ::
+  @callback execute(workitem, options) ::
               :started
               | {:completed, workitem_output}
 
@@ -69,20 +68,73 @@ defmodule WorkflowMetal.Executor do
               {:ok, token_payload}
 
   @doc false
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
+    application = Keyword.get(opts, :application)
+
     quote do
+      alias WorkflowMetal.Storage.Schema
+
+      @application unquote(application)
+
       @behaviour WorkflowMetal.Executor
+
+      @before_compile unquote(__MODULE__)
 
       @impl WorkflowMetal.Executor
       def build_token_payload(workitems, _options) do
-        {:ok, Enum.map(workitems, & &1.output)}
+        {
+          :ok,
+          workitems
+          |> Enum.filter(&(&1.state === :completed))
+          |> Enum.map(& &1.output)
+        }
       end
 
       defoverridable WorkflowMetal.Executor
+    end
+  end
 
-      defp lock_tokens(workitem, options) do
-        application = Keyword.fetch!(options, :application)
-        application.lock_tokens(workitem.task_id)
+  @doc false
+  @spec __before_compile__(env :: Macro.Env.t()) :: Macro.t()
+  defmacro __before_compile__(_env) do
+    quote do
+      @doc """
+      Lock tokens before a workitem execution.
+      """
+      @spec complete_workitem(
+              application :: WorkflowMetal.Application.t(),
+              workitem ::
+                WorkflowMetal.Workitem.Workitem.t() | WorkflowMetal.Workitem.Workitem.id()
+            ) :: WorkflowMetal.Task.Task.on_lock_tokens()
+      def lock_tokens(application \\ @application, workitem) do
+        application.lock_tokens(workitem.id)
+      end
+
+      @doc """
+      Complete a workitem
+      """
+      @spec complete_workitem(
+              application :: WorkflowMetal.Application.t(),
+              workitem ::
+                WorkflowMetal.Workitem.Workitem.t() | WorkflowMetal.Workitem.Workitem.id(),
+              output :: WorkflowMetal.Workitem.Workitem.output()
+            ) ::
+              WorkflowMetal.Workitem.Workitem.on_complete()
+      def complete_workitem(application \\ @application, workitem, output) do
+        application.complete_workitem(workitem.id, output)
+      end
+
+      @doc """
+      Abandon a workitem
+      """
+      @spec complete_workitem(
+              application :: WorkflowMetal.Application.t(),
+              workitem ::
+                WorkflowMetal.Workitem.Workitem.t() | WorkflowMetal.Workitem.Workitem.id()
+            ) ::
+              WorkflowMetal.Workitem.Workitem.on_abandon()
+      def abandon_workitem(application \\ @application, workitem) do
+        application.abandon_workitem(workitem.id)
       end
     end
   end
