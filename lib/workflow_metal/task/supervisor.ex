@@ -88,13 +88,13 @@ defmodule WorkflowMetal.Task.Supervisor do
   end
 
   @doc """
-  Lock tokens of a task.
+  Pre-execute a task and the locked tokens.
   """
-  @spec lock_tokens(application, task_id) ::
-          WorkflowMetal.Task.Task.on_lock_tokens()
-  def lock_tokens(application, task_id) do
+  @spec preexecute(application, task_id) ::
+          WorkflowMetal.Task.Task.on_preexecute()
+  def preexecute(application, task_id) do
     with({:ok, task_server} <- open_task(application, task_id)) do
-      WorkflowMetal.Task.Task.lock_tokens(task_server)
+      WorkflowMetal.Task.Task.preexecute(task_server)
     end
   end
 

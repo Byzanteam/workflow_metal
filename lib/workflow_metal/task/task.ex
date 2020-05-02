@@ -69,7 +69,7 @@ defmodule WorkflowMetal.Task.Task do
           task_schema: task_schema()
         ]
 
-  @type on_lock_tokens ::
+  @type on_preexecute ::
           {:ok, nonempty_list(token_schema)}
           | {:error, :tokens_not_available}
           | {:error, :task_not_enabled}
@@ -152,16 +152,18 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @doc """
-  Lock tokens, and return `:ok`.
+  Pre-execute the given task, return with locked tokens.
+
+  ### Lock tokens
 
   If tokens are already locked by the task, return `:ok` too.
 
   When the task is not enabled, return `{:error, :task_not_enabled}`.
   When fail to lock tokens, return `{:error, :tokens_not_available}`.
   """
-  @spec lock_tokens(:gen_statem.server_ref()) :: on_lock_tokens
-  def lock_tokens(task_server) do
-    GenStateMachine.call(task_server, :lock_tokens)
+  @spec preexecute(:gen_statem.server_ref()) :: on_preexecute
+  def preexecute(task_server) do
+    GenStateMachine.call(task_server, :preexecute)
   end
 
   @doc """
@@ -446,7 +448,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event({:call, from}, :lock_tokens, :allocated, %__MODULE__{} = data) do
+  def handle_event({:call, from}, :preexecute, :allocated, %__MODULE__{} = data) do
     case do_lock_tokens(data) do
       {:ok, locked_token_schemas, data} ->
         {:ok, data} = update_task(:executing, data)
@@ -471,7 +473,7 @@ defmodule WorkflowMetal.Task.Task do
   end
 
   @impl GenStateMachine
-  def handle_event({:call, from}, :lock_tokens, :executing, %__MODULE__{} = data) do
+  def handle_event({:call, from}, :preexecute, :executing, %__MODULE__{} = data) do
     %{
       token_table: token_table
     } = data

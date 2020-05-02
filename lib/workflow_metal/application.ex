@@ -70,12 +70,14 @@ defmodule WorkflowMetal.Application do
       end
 
       @doc """
+      Pre-execute a task that the workitem belongs to.
+
       Lock tokens before a workitem execution.
       """
-      @spec lock_tokens(workitem_id :: WorkflowMetal.Workitem.Workitem.id()) ::
-              WorkflowMetal.Task.Task.on_lock_tokens()
-      def lock_tokens(workitem_id) do
-        WorkflowMetal.Workitem.Supervisor.lock_tokens(
+      @spec preexecute(workitem_id :: WorkflowMetal.Workitem.Workitem.id()) ::
+              WorkflowMetal.Task.Task.on_preexecute()
+      def preexecute(workitem_id) do
+        WorkflowMetal.Workitem.Supervisor.preexecute(
           application(),
           workitem_id
         )

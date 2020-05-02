@@ -79,16 +79,16 @@ defmodule WorkflowMetal.Workitem.Supervisor do
   @doc """
   Lock tokens before a workitem execution.
   """
-  @spec lock_tokens(application, workitem_id) ::
-          WorkflowMetal.Task.Task.on_lock_tokens()
+  @spec preexecute(application, workitem_id) ::
+          WorkflowMetal.Task.Task.on_preexecute()
           | {:error, :workitem_not_found}
           | {:error, :task_not_available}
-  def lock_tokens(application, workitem_id) do
+  def preexecute(application, workitem_id) do
     with(
       {:ok, %Schema.Workitem{task_id: task_id}} <-
         WorkflowMetal.Storage.fetch_workitem(application, workitem_id)
     ) do
-      WorkflowMetal.Task.Supervisor.lock_tokens(application, task_id)
+      WorkflowMetal.Task.Supervisor.preexecute(application, task_id)
     end
   end
 

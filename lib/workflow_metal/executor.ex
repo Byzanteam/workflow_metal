@@ -18,7 +18,7 @@ defmodule WorkflowMetal.Executor do
 
         @impl WorkflowMetal.Executor
         def execute(%Schema.Workitem{}, options) do
-          {:ok, _tokens} = lock_tokens(workitem, options)
+          {:ok, _tokens} = preexecute(workitem, options)
 
           {:completed, {:output, :ok}}
         end
@@ -31,7 +31,7 @@ defmodule WorkflowMetal.Executor do
 
         @impl WorkflowMetal.Executor
         def execute(%Schema.Workitem{} = workitem, options) do
-          {:ok, tokens} = lock_tokens(workitem, options)
+          {:ok, tokens} = preexecute(workitem, options)
 
           Task.async(__MODULE__, :run, [workitem, tokens, options])
           :started
@@ -101,13 +101,13 @@ defmodule WorkflowMetal.Executor do
       @doc """
       Lock tokens before a workitem execution.
       """
-      @spec complete_workitem(
+      @spec preexecute(
               application :: WorkflowMetal.Application.t(),
               workitem ::
                 WorkflowMetal.Workitem.Workitem.t() | WorkflowMetal.Workitem.Workitem.id()
-            ) :: WorkflowMetal.Task.Task.on_lock_tokens()
-      def lock_tokens(application \\ @application, workitem) do
-        application.lock_tokens(workitem.id)
+            ) :: WorkflowMetal.Task.Task.on_preexecute()
+      def preexecute(application \\ @application, workitem) do
+        application.preexecute(workitem.id)
       end
 
       @doc """
@@ -127,7 +127,7 @@ defmodule WorkflowMetal.Executor do
       @doc """
       Abandon a workitem
       """
-      @spec complete_workitem(
+      @spec abandon_workitem(
               application :: WorkflowMetal.Application.t(),
               workitem ::
                 WorkflowMetal.Workitem.Workitem.t() | WorkflowMetal.Workitem.Workitem.id()
