@@ -83,7 +83,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   @doc """
   Request `:free` and `:locked`(locked by the task) tokens which should offer to the task.
 
-  This usually happens afetr a task restore from the storage.
+  This usually happens after a task restore from the storage.
   """
   @spec request_tokens(application, case_id, task_id) ::
           {:ok, [token_schema]}
