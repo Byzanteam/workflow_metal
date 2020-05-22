@@ -317,7 +317,7 @@ defmodule WorkflowMetal.Task.Task do
     {
       :keep_state,
       data,
-      {:next_state, :cast, :try_abandon_by_tokens}
+      {:next_event, :cast, :try_abandon_by_tokens}
     }
   end
 
