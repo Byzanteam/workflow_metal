@@ -44,11 +44,15 @@ defmodule WorkflowMetal.Storage do
   end
 
   def adapter(application, config) do
-    adapter = Keyword.fetch!(config, :storage)
+    {adapter, storage_config} =
+      case Keyword.fetch!(config, :storage) do
+        {adapter, keywords} -> {adapter, keywords}
+        adapter -> {adapter, []}
+      end
 
     case Code.ensure_compiled(adapter) do
       {:module, _module} ->
-        {adapter, []}
+        {adapter, storage_config}
 
       _ ->
         raise ArgumentError,

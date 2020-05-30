@@ -20,7 +20,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @type on_create_workflow ::
-          :ok
+          {:ok, workflow_schema}
           | {:error, :duplicate_workflow}
   @type on_fetch_workflow ::
           {:ok, workflow_schema}
@@ -379,4 +379,6 @@ defmodule WorkflowMetal.Storage.Adapter do
               workitem_id,
               update_workitem_params
             ) :: on_update_workitem
+
+  @optional_callbacks child_spec: 2
 end
