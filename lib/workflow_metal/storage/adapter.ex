@@ -379,6 +379,4 @@ defmodule WorkflowMetal.Storage.Adapter do
               workitem_id,
               update_workitem_params
             ) :: on_update_workitem
-
-  @optional_callbacks child_spec: 2
 end
