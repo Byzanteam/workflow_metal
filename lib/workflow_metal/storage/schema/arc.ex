@@ -34,7 +34,6 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
     :place_id,
     :transition_id,
     :direction,
-    guards: []
   ]
 
   @type id :: term()
@@ -51,7 +50,6 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
           place_id: place_id,
           transition_id: transition_id,
           direction: direction,
-          guards: [guard]
         }
 
   alias __MODULE__
@@ -64,7 +62,6 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
       :place_rid,
       :transition_rid,
       :direction,
-      guards: []
     ]
 
     @type reference_id :: term()
@@ -73,7 +70,6 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
             place_rid: reference_id,
             transition_rid: reference_id,
             direction: Arc.direction(),
-            guards: [Arc.guard()]
           }
   end
 end

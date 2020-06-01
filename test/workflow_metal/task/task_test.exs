@@ -49,12 +49,24 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, workflow_schema.id)
 
+        {:ok, workitem_schemas} =
+          InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+
         assert length(tasks) === 2
 
         [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
 
-        assert a_task.token_payload === [%{reply: :a_completed}]
-        assert b_task.token_payload === [%{reply: :b_completed}]
+        assert a_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                   reply: :a_completed
+                 }
+               }
+
+        assert b_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                   reply: :b_completed
+                 }
+               }
       end)
     end
   end
@@ -118,15 +130,27 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
 
+        {:ok, workitem_schemas} =
+          InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
+
         assert length(tasks) === 2
 
         [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
 
         assert a_task.state === :completed
-        assert a_task.token_payload === [%{reply: :a_completed}]
-
         assert b_task.state === :completed
-        assert b_task.token_payload === [%{reply: :b_completed}]
+
+        assert a_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                   reply: :a_completed
+                 }
+               }
+
+        assert b_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                   reply: :b_completed
+                 }
+               }
       end)
 
       until(fn ->
@@ -166,15 +190,27 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
 
+        {:ok, workitem_schemas} =
+          InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
+
         assert length(tasks) === 2
 
         [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
 
         assert a_task.state === :completed
-        assert a_task.token_payload === [%{reply: :a_completed}]
-
         assert b_task.state === :completed
-        assert b_task.token_payload === [%{reply: :b_completed}]
+
+        assert a_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                   reply: :a_completed
+                 }
+               }
+
+        assert b_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                   reply: :b_completed
+                 }
+               }
       end)
 
       until(fn ->
@@ -318,15 +354,27 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
 
+        {:ok, workitem_schemas} =
+          InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
+
         assert length(tasks) === 2
 
         [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
 
         assert a_task.state === :completed
-        assert a_task.token_payload === [%{reply: :a_completed}]
-
         assert b_task.state === :completed
-        assert b_task.token_payload === [%{reply: :b_completed}]
+
+        assert a_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                   reply: :a_completed
+                 }
+               }
+
+        assert b_task.token_payload === %{
+                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                   reply: :b_completed
+                 }
+               }
       end)
 
       until(fn ->

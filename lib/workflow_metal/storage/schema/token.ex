@@ -29,7 +29,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
 
   @type id :: term()
   @type state :: :free | :locked | :consumed
-  @type payload :: term()
+  @type payload :: map()
 
   @type workflow_id :: Schema.Workflow.id()
   @type place_id :: Schema.Place.id()
