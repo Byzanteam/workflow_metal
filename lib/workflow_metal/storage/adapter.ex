@@ -20,7 +20,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @type on_create_workflow ::
-          :ok
+          {:ok, workflow_schema}
           | {:error, :duplicate_workflow}
   @type on_fetch_workflow ::
           {:ok, workflow_schema}

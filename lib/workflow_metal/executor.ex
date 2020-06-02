@@ -86,7 +86,7 @@ defmodule WorkflowMetal.Executor do
           :ok,
           workitems
           |> Enum.filter(&(&1.state === :completed))
-          |> Enum.map(& &1.output)
+          |> Enum.reduce(%{}, &Map.put(&2, &1.id, &1.output))
         }
       end
 

@@ -14,7 +14,7 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
 
   @type id :: term()
   @type state :: :created | :started | :completed | :abandoned
-  @type output :: term()
+  @type output :: map() | nil
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
