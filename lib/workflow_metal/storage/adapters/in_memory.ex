@@ -50,6 +50,18 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :task_table,
       :workitem_table
     ]
+
+    @type t :: %__MODULE__{
+            name: atom(),
+            workflow_table: :ets.tid(),
+            arc_table: :ets.tid(),
+            place_table: :ets.tid(),
+            transition_table: :ets.tid(),
+            case_table: :ets.tid(),
+            token_table: :ets.tid(),
+            task_table: :ets.tid(),
+            workitem_table: :ets.tid()
+          }
   end
 
   @type application :: WorkflowMetal.Application.t()

@@ -45,10 +45,20 @@ defmodule WorkflowMetal.Case.Case do
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
+  @type place_schema :: WorkflowMetal.Storage.Schema.Place.t()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+
+  @type t :: %__MODULE__{
+          application: application,
+          case_schema: case_schema,
+          start_place: place_schema,
+          end_place: place_schema,
+          token_table: :ets.tid(),
+          free_token_ids: MapSet.t()
+        }
 
   @type options :: [
           name: term(),
