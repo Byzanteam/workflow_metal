@@ -54,6 +54,11 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
+  @type t :: %__MODULE__{
+          application: application,
+          workitem_schema: workitem_schema
+        }
+
   @type options :: [
           name: term(),
           workitem_schema: workitem_schema
