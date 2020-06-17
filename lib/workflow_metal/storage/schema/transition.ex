@@ -12,7 +12,8 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
     :join_type,
     :split_type,
     :executor,
-    :executor_params
+    :executor_params,
+    :metadata
   ]
 
   @type id :: term()
@@ -20,6 +21,7 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   @type split_type :: :none | :and
   @type executor :: module()
   @type executor_params :: term()
+  @type metadata :: map()
 
   @type workflow_id :: Schema.Workflow.id()
 
@@ -29,7 +31,8 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
           join_type: join_type,
           split_type: split_type,
           executor: module(),
-          executor_params: map()
+          executor_params: map(),
+          metadata: map()
         }
 
   alias __MODULE__
@@ -39,9 +42,11 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
 
     @enforce_keys [:rid, :executor]
     defstruct [
+      :id,
       :rid,
       :executor,
       :executor_params,
+      :metadata,
       join_type: :none,
       split_type: :none
     ]
@@ -49,11 +54,13 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
     @type reference_id :: term()
 
     @type t() :: %__MODULE__{
+            id: Transition.id(),
             rid: reference_id,
             join_type: Transition.join_type(),
             split_type: Transition.split_type(),
             executor: Transition.executor(),
-            executor_params: Transition.executor_params()
+            executor_params: Transition.executor_params(),
+            metadata: Transition.metadata()
           }
   end
 end
