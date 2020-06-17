@@ -33,7 +33,8 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
     :workflow_id,
     :place_id,
     :transition_id,
-    :direction
+    :direction,
+    :metadata
   ]
 
   @type id :: term()
@@ -43,13 +44,15 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   @type place_id :: Schema.Place.id()
   @type transition_id :: Schema.Transition.id()
   @type guard :: Schema.Guard.t()
+  @type metadata :: map()
 
   @type t() :: %__MODULE__{
           id: id,
           workflow_id: workflow_id,
           place_id: place_id,
           transition_id: transition_id,
-          direction: direction
+          direction: direction,
+          metadata: metadata
         }
 
   alias __MODULE__
@@ -59,17 +62,21 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
 
     @enforce_keys [:place_rid, :transition_rid, :direction]
     defstruct [
+      :id,
       :place_rid,
       :transition_rid,
-      :direction
+      :direction,
+      :metadata
     ]
 
     @type reference_id :: term()
 
     @type t() :: %__MODULE__{
+            id: Arc.id(),
             place_rid: reference_id,
             transition_rid: reference_id,
-            direction: Arc.direction()
+            direction: Arc.direction(),
+            metadata: Arc.metadata()
           }
   end
 end

@@ -947,7 +947,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     workflow_schema =
       struct(
         Schema.Workflow,
-        workflow_params |> Map.from_struct() |> Map.put(:id, make_id())
+        workflow_params |> Map.from_struct() |> Map.update!(:id, &make_id/1)
       )
 
     :ets.insert(workflow_table, {workflow_schema.id, workflow_schema})
@@ -996,7 +996,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         Schema.Place,
         place_params
         |> Map.from_struct()
-        |> Map.put(:id, make_id())
+        |> Map.update!(:id, &make_id/1)
         |> Map.put(:workflow_id, workflow_id)
       )
 
@@ -1052,7 +1052,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         Schema.Transition,
         transition_params
         |> Map.from_struct()
-        |> Map.put(:id, make_id())
+        |> Map.update!(:id, &make_id/1)
         |> Map.put(:workflow_id, workflow_id)
       )
 
@@ -1102,7 +1102,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         Schema.Arc,
         arc_params
         |> Map.from_struct()
-        |> Map.put(:id, make_id())
+        |> Map.update!(:id, &make_id/1)
         |> Map.put(:workflow_id, workflow_id)
         |> Map.put(:place_id, place_schemas[place_rid].id)
         |> Map.put(:transition_id, transition_schemas[transition_rid].id)
@@ -1725,6 +1725,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     do: Map.get(adapter_meta, :name)
 
   defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
+
+  defp make_id(nil), do: make_id()
+  defp make_id(id), do: id
 
   defp reversed_arc_direction(:in), do: :out
   defp reversed_arc_direction(:out), do: :in

@@ -17,18 +17,21 @@ defmodule WorkflowMetal.Storage.Schema.Place do
   defstruct [
     :id,
     :workflow_id,
-    :type
+    :type,
+    :metadata
   ]
 
   @type id :: term()
   @type type :: :start | :normal | :end
+  @type metadata :: map()
 
   @type workflow_id :: Schema.Workflow.id()
 
   @type t() :: %__MODULE__{
           id: id,
           workflow_id: workflow_id,
-          type: type
+          type: type,
+          metadata: metadata
         }
 
   alias __MODULE__
@@ -38,15 +41,19 @@ defmodule WorkflowMetal.Storage.Schema.Place do
 
     @enforce_keys [:rid, :type]
     defstruct [
+      :id,
       :rid,
-      :type
+      :type,
+      :metadata
     ]
 
     @type reference_id :: term()
 
     @type t() :: %__MODULE__{
+            id: Place.id(),
             rid: reference_id(),
-            type: Place.type()
+            type: Place.type(),
+            metadata: Place.metadata()
           }
   end
 end
