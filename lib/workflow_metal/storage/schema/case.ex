@@ -11,6 +11,7 @@ defmodule WorkflowMetal.Storage.Schema.Case do
   defstruct [
     :id,
     :workflow_id,
+    :data,
     state: :created
   ]
 
@@ -18,11 +19,13 @@ defmodule WorkflowMetal.Storage.Schema.Case do
   @type state :: :created | :active | :canceled | :finished
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+  @type data :: term()
 
   @type t() :: %__MODULE__{
           id: id,
           workflow_id: workflow_id,
-          state: state
+          state: state,
+          data: data
         }
 
   alias __MODULE__
@@ -32,11 +35,13 @@ defmodule WorkflowMetal.Storage.Schema.Case do
 
     @enforce_keys [:workflow_id]
     defstruct [
-      :workflow_id
+      :workflow_id,
+      :data
     ]
 
     @type t() :: %__MODULE__{
-            workflow_id: Case.workflow_id()
+            workflow_id: Case.workflow_id(),
+            data: Case.data()
           }
   end
 end
