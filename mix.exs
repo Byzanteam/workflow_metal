@@ -29,7 +29,7 @@ defmodule WorkflowMetal.MixProject do
     [
       {:credo, "~> 1.2", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0.0-rc.7", only: [:dev], runtime: false},
-      {:doctor, "~> 0.14.0", only: [:dev]},
+      {:doctor, "~> 0.15.0", only: [:dev]},
       {:gen_state_machine, "~> 2.0"}
     ]
   end
