@@ -63,54 +63,54 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
       application,
       %Schema.Workflow.Params{
         places: [
-          %Schema.Place.Params{rid: 1, type: :start},
-          %Schema.Place.Params{rid: 2, type: :normal},
-          %Schema.Place.Params{rid: 3, type: :end}
+          %Schema.Place.Params{id: 1, type: :start},
+          %Schema.Place.Params{id: 2, type: :normal},
+          %Schema.Place.Params{id: 3, type: :end}
         ],
         transitions: [
           a_transition,
           b_transition
         ],
         arcs: [
-          %Schema.Arc.Params{place_rid: 1, transition_rid: 1, direction: :out},
-          %Schema.Arc.Params{place_rid: 2, transition_rid: 1, direction: :in},
-          %Schema.Arc.Params{place_rid: 2, transition_rid: 2, direction: :out},
-          %Schema.Arc.Params{place_rid: 3, transition_rid: 2, direction: :in}
+          %Schema.Arc.Params{place_id: 1, transition_id: 1, direction: :out},
+          %Schema.Arc.Params{place_id: 2, transition_id: 1, direction: :in},
+          %Schema.Arc.Params{place_id: 2, transition_id: 2, direction: :out},
+          %Schema.Arc.Params{place_id: 3, transition_id: 2, direction: :in}
         ]
       }
     )
   end
 
   @doc false
-  def build_simple_transition(rid) do
+  def build_simple_transition(id) do
     %Schema.Transition.Params{
-      rid: rid,
+      id: id,
       executor: SimpleTransition
     }
   end
 
   @doc false
-  def build_echo_transition(rid, params \\ []) do
+  def build_echo_transition(id, params \\ []) do
     %Schema.Transition.Params{
-      rid: rid,
+      id: id,
       executor: EchoTransition,
       executor_params: Keyword.put_new(params, :request, self())
     }
   end
 
   @doc false
-  def build_asynchronous_transition(rid, params \\ []) do
+  def build_asynchronous_transition(id, params \\ []) do
     %Schema.Transition.Params{
-      rid: rid,
+      id: id,
       executor: AsynchronousTransition,
       executor_params: Keyword.put_new(params, :request, self())
     }
   end
 
   @doc false
-  def build_transition(rid, executor, executor_params) do
+  def build_transition(id, executor, executor_params) do
     %Schema.Transition.Params{
-      rid: rid,
+      id: id,
       executor: executor,
       executor_params: executor_params
     }

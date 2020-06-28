@@ -40,10 +40,9 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:rid, :executor]
+    @enforce_keys [:id, :executor]
     defstruct [
       :id,
-      :rid,
       :executor,
       :executor_params,
       :metadata,
@@ -51,11 +50,8 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
       split_type: :none
     ]
 
-    @type reference_id :: term()
-
     @type t() :: %__MODULE__{
             id: Transition.id(),
-            rid: reference_id,
             join_type: Transition.join_type(),
             split_type: Transition.split_type(),
             executor: Transition.executor(),

@@ -169,30 +169,30 @@ end
     TrafficLight.Workflow,
     %Schema.Workflow.Params{
       places: [
-        %Schema.Place.Params{rid: :start, type: :start},
-        %Schema.Place.Params{rid: :yellow, type: :normal},
-        %Schema.Place.Params{rid: :red, type: :normal},
-        %Schema.Place.Params{rid: :green, type: :normal},
-        %Schema.Place.Params{rid: :end, type: :end}
+        %Schema.Place.Params{id: :start, type: :start},
+        %Schema.Place.Params{id: :yellow, type: :normal},
+        %Schema.Place.Params{id: :red, type: :normal},
+        %Schema.Place.Params{id: :green, type: :normal},
+        %Schema.Place.Params{id: :end, type: :end}
       ],
       transitions: [
-        %Schema.Transition.Params{rid: :init, executor: TrafficLight.Init},
-        %Schema.Transition.Params{rid: :y2r, executor: TrafficLight.Y2R},
-        %Schema.Transition.Params{rid: :r2g, executor: TrafficLight.R2G},
-        %Schema.Transition.Params{rid: :g2y, executor: TrafficLight.G2Y},
-        %Schema.Transition.Params{rid: :will_end, executor: TrafficLight.WillEnd}
+        %Schema.Transition.Params{id: :init, executor: TrafficLight.Init},
+        %Schema.Transition.Params{id: :y2r, executor: TrafficLight.Y2R},
+        %Schema.Transition.Params{id: :r2g, executor: TrafficLight.R2G},
+        %Schema.Transition.Params{id: :g2y, executor: TrafficLight.G2Y},
+        %Schema.Transition.Params{id: :will_end, executor: TrafficLight.WillEnd}
       ],
       arcs: [
-        %Schema.Arc.Params{place_rid: :start, transition_rid: :init, direction: :out},
-        %Schema.Arc.Params{place_rid: :yellow, transition_rid: :init, direction: :in},
-        %Schema.Arc.Params{place_rid: :yellow, transition_rid: :y2r, direction: :out},
-        %Schema.Arc.Params{place_rid: :yellow, transition_rid: :g2y, direction: :in},
-        %Schema.Arc.Params{place_rid: :red, transition_rid: :y2r, direction: :in},
-        %Schema.Arc.Params{place_rid: :red, transition_rid: :will_end, direction: :out},
-        %Schema.Arc.Params{place_rid: :red, transition_rid: :r2g, direction: :out},
-        %Schema.Arc.Params{place_rid: :green, transition_rid: :r2g, direction: :in},
-        %Schema.Arc.Params{place_rid: :green, transition_rid: :g2y, direction: :out},
-        %Schema.Arc.Params{place_rid: :end, transition_rid: :will_end, direction: :in}
+        %Schema.Arc.Params{place_id: :start, transition_id: :init, direction: :out},
+        %Schema.Arc.Params{place_id: :yellow, transition_id: :init, direction: :in},
+        %Schema.Arc.Params{place_id: :yellow, transition_id: :y2r, direction: :out},
+        %Schema.Arc.Params{place_id: :yellow, transition_id: :g2y, direction: :in},
+        %Schema.Arc.Params{place_id: :red, transition_id: :y2r, direction: :in},
+        %Schema.Arc.Params{place_id: :red, transition_id: :will_end, direction: :out},
+        %Schema.Arc.Params{place_id: :red, transition_id: :r2g, direction: :out},
+        %Schema.Arc.Params{place_id: :green, transition_id: :r2g, direction: :in},
+        %Schema.Arc.Params{place_id: :green, transition_id: :g2y, direction: :out},
+        %Schema.Arc.Params{place_id: :end, transition_id: :will_end, direction: :in}
       ]
     }
   )

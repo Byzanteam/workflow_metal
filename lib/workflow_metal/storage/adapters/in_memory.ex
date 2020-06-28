@@ -944,10 +944,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp persist_workflow(workflow_params, %State{} = state) do
     workflow_table = get_table(:workflow, state)
 
+    workflow_id = Map.get(workflow_params, :id) |> make_id()
+
     workflow_schema =
       struct(
         Schema.Workflow,
-        workflow_params |> Map.from_struct() |> Map.update!(:id, &make_id/1)
+        workflow_params |> Map.from_struct() |> Map.put(:id, workflow_id)
       )
 
     :ets.insert(workflow_table, {workflow_schema.id, workflow_schema})
@@ -991,12 +993,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     place_table = get_table(:place, state)
     workflow_id = Keyword.fetch!(options, :workflow_id)
 
+    place_id = Map.get(place_params, :id) |> make_id()
+
     place_schema =
       struct(
         Schema.Place,
         place_params
         |> Map.from_struct()
-        |> Map.update!(:id, &make_id/1)
+        |> Map.put(:id, place_id)
         |> Map.put(:workflow_id, workflow_id)
       )
 
@@ -1039,7 +1043,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     Enum.into(places_params, %{}, fn place_params ->
       {:ok, place_schema} = persist_place(place_params, state, options)
 
-      {place_params.rid, place_schema}
+      {place_params.id, place_schema}
     end)
   end
 
@@ -1047,12 +1051,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     transition_table = get_table(:transition, state)
     workflow_id = Keyword.fetch!(options, :workflow_id)
 
+    transition_id = Map.get(transition_params, :id) |> make_id()
+
     transition_schema =
       struct(
         Schema.Transition,
         transition_params
         |> Map.from_struct()
-        |> Map.update!(:id, &make_id/1)
+        |> Map.put(:id, transition_id)
         |> Map.put(:workflow_id, workflow_id)
       )
 
@@ -1082,7 +1088,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     Enum.into(transitions_params, %{}, fn transition_params ->
       {:ok, transition_schema} = persist_transition(transition_params, state, options)
 
-      {transition_params.rid, transition_schema}
+      {transition_params.id, transition_schema}
     end)
   end
 
@@ -1093,19 +1099,21 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     transition_schemas = Keyword.fetch!(options, :transition_schemas)
 
     %{
-      place_rid: place_rid,
-      transition_rid: transition_rid
+      place_id: place_id,
+      transition_id: transition_id
     } = arc_params
+
+    arc_id = Map.get(arc_params, :id) |> make_id()
 
     arc_schema =
       struct(
         Schema.Arc,
         arc_params
         |> Map.from_struct()
-        |> Map.update!(:id, &make_id/1)
+        |> Map.put(:id, arc_id)
         |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:place_id, place_schemas[place_rid].id)
-        |> Map.put(:transition_id, transition_schemas[transition_rid].id)
+        |> Map.put(:place_id, place_schemas[place_id].id)
+        |> Map.put(:transition_id, transition_schemas[transition_id].id)
       )
 
     :ets.insert(
@@ -1725,9 +1733,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     do: Map.get(adapter_meta, :name)
 
   defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
-
-  defp make_id(nil), do: make_id()
-  defp make_id(id), do: id
+  defp make_id(nil), do: :erlang.unique_integer([:positive, :monotonic])
+  defp make_id(id), do: :"#{inspect(id)}-#{:erlang.unique_integer([:positive, :monotonic])}"
 
   defp reversed_arc_direction(:in), do: :out
   defp reversed_arc_direction(:out), do: :in
