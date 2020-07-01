@@ -17,8 +17,8 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   ]
 
   @type id :: term()
-  @type join_type :: :none | :and
-  @type split_type :: :none | :and
+  @type join_type :: atom()
+  @type split_type :: atom()
   @type executor :: module()
   @type executor_params :: term()
   @type metadata :: map()
