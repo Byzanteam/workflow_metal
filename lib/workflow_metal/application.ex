@@ -70,6 +70,13 @@ defmodule WorkflowMetal.Application do
       end
 
       @doc """
+      Create a case
+      """
+      def create_case(case_params) do
+        WorkflowMetal.Case.Supervisor.create_case(application(), case_params)
+      end
+
+      @doc """
       Pre-execute a task that the workitem belongs to.
 
       Lock tokens before a workitem execution.
