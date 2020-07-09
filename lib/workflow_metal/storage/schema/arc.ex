@@ -11,16 +11,14 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
       workflow_id: "workflow_id"
       place_id: A
       transition_id: B
-      direction: :out,
-      guards: []
+      direction: :out
     }
     %__MODULE__{
       id: "id-2"
       workflow_id: "workflow_id"
       place_id: C
       transition_id: B
-      direction: :in,
-      guards: []
+      direction: :in
     }
   ```
   """
@@ -43,7 +41,6 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   @type workflow_id :: Schema.Workflow.id()
   @type place_id :: Schema.Place.id()
   @type transition_id :: Schema.Transition.id()
-  @type guard :: Schema.Guard.t()
   @type metadata :: map()
 
   @type t() :: %__MODULE__{
