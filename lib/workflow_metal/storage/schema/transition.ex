@@ -3,18 +3,9 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   Present a transition.
   """
 
-  alias WorkflowMetal.Storage.Schema
+  use TypedStruct
 
-  @enforce_keys [:id, :workflow_id, :join_type, :split_type, :executor]
-  defstruct [
-    :id,
-    :workflow_id,
-    :join_type,
-    :split_type,
-    :executor,
-    :executor_params,
-    :metadata
-  ]
+  alias WorkflowMetal.Storage.Schema
 
   @type id :: term()
   @type join_type :: atom()
@@ -25,38 +16,35 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
 
   @type workflow_id :: Schema.Workflow.id()
 
-  @type t() :: %__MODULE__{
-          id: id,
-          workflow_id: workflow_id,
-          join_type: join_type,
-          split_type: split_type,
-          executor: module(),
-          executor_params: map(),
-          metadata: map()
-        }
+  typedstruct enforce: true do
+    field :id, id()
+
+    field :join_type, join_type()
+    field :split_type, split_type()
+    field :executor, module()
+    field :executor_params, map(), enforce: false
+
+    field :metadata, map(), enforce: false
+
+    field :workflow_id, workflow_id()
+  end
 
   alias __MODULE__
 
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:id, :executor]
-    defstruct [
-      :id,
-      :executor,
-      :executor_params,
-      :metadata,
-      join_type: :none,
-      split_type: :none
-    ]
+    use TypedStruct
 
-    @type t() :: %__MODULE__{
-            id: Transition.id(),
-            join_type: Transition.join_type(),
-            split_type: Transition.split_type(),
-            executor: Transition.executor(),
-            executor_params: Transition.executor_params(),
-            metadata: Transition.metadata()
-          }
+    typedstruct do
+      field :id, Transition.id(), enforce: true
+
+      field :join_type, Transition.join_type(), default: :none
+      field :split_type, Transition.split_type(), default: :none
+      field :executor, Transition.executor(), enforce: true
+      field :executor_params, Transition.executor_params()
+
+      field :metadata, Transition.metadata()
+    end
   end
 end
