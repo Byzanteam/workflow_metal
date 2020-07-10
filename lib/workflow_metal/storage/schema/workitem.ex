@@ -1,16 +1,7 @@
 defmodule WorkflowMetal.Storage.Schema.Workitem do
   @moduledoc false
 
-  @enforce_keys [:id, :state, :workflow_id, :case_id, :task_id]
-  defstruct [
-    :id,
-    :workflow_id,
-    :transition_id,
-    :case_id,
-    :task_id,
-    :output,
-    state: :created
-  ]
+  use TypedStruct
 
   @type id :: term()
   @type state :: :created | :started | :completed | :abandoned
@@ -21,34 +12,29 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
 
-  @type t() :: %__MODULE__{
-          id: id,
-          workflow_id: workflow_id,
-          transition_id: transition_id,
-          case_id: case_id,
-          task_id: task_id,
-          state: state,
-          output: output
-        }
+  typedstruct enforce: true do
+    field :id, id()
+    field :state, state(), default: :created
+    field :output, output(), enforce: false
+
+    field :workflow_id, workflow_id()
+    field :transition_id, transition_id()
+    field :case_id, case_id()
+    field :task_id, task_id()
+  end
 
   alias __MODULE__
 
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:workflow_id, :transition_id, :case_id, :task_id]
-    defstruct [
-      :workflow_id,
-      :transition_id,
-      :case_id,
-      :task_id
-    ]
+    use TypedStruct
 
-    @type t() :: %__MODULE__{
-            workflow_id: Workitem.workflow_id(),
-            transition_id: Workitem.transition_id(),
-            case_id: Workitem.case_id(),
-            task_id: Workitem.task_id()
-          }
+    typedstruct enforce: true do
+      field :workflow_id, Workitem.workflow_id()
+      field :transition_id, Workitem.transition_id()
+      field :case_id, Workitem.case_id()
+      field :task_id, Workitem.task_id()
+    end
   end
 end
