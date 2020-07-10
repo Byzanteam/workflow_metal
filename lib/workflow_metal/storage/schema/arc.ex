@@ -23,17 +23,9 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   ```
   """
 
-  alias WorkflowMetal.Storage.Schema
+  use TypedStruct
 
-  @enforce_keys [:id, :workflow_id, :place_id, :transition_id, :direction]
-  defstruct [
-    :id,
-    :workflow_id,
-    :place_id,
-    :transition_id,
-    :direction,
-    :metadata
-  ]
+  alias WorkflowMetal.Storage.Schema
 
   @type id :: term()
   @type direction :: :in | :out
@@ -43,35 +35,33 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
   @type transition_id :: Schema.Transition.id()
   @type metadata :: map()
 
-  @type t() :: %__MODULE__{
-          id: id,
-          workflow_id: workflow_id,
-          place_id: place_id,
-          transition_id: transition_id,
-          direction: direction,
-          metadata: metadata
-        }
+  typedstruct enforce: true do
+    field :id, id()
+
+    field :place_id, place_id()
+    field :direction, direction()
+    field :transition_id, transition_id()
+
+    field :metadata, metadata(), enforce: false
+
+    field :workflow_id, workflow_id()
+  end
 
   alias __MODULE__
 
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:place_id, :transition_id, :direction]
-    defstruct [
-      :id,
-      :place_id,
-      :transition_id,
-      :direction,
-      :metadata
-    ]
+    use TypedStruct
 
-    @type t() :: %__MODULE__{
-            id: Arc.id(),
-            place_id: Arc.id(),
-            transition_id: Arc.id(),
-            direction: Arc.direction(),
-            metadata: Arc.metadata()
-          }
+    typedstruct do
+      field :id, Arc.id()
+
+      field :place_id, Arc.id(), enforce: true
+      field :direction, Arc.direction(), enforce: true
+      field :transition_id, Arc.id(), enforce: true
+
+      field :metadata, Arc.metadata()
+    end
   end
 end
