@@ -30,13 +30,7 @@ defmodule WorkflowMetal.Task.Task do
     callback_mode: [:handle_event_function, :state_enter],
     restart: :transient
 
-  defstruct [
-    :application,
-    :task_schema,
-    :transition_schema,
-    :token_table,
-    :workitem_table
-  ]
+  use TypedStruct
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
@@ -56,13 +50,13 @@ defmodule WorkflowMetal.Task.Task do
   @type workitem_state :: WorkflowMetal.Storage.Schema.Workitem.state()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
 
-  @type t :: %__MODULE__{
-          application: application,
-          task_schema: task_schema,
-          transition_schema: transition_schema,
-          token_table: :ets.tid(),
-          workitem_table: :ets.tid()
-        }
+  typedstruct do
+    field :application, application()
+    field :task_schema, task_schema()
+    field :transition_schema, transition_schema()
+    field :token_table, :ets.tid()
+    field :workitem_table, :ets.tid()
+  end
 
   @type options :: [
           name: term(),
