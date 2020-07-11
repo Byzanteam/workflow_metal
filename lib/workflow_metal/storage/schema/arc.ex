@@ -57,9 +57,9 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
     typedstruct do
       field :id, Arc.id()
 
-      field :place_id, Arc.id(), enforce: true
+      field :place_id, Arc.place_id(), enforce: true
       field :direction, Arc.direction(), enforce: true
-      field :transition_id, Arc.id(), enforce: true
+      field :transition_id, Arc.transition_id(), enforce: true
 
       field :metadata, Arc.metadata()
     end
