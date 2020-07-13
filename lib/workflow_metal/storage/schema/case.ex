@@ -7,36 +7,29 @@ defmodule WorkflowMetal.Storage.Schema.Case do
   - `:finished`: when there is only one token left in the `:end` place
   """
 
-  @enforce_keys [:id, :workflow_id]
-  defstruct [
-    :id,
-    :workflow_id,
-    state: :created
-  ]
+  use TypedStruct
 
   @type id :: term()
   @type state :: :created | :active | :canceled | :finished
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
-  @type t() :: %__MODULE__{
-          id: id,
-          workflow_id: workflow_id,
-          state: state
-        }
+  typedstruct enforce: true do
+    field :id, id()
+    field :state, state(), enforce: false, default: :created
+
+    field :workflow_id, workflow_id()
+  end
 
   alias __MODULE__
 
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:workflow_id]
-    defstruct [
-      :workflow_id
-    ]
+    use TypedStruct
 
-    @type t() :: %__MODULE__{
-            workflow_id: Case.workflow_id()
-          }
+    typedstruct enforce: true do
+      field :workflow_id, Case.workflow_id()
+    end
   end
 end

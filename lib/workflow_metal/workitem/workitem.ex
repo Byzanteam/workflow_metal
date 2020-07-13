@@ -35,12 +35,9 @@ defmodule WorkflowMetal.Workitem.Workitem do
     callback_mode: [:handle_event_function, :state_enter],
     restart: :transient
 
-  alias WorkflowMetal.Storage.Schema
+  use TypedStruct
 
-  defstruct [
-    :application,
-    :workitem_schema
-  ]
+  alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
@@ -54,10 +51,10 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
-  @type t :: %__MODULE__{
-          application: application,
-          workitem_schema: workitem_schema
-        }
+  typedstruct do
+    field :application, application()
+    field :workitem_schema, workitem_schema()
+  end
 
   @type options :: [
           name: term(),

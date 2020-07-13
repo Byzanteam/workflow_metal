@@ -11,15 +11,9 @@ defmodule WorkflowMetal.Storage.Schema.Place do
   - `:end`
   """
 
-  alias WorkflowMetal.Storage.Schema
+  use TypedStruct
 
-  @enforce_keys [:id, :workflow_id, :type]
-  defstruct [
-    :id,
-    :workflow_id,
-    :type,
-    :metadata
-  ]
+  alias WorkflowMetal.Storage.Schema
 
   @type id :: term()
   @type type :: :start | :normal | :end
@@ -27,29 +21,26 @@ defmodule WorkflowMetal.Storage.Schema.Place do
 
   @type workflow_id :: Schema.Workflow.id()
 
-  @type t() :: %__MODULE__{
-          id: id,
-          workflow_id: workflow_id,
-          type: type,
-          metadata: metadata
-        }
+  typedstruct enforce: true do
+    field :id, id()
+    field :type, type()
+
+    field :metadata, metadata(), enforce: false
+
+    field :workflow_id, workflow_id()
+  end
 
   alias __MODULE__
 
   defmodule Params do
     @moduledoc false
 
-    @enforce_keys [:id, :type]
-    defstruct [
-      :id,
-      :type,
-      :metadata
-    ]
+    use TypedStruct
 
-    @type t() :: %__MODULE__{
-            id: Place.id(),
-            type: Place.type(),
-            metadata: Place.metadata()
-          }
+    typedstruct enforce: true do
+      field :id, Place.id()
+      field :type, Place.type()
+      field :metadata, Place.metadata(), enforce: false
+    end
   end
 end

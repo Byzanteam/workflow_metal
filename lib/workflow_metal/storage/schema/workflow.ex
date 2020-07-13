@@ -3,44 +3,35 @@ defmodule WorkflowMetal.Storage.Schema.Workflow do
   Present a workflow.
   """
 
-  alias WorkflowMetal.Storage.Schema
+  use TypedStruct
 
-  @enforce_keys [:id, :state]
-  defstruct [
-    :id,
-    :metadata,
-    state: :active
-  ]
+  alias WorkflowMetal.Storage.Schema
 
   @type id :: term()
   @type metadata :: map()
   @type state :: :active | :discarded
 
-  @type t() :: %__MODULE__{
-          id: id,
-          metadata: metadata,
-          state: state
-        }
+  typedstruct enforce: true do
+    field :id, id()
+    field :state, state()
+    field :metadata, metadata()
+  end
 
   alias __MODULE__
 
   defmodule Params do
     @moduledoc false
 
-    defstruct [
-      :id,
-      :metadata,
-      places: [],
-      transitions: [],
-      arcs: []
-    ]
+    use TypedStruct
 
-    @type t() :: %__MODULE__{
-            id: Workflow.id(),
-            places: [Schema.Place.Params.t()],
-            transitions: [Schema.Transition.Params.t()],
-            arcs: [Schema.Arc.Params.t()],
-            metadata: Workflow.metadata()
-          }
+    typedstruct do
+      field :id, Workflow.id()
+
+      field :places, [Schema.Place.Params.t()], default: []
+      field :transitions, [Schema.Transition.Params.t()], default: []
+      field :arcs, [Schema.Arc.Params.t()], default: []
+
+      field :metadata, Workflow.metadata(), default: %{}
+    end
   end
 end

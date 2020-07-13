@@ -31,14 +31,7 @@ defmodule WorkflowMetal.Case.Case do
     callback_mode: [:handle_event_function, :state_enter],
     restart: :transient
 
-  defstruct [
-    :application,
-    :case_schema,
-    :start_place,
-    :end_place,
-    :token_table,
-    free_token_ids: MapSet.new()
-  ]
+  use TypedStruct
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
@@ -51,14 +44,14 @@ defmodule WorkflowMetal.Case.Case do
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
-  @type t :: %__MODULE__{
-          application: application,
-          case_schema: case_schema,
-          start_place: place_schema,
-          end_place: place_schema,
-          token_table: :ets.tid(),
-          free_token_ids: MapSet.t()
-        }
+  typedstruct do
+    field :application, application
+    field :case_schema, case_schema
+    field :start_place, place_schema
+    field :end_place, place_schema
+    field :token_table, :ets.tid()
+    field :free_token_ids, MapSet.t(), default: MapSet.new()
+  end
 
   @type options :: [
           name: term(),

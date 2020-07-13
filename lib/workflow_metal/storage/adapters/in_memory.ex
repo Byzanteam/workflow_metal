@@ -39,29 +39,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defmodule State do
     @moduledoc false
 
-    defstruct [
-      :name,
-      :workflow_table,
-      :arc_table,
-      :place_table,
-      :transition_table,
-      :case_table,
-      :token_table,
-      :task_table,
-      :workitem_table
-    ]
+    use TypedStruct
 
-    @type t :: %__MODULE__{
-            name: atom(),
-            workflow_table: :ets.tid(),
-            arc_table: :ets.tid(),
-            place_table: :ets.tid(),
-            transition_table: :ets.tid(),
-            case_table: :ets.tid(),
-            token_table: :ets.tid(),
-            task_table: :ets.tid(),
-            workitem_table: :ets.tid()
-          }
+    typedstruct do
+      field :name, atom()
+      field :workflow_table, :ets.tid()
+      field :arc_table, :ets.tid()
+      field :place_table, :ets.tid()
+      field :transition_table, :ets.tid()
+      field :case_table, :ets.tid()
+      field :token_table, :ets.tid()
+      field :task_table, :ets.tid()
+      field :workitem_table, :ets.tid()
+    end
   end
 
   @type application :: WorkflowMetal.Application.t()
