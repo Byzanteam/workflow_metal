@@ -4,8 +4,6 @@ defmodule WorkflowMetal.Registration.LocalRegistry do
   `Registry` module.
   """
 
-  require Logger
-
   @behaviour WorkflowMetal.Registration.Adapter
 
   @doc """

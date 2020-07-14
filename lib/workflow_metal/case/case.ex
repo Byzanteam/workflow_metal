@@ -884,6 +884,6 @@ defmodule WorkflowMetal.Case.Case do
       }
     } = data
 
-    "Case<#{case_id}@#{workflow_id}>"
+    "[#{inspect(__MODULE__)}] Case<#{case_id}@#{workflow_id}>"
   end
 end
