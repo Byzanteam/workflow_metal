@@ -454,10 +454,6 @@ defmodule WorkflowMetal.Task.Task do
           {:reply, from, {:ok, locked_token_schemas}}
         }
 
-      {:error, :tokens_not_available} ->
-        # retry
-        do_lock_tokens(data)
-
       error ->
         {
           :keep_state_and_data,
@@ -662,10 +658,17 @@ defmodule WorkflowMetal.Task.Task do
   defp do_lock_tokens(%__MODULE__{} = data) do
     with(
       {:ok, token_ids} <- JoinController.task_enablement(data),
-      %{application: application, task_schema: %Schema.Task{id: task_id, case_id: case_id}} =
-        data,
+      %{
+        application: application,
+        task_schema: %Schema.Task{id: task_id, case_id: case_id}
+      } = data,
       {:ok, locked_token_schemas} <-
-        WorkflowMetal.Case.Supervisor.lock_tokens(application, case_id, token_ids, task_id)
+        WorkflowMetal.Case.Supervisor.lock_tokens(
+          application,
+          case_id,
+          token_ids,
+          task_id
+        )
     ) do
       {:ok, data} =
         Enum.reduce(
@@ -677,6 +680,13 @@ defmodule WorkflowMetal.Task.Task do
         )
 
       {:ok, locked_token_schemas, data}
+    else
+      {:error, :tokens_not_available} ->
+        # retry
+        do_lock_tokens(data)
+
+      error ->
+        error
     end
   end
 
