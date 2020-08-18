@@ -29,7 +29,7 @@ defmodule WorkflowMetal.Storage.Schema.Case do
     use TypedStruct
 
     typedstruct do
-      field :case_id, Case.id()
+      field :id, Case.id()
       field :workflow_id, Case.workflow_id(), enforce: true
     end
   end
