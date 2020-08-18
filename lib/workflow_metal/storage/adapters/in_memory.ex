@@ -1134,13 +1134,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp persist_case(case_params, %State{} = state, options) do
     case_table = get_table(:case, state)
     workflow_id = Keyword.fetch!(options, :workflow_id)
+    case_id = Map.get(case_params, :id) |> make_id()
 
     case_schema =
       struct(
         Schema.Case,
         case_params
         |> Map.from_struct()
-        |> Map.put(:id, make_id())
+        |> Map.put(:id, case_id)
         |> Map.put(:workflow_id, workflow_id)
       )
 
