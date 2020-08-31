@@ -328,7 +328,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
-          a: SequentialRouting.build_asynchronous_transition(1, reply: :a_completed),
+          a:
+            SequentialRouting.build_asynchronous_transition(1,
+              reply: :a_completed,
+              abandon_reply: :a_abandoned
+            ),
           b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
         )
 
@@ -407,6 +411,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
         assert workitem_schema.state === :abandoned
       end)
+
+      assert_receive :a_abandoned
     end
 
     test "can abandon a running started workitem", %{workitem_schema: workitem_schema} do
@@ -433,6 +439,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
         assert workitem_schema.state === :abandoned
       end)
+
+      assert_receive :a_abandoned
     end
 
     test "cant abandon a completed workitem", %{workitem_schema: workitem_schema} do
@@ -461,6 +469,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
           DummyApplication,
           workitem_schema.id
         )
+
+      refute_receive :a_abandoned
     end
   end
 

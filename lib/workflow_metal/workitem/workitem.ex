@@ -220,6 +220,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @impl GenStateMachine
   def handle_event(:cast, :abandon, state, %__MODULE__{} = data)
       when state not in [:abandoned, :completed] do
+    do_abanodn(data)
+
     {:ok, data} = update_workitem(:abandoned, data)
 
     {
@@ -314,6 +316,30 @@ defmodule WorkflowMetal.Workitem.Workitem do
       :abandoned ->
         {:ok, :abandoned, data}
     end
+  end
+
+  defp do_abanodn(%__MODULE__{} = data) do
+    %{
+      application: application,
+      workitem_schema:
+        %Schema.Workitem{
+          transition_id: transition_id
+        } = workitem_schema
+    } = data
+
+    {
+      :ok,
+      %{
+        executor: executor,
+        executor_params: executor_params
+      }
+    } = WorkflowMetal.Storage.fetch_transition(application, transition_id)
+
+    executor.abandon(
+      workitem_schema,
+      executor_params: executor_params,
+      application: application
+    )
   end
 
   defp update_workitem_in_task_server(%__MODULE__{} = data) do

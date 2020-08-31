@@ -52,6 +52,18 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
 
       :started
     end
+
+    @impl WorkflowMetal.Executor
+    def abandon(%Schema.Workitem{}, options) do
+      executor_params = Keyword.fetch!(options, :executor_params)
+
+      request = Keyword.fetch!(executor_params, :request)
+      reply = Keyword.fetch!(executor_params, :abandon_reply)
+
+      send(request, reply)
+
+      :ok
+    end
   end
 
   @doc false

@@ -62,6 +62,13 @@ defmodule WorkflowMetal.Executor do
               | {:completed, workitem_output}
 
   @doc """
+  Abandon a workitem.
+
+  You can cleanup some state at this time.
+  """
+  @callback abandon(workitem, options) :: :ok
+
+  @doc """
   Merge outputs of all workitems.
   """
   @callback build_token_payload(nonempty_list(workitem), options) ::
@@ -79,6 +86,9 @@ defmodule WorkflowMetal.Executor do
       @behaviour WorkflowMetal.Executor
 
       @before_compile unquote(__MODULE__)
+
+      @impl WorkflowMetal.Executor
+      def abandon(_workitem, _options), do: :ok
 
       @impl WorkflowMetal.Executor
       def build_token_payload(workitems, _options) do
