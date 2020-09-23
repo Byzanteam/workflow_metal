@@ -355,7 +355,10 @@ defmodule WorkflowMetal.Case.Case do
         {
           :keep_state,
           data,
-          {:reply, from, {:ok, tokens}}
+          [
+            {:reply, from, {:ok, tokens}},
+            {:next_event, :internal, {:revoke_tokens, tokens, task_id}}
+          ]
         }
 
       error ->
@@ -752,6 +755,13 @@ defmodule WorkflowMetal.Case.Case do
     end)
     |> Stream.each(fn
       {:ok, [%Schema.Task{id: task_id}]} when task_id !== except_task_id ->
+        Logger.info(fn ->
+          """
+          #{describe(data)}
+          withdraw token(#{inspect(token_schema.id)}) from task #{inspect(task_id)}.
+          """
+        end)
+
         :ok =
           WorkflowMetal.Task.Supervisor.withdraw_tokens(
             application,

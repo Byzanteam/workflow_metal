@@ -354,6 +354,7 @@ defmodule WorkflowMetal.Task.Task do
     case workitems_abandonment(data) do
       {:ok, data} ->
         {:ok, data} = unlock_tokens(data)
+        {:ok, data} = do_abandon_workitems(data)
         {:ok, data} = update_task(:abandoned, data)
 
         {
@@ -372,6 +373,7 @@ defmodule WorkflowMetal.Task.Task do
       when state in [:started, :allocated, :executing] do
     case tokens_abandonment(data) do
       {:ok, data} ->
+        {:ok, data} = do_abandon_workitems(data)
         {:ok, data} = update_task(:abandoned, data)
 
         {
