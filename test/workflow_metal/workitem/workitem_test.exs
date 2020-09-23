@@ -4,22 +4,10 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   import WorkflowMetal.Helpers.Wait
 
-  alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
   alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
   alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
-
-  defmodule DummyApplication do
-    use WorkflowMetal.Application,
-      storage: InMemoryStorage
-  end
-
-  setup_all do
-    start_supervised!(DummyApplication)
-
-    [application: DummyApplication]
-  end
 
   describe "execute_workitem" do
     test "execute successfully" do

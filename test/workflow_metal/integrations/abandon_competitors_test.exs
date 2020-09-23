@@ -11,34 +11,6 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
     SimpleTransition
   }
 
-  alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
-
-  defmodule DummyApplication do
-    use WorkflowMetal.Application,
-      storage: InMemoryStorage
-  end
-
-  test "abandon competitors between b and c transitions", %{workflow_schema: workflow_schema} do
-    {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
-
-    assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
-
-    assert_receive {2, b_callback}
-    assert_receive {3, _c_callback}
-
-    b_callback.()
-
-    until(fn ->
-      assert_receive {3, :abandoned}
-    end)
-  end
-
-  setup_all do
-    start_supervised!(DummyApplication)
-
-    [application: DummyApplication]
-  end
-
   setup do
     a_transition = build_simple_transition(1)
     b_transition = build_manul_transition(2)
@@ -80,6 +52,21 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
       )
 
     [workflow_schema: workflow_schema]
+  end
+
+  test "abandon competitors between b and c transitions", %{workflow_schema: workflow_schema} do
+    {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
+
+    assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+
+    assert_receive {2, b_callback}
+    assert_receive {3, _c_callback}
+
+    b_callback.()
+
+    until(fn ->
+      assert_receive {3, :abandoned}
+    end)
   end
 
   defp build_places(range) do

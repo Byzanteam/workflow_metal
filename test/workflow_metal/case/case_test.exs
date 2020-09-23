@@ -4,20 +4,8 @@ defmodule WorkflowMetal.Case.CaseTest do
 
   import WorkflowMetal.Helpers.Wait
 
-  defmodule DummyApplication do
-    use WorkflowMetal.Application,
-      storage: WorkflowMetal.Storage.Adapters.InMemory
-  end
-
-  alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
   alias WorkflowMetal.Support.Workflows.SequentialRouting
-
-  setup_all do
-    start_supervised!(DummyApplication)
-
-    [application: DummyApplication]
-  end
 
   describe "activate_case" do
     test "activate a case successfully" do

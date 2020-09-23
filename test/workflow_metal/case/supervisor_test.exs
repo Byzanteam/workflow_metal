@@ -1,21 +1,10 @@
 defmodule WorkflowMetal.Case.SupervisorTest do
   use ExUnit.Case, async: true
+  use WorkflowMetal.Support.InMemoryStorageCase
 
-  defmodule DummyApplication do
-    use WorkflowMetal.Application,
-      storage: WorkflowMetal.Storage.Adapters.InMemory
-  end
-
-  alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
   alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
-
-  setup_all do
-    start_supervised!(DummyApplication)
-
-    [application: DummyApplication]
-  end
 
   describe ".open_case/2" do
     test "failed to open a non-existing workflow" do
