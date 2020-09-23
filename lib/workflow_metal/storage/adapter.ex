@@ -185,8 +185,12 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_state :: WorkflowMetal.Storage.Schema.Task.state()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
-  @type update_task_params :: :allocated | :executing | {:completed, token_payload} | :abandoned
+  @type update_task_params :: %{
+          optional(:state) => task_state,
+          optional(:token_payload) => token_payload()
+        }
   @type fetch_tasks_options :: [
+          # TODO: nil -> list
           states: nonempty_list(task_state) | nil,
           transition_id: transition_id
         ]
@@ -235,12 +239,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @doc """
   Update the task.
 
-  ### update_task_params:
-  - `:executing`
-  - `{:completed, task_output}`
-
-  note: if the state of the task is the state in the update_task,
-  it returns `{:ok, task_schema}` too.
+  update_task_params: `State` and `TokenPayload`
   """
   @callback update_task(
               adapter_meta,

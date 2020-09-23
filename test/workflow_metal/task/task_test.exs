@@ -146,7 +146,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, _workitem_schema} =
@@ -223,7 +223,7 @@ defmodule WorkflowMetal.Task.TaskTest do
 
     test "restore from abandoned state", %{task_schema: task_schema} do
       {:ok, task_schema} =
-        WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, :abandoned)
+        WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, %{state: :abandoned})
 
       assert {:error, :task_not_available} =
                TaskSupervisor.open_task(DummyApplication, task_schema.id)
@@ -291,7 +291,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, workitem_schema} =
@@ -312,7 +312,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :executing
+          %{state: :executing}
         )
 
       assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)

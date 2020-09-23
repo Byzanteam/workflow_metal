@@ -235,7 +235,7 @@ defmodule WorkflowMetal.Task.Task do
         Logger.debug(fn -> "#{describe(data)} allocate a workitem." end)
 
         {:ok, data} = allocate_workitem(data)
-        {:ok, data} = update_task(:allocated, data)
+        {:ok, data} = update_task(%{state: :allocated}, data)
 
         {:keep_state, data}
 
@@ -355,7 +355,7 @@ defmodule WorkflowMetal.Task.Task do
       {:ok, data} ->
         {:ok, data} = unlock_tokens(data)
         {:ok, data} = do_abandon_workitems(data)
-        {:ok, data} = update_task(:abandoned, data)
+        {:ok, data} = update_task(%{state: :abandoned}, data)
 
         {
           :next_state,
@@ -374,7 +374,7 @@ defmodule WorkflowMetal.Task.Task do
     case tokens_abandonment(data) do
       {:ok, data} ->
         {:ok, data} = do_abandon_workitems(data)
-        {:ok, data} = update_task(:abandoned, data)
+        {:ok, data} = update_task(%{state: :abandoned}, data)
 
         {
           :next_state,
@@ -391,7 +391,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event(:cast, :force_abandon, state, %__MODULE__{} = data)
       when state in [:started, :allocated, :executing] do
     {:ok, data} = do_abandon_workitems(data)
-    {:ok, data} = update_task(:abandoned, data)
+    {:ok, data} = update_task(%{state: :abandoned}, data)
 
     {
       :next_state,
@@ -447,7 +447,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event({:call, from}, :preexecute, :allocated, %__MODULE__{} = data) do
     case do_lock_tokens(data) do
       {:ok, locked_token_schemas, data} ->
-        {:ok, data} = update_task(:executing, data)
+        {:ok, data} = update_task(%{state: :executing}, data)
 
         {
           :next_state,
@@ -610,7 +610,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, data}
   end
 
-  defp update_task(state_and_options, %__MODULE__{} = data) do
+  defp update_task(params, %__MODULE__{} = data) do
     %{
       application: application,
       task_schema: task_schema
@@ -620,7 +620,7 @@ defmodule WorkflowMetal.Task.Task do
       WorkflowMetal.Storage.update_task(
         application,
         task_schema.id,
-        state_and_options
+        params
       )
 
     {:ok, %{data | task_schema: task_schema}}
@@ -750,7 +750,7 @@ defmodule WorkflowMetal.Task.Task do
         token_params_list
       )
 
-    update_task({:completed, token_payload}, data)
+    update_task(%{state: :completed, token_payload: token_payload}, data)
   end
 
   defp build_token_payload(%__MODULE__{} = data) do

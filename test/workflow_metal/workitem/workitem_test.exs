@@ -210,7 +210,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, workitem_schema} =
@@ -334,7 +334,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, workitem_schema} =
@@ -477,7 +477,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, workitem_schema} =
