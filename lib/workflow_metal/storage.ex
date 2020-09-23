@@ -19,7 +19,7 @@ defmodule WorkflowMetal.Storage do
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
-  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
@@ -220,15 +220,12 @@ defmodule WorkflowMetal.Storage do
   ## Task
 
   @doc false
-  @spec create_task(application, task_params) ::
-          Adapter.on_create_task()
-  def create_task(application, task_params) do
+  @spec insert_task(application, task_schema) ::
+          Adapter.on_insert_task()
+  def insert_task(application, task_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_task(
-      adapter_meta,
-      task_params
-    )
+    adapter.insert_task(adapter_meta, task_schema)
   end
 
   @doc false

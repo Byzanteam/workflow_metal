@@ -195,9 +195,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
-        WorkflowMetal.Storage.create_task(
+        WorkflowMetal.Storage.insert_task(
           DummyApplication,
-          %Schema.Task.Params{
+          %Schema.Task{
+            id: 1,
+            state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
             transition_id: a_transition.id
@@ -317,9 +319,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
-        WorkflowMetal.Storage.create_task(
+        WorkflowMetal.Storage.insert_task(
           DummyApplication,
-          %Schema.Task.Params{
+          %Schema.Task{
+            id: 1,
+            state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
             transition_id: a_transition.id
@@ -458,9 +462,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
-        WorkflowMetal.Storage.create_task(
+        WorkflowMetal.Storage.insert_task(
           DummyApplication,
-          %Schema.Task.Params{
+          %Schema.Task{
+            id: 1,
+            state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
             transition_id: a_transition.id

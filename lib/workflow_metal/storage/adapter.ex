@@ -184,7 +184,6 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type task_state :: WorkflowMetal.Storage.Schema.Task.state()
-  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
   @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
   @type update_task_params :: :allocated | :executing | {:completed, token_payload} | :abandoned
   @type fetch_tasks_options :: [
@@ -192,7 +191,7 @@ defmodule WorkflowMetal.Storage.Adapter do
           transition_id: transition_id
         ]
 
-  @type on_create_task ::
+  @type on_insert_task ::
           {:ok, task_schema}
           | {:error, :workflow_not_found}
           | {:error, :transition_not_found}
@@ -211,10 +210,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   @doc """
   Create a task.
   """
-  @callback create_task(
+  @callback insert_task(
               adapter_meta,
-              task_params
-            ) :: on_create_task
+              task_schema
+            ) :: on_insert_task
 
   @doc """
   Retrive a task.

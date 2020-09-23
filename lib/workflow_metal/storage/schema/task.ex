@@ -23,18 +23,4 @@ defmodule WorkflowMetal.Storage.Schema.Task do
     field :transition_id, transition_id()
     field :case_id, case_id()
   end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct enforce: true do
-      field :workflow_id, Task.workflow_id()
-      field :transition_id, Task.transition_id()
-      field :case_id, Task.case_id()
-    end
-  end
 end

@@ -160,9 +160,11 @@ defmodule WorkflowMetal.Case.CaseTest do
 
     test "restore from active state", %{a_transition: a_transition, case_schema: case_schema} do
       {:ok, _task_schema} =
-        WorkflowMetal.Storage.create_task(
+        WorkflowMetal.Storage.insert_task(
           DummyApplication,
-          %Schema.Task.Params{
+          %Schema.Task{
+            id: 1,
+            state: :started,
             workflow_id: case_schema.workflow_id,
             case_id: case_schema.id,
             transition_id: a_transition.id

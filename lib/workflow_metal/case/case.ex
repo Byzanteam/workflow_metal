@@ -602,7 +602,7 @@ defmodule WorkflowMetal.Case.Case do
 
     transitions
     |> Stream.map(fn transition ->
-      fetch_or_create_task(transition, data)
+      fetch_or_insert_task(transition, data)
     end)
     |> Stream.each(fn {:ok, task} ->
       :ok = WorkflowMetal.Task.Supervisor.offer_tokens(application, task.id, [token_schema])
@@ -614,7 +614,7 @@ defmodule WorkflowMetal.Case.Case do
     |> Stream.run()
   end
 
-  defp fetch_or_create_task(transition, %__MODULE__{} = data) do
+  defp fetch_or_insert_task(transition, %__MODULE__{} = data) do
     %{id: transition_id} = transition
 
     case fetch_available_tasks(transition_id, data) do
@@ -630,13 +630,26 @@ defmodule WorkflowMetal.Case.Case do
           }
         } = data
 
-        task_params = %Schema.Task.Params{
+        task_id =
+          WorkflowMetal.Storage.generate_id(
+            application,
+            :task,
+            %{
+              workflow_id: workflow_id,
+              case_id: case_id,
+              transition_id: transition_id
+            }
+          )
+
+        task_params = %Schema.Task{
+          id: task_id,
+          state: :started,
           workflow_id: workflow_id,
           case_id: case_id,
           transition_id: transition_id
         }
 
-        {:ok, _} = WorkflowMetal.Storage.create_task(application, task_params)
+        {:ok, _} = WorkflowMetal.Storage.insert_task(application, task_params)
     end
   end
 

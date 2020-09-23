@@ -210,10 +210,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   # Task
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_task(adapter_meta, task_params) do
+  def insert_task(adapter_meta, task_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_task, task_params})
+    GenServer.call(storage, {:insert_task, task_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -548,7 +548,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create_task, task_params},
+        {:insert_task, task_schema},
         _from,
         %State{} = state
       ) do
@@ -556,21 +556,15 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       workflow_id: workflow_id,
       transition_id: transition_id,
       case_id: case_id
-    } = task_params
+    } = task_schema
 
     reply =
       with(
-        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
-        {:ok, transition_schema} <- find_transition(transition_id, state),
-        {:ok, case_schema} <- find_case(case_id, state)
+        {:ok, _workflow_schema} <- find_workflow(workflow_id, state),
+        {:ok, _transition_schema} <- find_transition(transition_id, state),
+        {:ok, _case_schema} <- find_case(case_id, state)
       ) do
-        persist_task(
-          task_params,
-          state,
-          workflow_id: workflow_schema.id,
-          transition_id: transition_schema.id,
-          case_id: case_schema.id
-        )
+        persist_task(task_schema, state)
       end
 
     {:reply, reply, state}
@@ -1289,22 +1283,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, state}
   end
 
-  defp persist_task(task_params, %State{} = state, options) do
+  defp persist_task(%Schema.Task{} = task_schema, %State{} = state) do
     task_table = get_table(:task, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    transition_id = Keyword.fetch!(options, :transition_id)
-    case_id = Keyword.fetch!(options, :case_id)
-
-    task_schema =
-      struct(
-        Schema.Task,
-        task_params
-        |> Map.from_struct()
-        |> Map.put(:id, make_id())
-        |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:transition_id, transition_id)
-        |> Map.put(:case_id, case_id)
-      )
 
     :ets.insert(
       task_table,
