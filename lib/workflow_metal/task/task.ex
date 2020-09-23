@@ -889,6 +889,6 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    "[#{inspect(__MODULE__)}] Task<#{task_id}@#{workflow_id}.#{transition_id}.#{case_id}>"
+    "[#{inspect(__MODULE__)}] Task<#{task_id}@#{case_id}##{transition_id}.#{workflow_id}>"
   end
 end
