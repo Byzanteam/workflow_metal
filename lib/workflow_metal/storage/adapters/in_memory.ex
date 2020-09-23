@@ -207,6 +207,9 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
       :canceled ->
         GenServer.call(storage, {:cancel_case, case_id})
+
+      :terminated ->
+        GenServer.call(storage, {:terminate_case, case_id})
     end
   end
 
@@ -572,6 +575,20 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     reply =
       with({:ok, case_schema} <- find_case(case_id, state)) do
         do_cancel_case(case_schema, state)
+      end
+
+    {:reply, reply, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:terminate_case, case_id},
+        _from,
+        %State{} = state
+      ) do
+    reply =
+      with({:ok, case_schema} <- find_case(case_id, state)) do
+        do_terminate_case(case_schema, state)
       end
 
     {:reply, reply, state}
@@ -1273,6 +1290,42 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp do_cancel_case(_case_schema, %State{} = _state) do
+    {:error, :case_not_available}
+  end
+
+  defp do_terminate_case(
+         %Schema.Case{state: :terminated} = case_schema,
+         %State{} = _state
+       ) do
+    {:ok, case_schema}
+  end
+
+  defp do_terminate_case(
+         %Schema.Case{state: case_state} = case_schema,
+         %State{} = state
+       )
+       when case_state in [:created, :active] do
+    case_table = get_table(:case, state)
+
+    case_schema = %{
+      case_schema
+      | state: :terminated
+    }
+
+    true =
+      :ets.update_element(
+        case_table,
+        case_schema.id,
+        [
+          {2, case_schema},
+          {3, {case_schema.state, case_schema.workflow_id}}
+        ]
+      )
+
+    {:ok, case_schema}
+  end
+
+  defp do_terminate_case(_case_schema, %State{} = _state) do
     {:error, :case_not_available}
   end
 

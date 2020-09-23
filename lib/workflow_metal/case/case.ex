@@ -13,7 +13,7 @@ defmodule WorkflowMetal.Case.Case do
       +              +
       |              |
       |              v
-      +---------->canceled
+      +---------->terminated
   ```
 
   ## Restore
@@ -103,11 +103,11 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @doc """
-  Cancel a case.
+  terminate a case.
   """
-  @spec cancel(:gen_statem.server_ref()) :: :ok
-  def cancel(case_server) do
-    GenStateMachine.cast(case_server, :cancel)
+  @spec terminate(:gen_statem.server_ref()) :: :ok
+  def terminate(case_server) do
+    GenStateMachine.cast(case_server, :terminate)
   end
 
   @doc """
@@ -166,7 +166,7 @@ defmodule WorkflowMetal.Case.Case do
       state: state
     } = case_schema
 
-    if state in [:canceled, :finished] do
+    if state in [:terminated, :finished] do
       {:stop, :case_not_available}
     else
       {
@@ -202,6 +202,9 @@ defmodule WorkflowMetal.Case.Case do
           data,
           {:state_timeout, 1, :after_start}
         }
+
+      :terminated ->
+        :keep_state_and_data
     end
   end
 
@@ -218,9 +221,9 @@ defmodule WorkflowMetal.Case.Case do
 
         {:stop, :normal}
 
-      {_, :canceled} ->
+      {_, :terminated} ->
         {:ok, _data} = force_abandon_tasks(data)
-        Logger.debug(fn -> "#{describe(data)} is canceled." end)
+        Logger.debug(fn -> "#{describe(data)} is terminated." end)
 
         {:stop, :normal}
     end
@@ -422,10 +425,11 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
-  def handle_event(:cast, :cancel, :active, %__MODULE__{} = data) do
-    {:ok, data} = update_case(:canceled, data)
+  def handle_event(:cast, :terminate, state, %__MODULE__{} = data)
+      when state in [:created, :active] do
+    {:ok, data} = update_case(:terminated, data)
 
-    {:next_state, :canceled, data}
+    {:next_state, :terminated, data}
   end
 
   @impl GenStateMachine

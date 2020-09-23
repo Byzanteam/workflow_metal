@@ -50,6 +50,33 @@ defmodule WorkflowMetal.Case.CaseTest do
     end
   end
 
+  describe "terminate" do
+    test "terminate a case successfully" do
+      {:ok, workflow_schema} =
+        SequentialRouting.create(
+          DummyApplication,
+          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
+          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+        )
+
+      {:ok, case_schema} =
+        WorkflowMetal.Storage.create_case(
+          DummyApplication,
+          %Schema.Case.Params{
+            workflow_id: workflow_schema.id
+          }
+        )
+
+      assert :ok = CaseSupervisor.terminate_case(DummyApplication, case_schema.id)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+
+        assert case_schema.state === :terminated
+      end)
+    end
+  end
+
   describe "finish_case" do
     test "finish a case successfully" do
       {:ok, workflow_schema} =
@@ -158,12 +185,12 @@ defmodule WorkflowMetal.Case.CaseTest do
       end)
     end
 
-    test "restore from canceled state", %{case_schema: case_schema} do
+    test "restore from terminated state", %{case_schema: case_schema} do
       {:ok, case_schema} =
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :canceled
+          :terminated
         )
 
       assert {:error, :case_not_available} =
