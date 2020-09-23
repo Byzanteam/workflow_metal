@@ -3,14 +3,14 @@ defmodule WorkflowMetal.Storage.Schema.Case do
   ## State
   - `:created`: the case is just created, we'll put a token in the `:start` place
   - `:active`: the case is running
-  - `:canceled`: the case can be canceled by a user who created it or the system
+  - `:terminated`: the case can be terminated by a user who created it or the system
   - `:finished`: when there is only one token left in the `:end` place
   """
 
   use TypedStruct
 
   @type id :: term()
-  @type state :: :created | :active | :canceled | :finished
+  @type state :: :created | :active | :terminated | :finished
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 

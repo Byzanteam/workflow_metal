@@ -127,7 +127,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
-  @type update_case_params :: :active | :finished | :canceled
+  @type update_case_params :: :active | :finished | :terminated
 
   @type on_create_case ::
           {:ok, case_schema}
@@ -161,7 +161,7 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   ### update_case_params:
   - `:active`
-  - `:canceled`
+  - `:terminated`
   - `:finished`
 
   note: if the state of the case is the state in the update_case,
