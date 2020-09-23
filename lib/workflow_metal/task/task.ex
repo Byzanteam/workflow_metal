@@ -741,13 +741,13 @@ defmodule WorkflowMetal.Task.Task do
 
     {:ok, token_payload} = build_token_payload(data)
 
-    {:ok, token_params_list} = SplitController.issue_tokens(data, token_payload)
+    {:ok, token_schema_list} = SplitController.issue_tokens(data, token_payload)
 
     {:ok, _tokens} =
       WorkflowMetal.Case.Supervisor.issue_tokens(
         application,
         case_id,
-        token_params_list
+        token_schema_list
       )
 
     update_task(%{state: :completed, token_payload: token_payload}, data)

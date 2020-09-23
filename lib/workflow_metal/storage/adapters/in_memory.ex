@@ -240,10 +240,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   # Token
 
   @impl WorkflowMetal.Storage.Adapter
-  def issue_token(adapter_meta, token_params) do
+  def issue_token(adapter_meta, token_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:issue_token, token_params})
+    GenServer.call(storage, {:issue_token, token_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -601,7 +601,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:issue_token, token_params},
+        {:issue_token, token_schema},
         _from,
         %State{} = state
       ) do
@@ -610,23 +610,18 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       case_id: case_id,
       place_id: place_id,
       produced_by_task_id: produced_by_task_id
-    } = token_params
+    } = token_schema
 
     reply =
       with(
-        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
-        {:ok, case_schema} <- find_case(case_id, state),
-        {:ok, place_schema} <- find_place(place_id, state),
-        {:ok, produced_by_task} <- find_produced_by_task(produced_by_task_id, state)
+        {:ok, _workflow_schema} <- find_workflow(workflow_id, state),
+        {:ok, _case_schema} <- find_case(case_id, state),
+        {:ok, _place_schema} <- find_place(place_id, state),
+        {:ok, _produced_by_task} <- find_produced_by_task(produced_by_task_id, state)
       ) do
-        persist_token(
-          token_params,
-          state,
-          workflow_id: workflow_schema.id,
-          case_id: case_schema.id,
-          place_id: place_schema.id,
-          produced_by_task_id: produced_by_task && produced_by_task.id
-        )
+        {:ok, _state} = upsert_token(token_schema, state)
+
+        {:ok, token_schema}
       else
         {:error, :task_not_found} ->
           {:error, :produced_by_task_not_found}
@@ -1132,29 +1127,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       )
 
     {:ok, case_schema}
-  end
-
-  defp persist_token(token_params, %State{} = state, options) do
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    case_id = Keyword.fetch!(options, :case_id)
-    place_id = Keyword.fetch!(options, :place_id)
-    produced_by_task_id = Keyword.fetch!(options, :produced_by_task_id)
-
-    token_schema =
-      struct(
-        Schema.Token,
-        token_params
-        |> Map.from_struct()
-        |> Map.put(:id, make_id())
-        |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:case_id, case_id)
-        |> Map.put(:place_id, place_id)
-        |> Map.put(:produced_by_task_id, produced_by_task_id)
-      )
-
-    {:ok, _state} = upsert_token(token_schema, state)
-
-    {:ok, token_schema}
   end
 
   defp find_tokens(case_id, options, %State{} = state) do

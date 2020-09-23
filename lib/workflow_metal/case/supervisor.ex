@@ -21,7 +21,6 @@ defmodule WorkflowMetal.Case.Supervisor do
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -157,12 +156,12 @@ defmodule WorkflowMetal.Case.Supervisor do
   @doc """
   Issue tokens after a task completion.
   """
-  @spec issue_tokens(application, case_id, nonempty_list(token_params)) ::
+  @spec issue_tokens(application, case_id, nonempty_list(token_schema)) ::
           {:ok, nonempty_list(token_schema)}
           | {:error, :case_not_found}
-  def issue_tokens(application, case_id, token_params_list) do
+  def issue_tokens(application, case_id, token_schema_list) do
     with({:ok, case_server} <- open_case(application, case_id)) do
-      WorkflowMetal.Case.Case.issue_tokens(case_server, token_params_list)
+      WorkflowMetal.Case.Case.issue_tokens(case_server, token_schema_list)
     end
   end
 

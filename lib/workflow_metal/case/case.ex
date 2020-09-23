@@ -42,7 +42,6 @@ defmodule WorkflowMetal.Case.Case do
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
   typedstruct do
     field :application, application
@@ -113,10 +112,10 @@ defmodule WorkflowMetal.Case.Case do
   @doc """
   Issue tokens.
   """
-  @spec issue_tokens(:gen_statem.server_ref(), nonempty_list(token_params)) ::
+  @spec issue_tokens(:gen_statem.server_ref(), nonempty_list(token_schema)) ::
           {:ok, nonempty_list(token_schema)}
-  def issue_tokens(case_server, [_ | _] = token_params_list) do
-    GenStateMachine.call(case_server, {:issue_tokens, token_params_list})
+  def issue_tokens(case_server, [_ | _] = token_schema_list) do
+    GenStateMachine.call(case_server, {:issue_tokens, token_schema_list})
   end
 
   @doc """
@@ -370,11 +369,11 @@ defmodule WorkflowMetal.Case.Case do
   @impl GenStateMachine
   def handle_event(
         {:call, from},
-        {:issue_tokens, token_params_list},
+        {:issue_tokens, token_schema_list},
         :active,
         %__MODULE__{} = data
       ) do
-    {:ok, tokens, data} = do_issue_tokens(token_params_list, data)
+    {:ok, tokens, data} = do_issue_tokens(token_schema_list, data)
 
     Logger.debug(fn ->
       "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been issued"
@@ -503,6 +502,7 @@ defmodule WorkflowMetal.Case.Case do
 
   defp do_activate_case(%__MODULE__{} = data) do
     %{
+      application: application,
       start_place: %Schema.Place{
         id: start_place_id
       },
@@ -513,15 +513,22 @@ defmodule WorkflowMetal.Case.Case do
       free_token_ids: free_token_ids
     } = data
 
-    genesis_token_params = %Schema.Token.Params{
+    params = %{
       workflow_id: workflow_id,
       place_id: start_place_id,
       case_id: case_id,
-      produced_by_task_id: :genesis,
-      payload: nil
+      produced_by_task_id: :genesis
     }
 
-    {:ok, token_schema} = do_issue_token(genesis_token_params, data)
+    token_id = WorkflowMetal.Storage.generate_id(application, :token, params)
+
+    genesis_token_schema =
+      struct(
+        Schema.Token,
+        Map.merge(params, %{id: token_id, payload: nil})
+      )
+
+    {:ok, token_schema} = do_issue_token(genesis_token_schema, data)
 
     {
       :ok,
@@ -529,21 +536,21 @@ defmodule WorkflowMetal.Case.Case do
     }
   end
 
-  defp do_issue_token(token_params, %__MODULE__{} = data) do
+  defp do_issue_token(token_schema, %__MODULE__{} = data) do
     %{
       application: application
     } = data
 
-    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_params)
+    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_schema)
 
     {:ok, _data} = upsert_ets_token(token_schema, data)
 
     {:ok, token_schema}
   end
 
-  defp do_issue_tokens(token_params_list, %__MODULE__{} = data) do
+  defp do_issue_tokens(token_schema_list, %__MODULE__{} = data) do
     new_tokens =
-      Enum.map(token_params_list, fn token_schema ->
+      Enum.map(token_schema_list, fn token_schema ->
         {:ok, token_schema} = do_issue_token(token_schema, data)
 
         token_schema

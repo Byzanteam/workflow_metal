@@ -23,7 +23,7 @@ defmodule WorkflowMetal.Storage do
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type token_states :: nonempty_list(token_state)
 
@@ -269,14 +269,14 @@ defmodule WorkflowMetal.Storage do
   ## Token
 
   @doc false
-  @spec issue_token(application, token_params) ::
+  @spec issue_token(application, token_schema) ::
           Adapter.on_issue_token()
-  def issue_token(application, token_params) do
+  def issue_token(application, token_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.issue_token(
       adapter_meta,
-      token_params
+      token_schema
     )
   end
 

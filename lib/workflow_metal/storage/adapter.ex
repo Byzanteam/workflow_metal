@@ -15,7 +15,7 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   # Util
 
-  @type schema_type :: :task | :workitem
+  @type schema_type :: :task | :token | :workitem
   @type id :: term()
   @type on_generate_id() :: id()
 
@@ -251,7 +251,6 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type fetch_tokens_options :: [
@@ -283,7 +282,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback issue_token(
               adapter_meta,
-              token_params
+              token_schema
             ) :: on_issue_token
 
   @doc """
