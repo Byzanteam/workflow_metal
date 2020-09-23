@@ -195,19 +195,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def update_case(adapter_meta, case_id, state_and_options) do
+  def update_case(adapter_meta, case_id, params) do
     storage = storage_name(adapter_meta)
 
-    case state_and_options do
-      :active ->
-        GenServer.call(storage, {:activate_case, case_id})
-
-      :finished ->
-        GenServer.call(storage, {:finish_case, case_id})
-
-      :terminated ->
-        GenServer.call(storage, {:terminate_case, case_id})
-    end
+    GenServer.call(storage, {:update_case, case_id, params})
   end
 
   # Task
@@ -537,41 +528,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:activate_case, case_id},
+        {:update_case, case_id, params},
         _from,
         %State{} = state
       ) do
     reply =
       with({:ok, case_schema} <- find_case(case_id, state)) do
-        do_activate_case(case_schema, state)
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:finish_case, case_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, case_schema} <- find_case(case_id, state)) do
-        do_finish_case(case_schema, state)
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:terminate_case, case_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, case_schema} <- find_case(case_id, state)) do
-        do_terminate_case(case_schema, state)
+        do_update_case(case_schema, params, state)
       end
 
     {:reply, reply, state}
@@ -1159,23 +1122,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
-  defp do_activate_case(
-         %Schema.Case{state: :active} = case_schema,
-         %State{} = _state
-       ) do
-    {:ok, case_schema}
-  end
-
-  defp do_activate_case(
-         %Schema.Case{state: :created} = case_schema,
+  defp do_update_case(
+         %Schema.Case{} = case_schema,
+         %{} = params,
          %State{} = state
        ) do
     case_table = get_table(:case, state)
-
-    case_schema = %{
-      case_schema
-      | state: :active
-    }
+    case_schema = struct(case_schema, params)
 
     true =
       :ets.update_element(
@@ -1188,81 +1141,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       )
 
     {:ok, case_schema}
-  end
-
-  defp do_activate_case(_case_schema, %State{} = _state) do
-    {:error, :case_not_available}
-  end
-
-  defp do_finish_case(
-         %Schema.Case{state: :finished} = case_schema,
-         %State{} = _state
-       ) do
-    {:ok, case_schema}
-  end
-
-  defp do_finish_case(
-         %Schema.Case{state: :active} = case_schema,
-         %State{} = state
-       ) do
-    case_table = get_table(:case, state)
-
-    case_schema = %{
-      case_schema
-      | state: :finished
-    }
-
-    true =
-      :ets.update_element(
-        case_table,
-        case_schema.id,
-        [
-          {2, case_schema},
-          {3, {case_schema.state, case_schema.workflow_id}}
-        ]
-      )
-
-    {:ok, case_schema}
-  end
-
-  defp do_finish_case(_case_schema, %State{} = _state) do
-    {:error, :case_not_available}
-  end
-
-  defp do_terminate_case(
-         %Schema.Case{state: :terminated} = case_schema,
-         %State{} = _state
-       ) do
-    {:ok, case_schema}
-  end
-
-  defp do_terminate_case(
-         %Schema.Case{state: case_state} = case_schema,
-         %State{} = state
-       )
-       when case_state in [:created, :active] do
-    case_table = get_table(:case, state)
-
-    case_schema = %{
-      case_schema
-      | state: :terminated
-    }
-
-    true =
-      :ets.update_element(
-        case_table,
-        case_schema.id,
-        [
-          {2, case_schema},
-          {3, {case_schema.state, case_schema.workflow_id}}
-        ]
-      )
-
-    {:ok, case_schema}
-  end
-
-  defp do_terminate_case(_case_schema, %State{} = _state) do
-    {:error, :case_not_available}
   end
 
   defp persist_token(token_params, %State{} = state, options) do

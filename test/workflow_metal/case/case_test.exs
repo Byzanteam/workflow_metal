@@ -145,7 +145,7 @@ defmodule WorkflowMetal.Case.CaseTest do
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :active
+          %{state: :active}
         )
 
       {:ok, {start_place, _end_place}} =
@@ -181,7 +181,7 @@ defmodule WorkflowMetal.Case.CaseTest do
           }
         )
 
-      WorkflowMetal.Storage.update_case(DummyApplication, case_schema.id, :active)
+      WorkflowMetal.Storage.update_case(DummyApplication, case_schema.id, %{state: :active})
 
       {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
@@ -199,7 +199,7 @@ defmodule WorkflowMetal.Case.CaseTest do
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :terminated
+          %{state: :terminated}
         )
 
       assert {:error, :case_not_available} =

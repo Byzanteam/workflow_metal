@@ -234,7 +234,7 @@ defmodule WorkflowMetal.Case.Case do
     case state do
       :created ->
         {:ok, data} = do_activate_case(data)
-        {:ok, data} = update_case(:active, data)
+        {:ok, data} = update_case(%{state: :active}, data)
 
         {
           :next_state,
@@ -291,7 +291,7 @@ defmodule WorkflowMetal.Case.Case do
       {:finished, data} <- case_finishment(data),
       {:ok, data} <- do_finish_case(data)
     ) do
-      {:ok, data} = update_case(:finished, data)
+      {:ok, data} = update_case(%{state: :finished}, data)
 
       {
         :next_state,
@@ -427,7 +427,7 @@ defmodule WorkflowMetal.Case.Case do
   @impl GenStateMachine
   def handle_event(:cast, :terminate, state, %__MODULE__{} = data)
       when state in [:created, :active] do
-    {:ok, data} = update_case(:terminated, data)
+    {:ok, data} = update_case(%{state: :terminated}, data)
 
     {:next_state, :terminated, data}
   end
@@ -485,7 +485,7 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, %{data | start_place: start_place, end_place: end_place}}
   end
 
-  defp update_case(state_and_options, %__MODULE__{} = data) do
+  defp update_case(params, %__MODULE__{} = data) do
     %{
       application: application,
       case_schema: case_schema
@@ -495,7 +495,7 @@ defmodule WorkflowMetal.Case.Case do
       WorkflowMetal.Storage.update_case(
         application,
         case_schema.id,
-        state_and_options
+        params
       )
 
     {:ok, %{data | case_schema: case_schema}}

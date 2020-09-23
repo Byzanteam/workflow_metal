@@ -87,7 +87,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :active
+          %{state: :active}
         )
 
       {:ok, {start_place, _end_place}} =
@@ -262,7 +262,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :active
+          %{state: :active}
         )
 
       {:ok, {start_place, _end_place}} =

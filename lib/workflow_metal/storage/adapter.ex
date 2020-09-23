@@ -126,7 +126,10 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
-  @type update_case_params :: :active | :finished | :terminated
+  @type case_state :: WorkflowMetal.Storage.Schema.Case.state()
+  @type update_case_params :: %{
+          optional(:state) => case_state
+        }
 
   @type on_insert_case ::
           {:ok, case_schema}
@@ -137,7 +140,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_update_case ::
           {:ok, case_schema}
           | {:error, :case_not_found}
-          | {:error, :case_not_available}
 
   @doc """
   Insert a case.
@@ -159,16 +161,14 @@ defmodule WorkflowMetal.Storage.Adapter do
   Update the case.
 
   ### update_case_params:
+  #### State
   - `:active`
   - `:terminated`
   - `:finished`
-
-  note: if the state of the case is the state in the update_case,
-  it returns `{:ok, case_schema}` too.
   """
   @callback update_case(
               adapter_meta,
-              case_id,
+              case_id | case_schema,
               update_case_params
             ) :: on_update_case
 
