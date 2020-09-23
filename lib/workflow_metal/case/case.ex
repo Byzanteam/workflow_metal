@@ -322,10 +322,7 @@ defmodule WorkflowMetal.Case.Case do
         {
           :keep_state,
           data,
-          [
-            {:reply, from, {:ok, locked_token_schemas}},
-            {:next_event, :internal, {:revoke_tokens, locked_token_schemas, task_id}}
-          ]
+          {:reply, from, {:ok, locked_token_schemas}}
         }
 
       error ->
