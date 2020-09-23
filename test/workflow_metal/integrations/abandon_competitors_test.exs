@@ -4,13 +4,14 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
 
   import WorkflowMetal.Helpers.Wait
 
+  alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
+
   alias WorkflowMetal.Support.Workflows.DeferredChoiceRouting.{
-    SimpleTransition,
-    ManualTransition
+    ManualTransition,
+    SimpleTransition
   }
 
   alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
-  alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
 
   defmodule DummyApplication do
     use WorkflowMetal.Application,
