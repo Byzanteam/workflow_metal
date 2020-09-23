@@ -13,6 +13,14 @@ defmodule WorkflowMetal.Storage.Adapter do
   @callback child_spec(application, config) ::
               {:ok, :supervisor.child_spec() | {module, term} | module, adapter_meta}
 
+  # Util
+
+  @type schema_type :: :task | :workitem
+  @type id :: term()
+  @type on_generate_id() :: id()
+
+  @callback generate_id(adapter_meta, schema_type, map()) :: on_generate_id
+
   # Workflow
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()

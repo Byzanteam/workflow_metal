@@ -65,6 +65,19 @@ defmodule WorkflowMetal.Storage do
   end
 
   # API
+  ## util
+  @doc false
+  @spec generate_id(application, Adapter.schema_type(), map()) :: Adapter.on_generate_id()
+  def generate_id(application, schema_type, options) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.generate_id(
+      adapter_meta,
+      schema_type,
+      options
+    )
+  end
+
   ## Workflow
 
   @doc false

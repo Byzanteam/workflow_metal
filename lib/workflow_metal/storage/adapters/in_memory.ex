@@ -118,6 +118,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
+  # Util
+  @impl WorkflowMetal.Storage.Adapter
+  def generate_id(_adapter_meta, _schema_type, _options) do
+    :erlang.unique_integer([:positive, :monotonic])
+  end
+
   # Workflow
 
   @impl WorkflowMetal.Storage.Adapter
