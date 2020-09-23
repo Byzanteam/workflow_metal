@@ -70,10 +70,10 @@ defmodule WorkflowMetal.Application do
       end
 
       @doc """
-      Create a case
+      Insert a case
       """
-      def create_case(case_params) do
-        WorkflowMetal.Case.Supervisor.create_case(application(), case_params)
+      def insert_case(case_schema) do
+        WorkflowMetal.Case.Supervisor.insert_case(application(), case_schema)
       end
 
       @doc """

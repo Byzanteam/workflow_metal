@@ -181,10 +181,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   # Case
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_case(adapter_meta, case_params) do
+  def insert_case(adapter_meta, case_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_case, case_params})
+    GenServer.call(storage, {:insert_case, case_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -510,15 +510,15 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create_case, case_params},
+        {:insert_case, case_schema},
         _from,
         %State{} = state
       ) do
-    %{workflow_id: workflow_id} = case_params
+    %{workflow_id: workflow_id} = case_schema
 
     reply =
-      with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
-        persist_case(case_params, state, workflow_id: workflow_schema.id)
+      with({:ok, _workflow_schema} <- find_workflow(workflow_id, state)) do
+        persist_case(case_schema, state)
       end
 
     {:reply, reply, state}
@@ -1131,19 +1131,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end)
   end
 
-  defp persist_case(case_params, %State{} = state, options) do
+  defp persist_case(case_schema, %State{} = state) do
     case_table = get_table(:case, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    case_id = Map.get(case_params, :id) |> make_id()
-
-    case_schema =
-      struct(
-        Schema.Case,
-        case_params
-        |> Map.from_struct()
-        |> Map.put(:id, case_id)
-        |> Map.put(:workflow_id, workflow_id)
-      )
 
     :ets.insert(
       case_table,

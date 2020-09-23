@@ -32,9 +32,11 @@ defmodule WorkflowMetal.Case.SupervisorTest do
       {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
+        WorkflowMetal.Storage.insert_case(
           DummyApplication,
-          %Schema.Case.Params{
+          %Schema.Case{
+            id: 1,
+            state: :created,
             workflow_id: workflow_schema.id
           }
         )

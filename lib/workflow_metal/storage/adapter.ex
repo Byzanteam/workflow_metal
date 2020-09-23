@@ -125,11 +125,10 @@ defmodule WorkflowMetal.Storage.Adapter do
   # Case
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
   @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
   @type update_case_params :: :active | :finished | :terminated
 
-  @type on_create_case ::
+  @type on_insert_case ::
           {:ok, case_schema}
           | {:error, :workflow_not_found}
   @type on_fetch_case ::
@@ -141,12 +140,12 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :case_not_available}
 
   @doc """
-  Create a case.
+  Insert a case.
   """
-  @callback create_case(
+  @callback insert_case(
               adapter_meta,
-              case_params
-            ) :: on_create_case
+              case_schema
+            ) :: on_insert_case
 
   @doc """
   Retrive a case.

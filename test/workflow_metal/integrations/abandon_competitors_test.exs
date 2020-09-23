@@ -19,13 +19,7 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
   end
 
   test "abandon competitors between b and c transitions", %{workflow_schema: workflow_schema} do
-    {:ok, case_schema} =
-      WorkflowMetal.Storage.create_case(
-        DummyApplication,
-        %Schema.Case.Params{
-          workflow_id: workflow_schema.id
-        }
-      )
+    {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
     assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 

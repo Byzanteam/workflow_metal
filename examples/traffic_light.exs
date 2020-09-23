@@ -197,10 +197,14 @@ end
     }
   )
 
-# Create a case
+# Insert a case
 # ```elixir
-# WorkflowMetal.Case.Supervisor.create_case TrafficLight, %Schema.Case.Params{workflow_id: traffic_light_workflow.id}
+# WorkflowMetal.Case.Supervisor.insert_case TrafficLight, %Schema.Case{id: 1, state: :created, workflow_id: traffic_light_workflow.id}
 # ```
-WorkflowMetal.Case.Supervisor.create_case(TrafficLight.Workflow, %Schema.Case.Params{
+WorkflowMetal.Case.Supervisor.insert_case(
+  TrafficLight.Workflow,
+  %Schema.Case{
+  id: 1,
+  state: :created,
   workflow_id: traffic_light_workflow.id
 })

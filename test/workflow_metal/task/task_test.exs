@@ -32,13 +32,7 @@ defmodule WorkflowMetal.Task.TaskTest do
           b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
         )
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
@@ -80,13 +74,7 @@ defmodule WorkflowMetal.Task.TaskTest do
           b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
         )
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       {:ok, _genesis_token} =
         generate_genesis_token(
@@ -261,13 +249,7 @@ defmodule WorkflowMetal.Task.TaskTest do
           b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
         )
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       {:ok, genesis_token} =
         generate_genesis_token(

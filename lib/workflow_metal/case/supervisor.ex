@@ -15,7 +15,7 @@ defmodule WorkflowMetal.Case.Supervisor do
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
+  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
 
@@ -46,12 +46,14 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @doc """
-  Create a case.
+  Insert a case.
   """
-  @spec create_case(application, case_params) ::
-          Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
-  def create_case(application, %Schema.Case.Params{} = case_params) do
-    {:ok, case_schema} = WorkflowMetal.Storage.create_case(application, case_params)
+  @spec insert_case(application, case_schema) ::
+          Supervisor.on_start()
+          | {:error, :workflow_not_found}
+          | {:error, :case_not_found}
+  def insert_case(application, %Schema.Case{} = case_schema) do
+    {:ok, case_schema} = WorkflowMetal.Storage.insert_case(application, case_schema)
     open_case(application, case_schema.id)
   end
 
