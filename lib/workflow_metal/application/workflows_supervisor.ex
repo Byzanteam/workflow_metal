@@ -6,7 +6,6 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   use DynamicSupervisor
 
   alias WorkflowMetal.Registration
-  alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
@@ -33,15 +32,6 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
       strategy: :one_for_one,
       extra_arguments: [application]
     )
-  end
-
-  @doc """
-  Create a workflow.
-  """
-  @spec create_workflow(application, workflow_params) ::
-          WorkflowMetal.Storage.Adapter.on_create_workflow()
-  def create_workflow(application, %Schema.Workflow.Params{} = workflow_params) do
-    WorkflowMetal.Storage.create_workflow(application, workflow_params)
   end
 
   @doc """

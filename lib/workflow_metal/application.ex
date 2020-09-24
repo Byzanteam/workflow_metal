@@ -50,16 +50,6 @@ defmodule WorkflowMetal.Application do
       # API
 
       @doc """
-      Create a workflow, store it in the storage
-      """
-      def create_workflow(workflow_schema) do
-        WorkflowsSupervisor.create_workflow(
-          application(),
-          workflow_schema
-        )
-      end
-
-      @doc """
       Open a workflow
       """
       def open_workflow(workflow_id) do
