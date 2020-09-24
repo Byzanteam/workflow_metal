@@ -8,7 +8,6 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   alias WorkflowMetal.Registration
 
   @type application :: WorkflowMetal.Application.t()
-  @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 

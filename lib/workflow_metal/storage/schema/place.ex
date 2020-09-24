@@ -17,7 +17,7 @@ defmodule WorkflowMetal.Storage.Schema.Place do
 
   @type id :: term()
   @type type :: :start | :normal | :end
-  @type metadata :: map()
+  @type metadata :: map() | nil
 
   @type workflow_id :: Schema.Workflow.id()
 
@@ -28,19 +28,5 @@ defmodule WorkflowMetal.Storage.Schema.Place do
     field :metadata, metadata(), enforce: false
 
     field :workflow_id, workflow_id()
-  end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct enforce: true do
-      field :id, Place.id()
-      field :type, Place.type()
-      field :metadata, Place.metadata(), enforce: false
-    end
   end
 end

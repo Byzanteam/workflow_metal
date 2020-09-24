@@ -9,12 +9,7 @@ defmodule WorkflowMetal.Case.CaseTest do
 
   describe "activate_case" do
     test "activate a case successfully" do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -34,18 +29,15 @@ defmodule WorkflowMetal.Case.CaseTest do
 
   describe "terminate" do
     test "terminate a case successfully" do
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a:
-            SequentialRouting.build_echo_transition(1,
-              reply: :a_completed
-            ),
+        SequentialRouting.create(DummyApplication, workflow,
           b:
-            SequentialRouting.build_asynchronous_transition(2,
+            SequentialRouting.build_asynchronous_transition(workflow, %{
               reply: :b_reply,
               abandon_reply: :b_abandoned
-            )
+            })
         )
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
@@ -88,12 +80,7 @@ defmodule WorkflowMetal.Case.CaseTest do
 
   describe "finish_case" do
     test "finish a case successfully" do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -113,12 +100,7 @@ defmodule WorkflowMetal.Case.CaseTest do
 
   describe "restore_from_storage" do
     setup do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -163,7 +145,7 @@ defmodule WorkflowMetal.Case.CaseTest do
         WorkflowMetal.Storage.insert_task(
           DummyApplication,
           %Schema.Task{
-            id: 1,
+            id: make_id(),
             state: :started,
             workflow_id: case_schema.workflow_id,
             case_id: case_schema.id,
@@ -217,4 +199,6 @@ defmodule WorkflowMetal.Case.CaseTest do
                CaseSupervisor.open_case(DummyApplication, case_schema.id)
     end
   end
+
+  defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
 end

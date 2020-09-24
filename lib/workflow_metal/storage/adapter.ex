@@ -24,24 +24,27 @@ defmodule WorkflowMetal.Storage.Adapter do
   # Workflow
 
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
-  @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
   @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
+  @type workflow_associations_params :: %{
+          places: [place_schema()],
+          transitions: [transition_schema()],
+          arcs: [arc_schema()]
+        }
 
-  @type on_create_workflow ::
-          {:ok, workflow_schema}
-          | {:error, :duplicate_workflow}
+  @type on_insert_workflow :: {:ok, workflow_schema}
   @type on_fetch_workflow ::
           {:ok, workflow_schema}
           | {:error, :workflow_not_found}
   @type on_delete_workflow :: :ok
 
   @doc """
-  Create a workflow.
+  Insert a workflow.
   """
-  @callback create_workflow(
+  @callback insert_workflow(
               adapter_meta,
-              workflow_params
-            ) :: on_create_workflow
+              workflow_schema,
+              workflow_associations_params
+            ) :: on_insert_workflow
 
   @doc """
   Retrive a workflow.

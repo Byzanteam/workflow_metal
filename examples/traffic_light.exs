@@ -165,9 +165,13 @@ end
 {:ok, _pid} = TrafficLight.Workflow.start_link()
 
 {:ok, traffic_light_workflow} =
-  WorkflowMetal.Storage.create_workflow(
+  WorkflowMetal.Storage.insert_workflow(
     TrafficLight.Workflow,
-    %Schema.Workflow.Params{
+    %Schema.Workflow{
+      id: 1,
+      state: :active
+    },
+    %{
       places: [
         %Schema.Place.Params{id: :start, type: :start},
         %Schema.Place.Params{id: :yellow, type: :normal},
@@ -204,7 +208,8 @@ end
 WorkflowMetal.Case.Supervisor.insert_case(
   TrafficLight.Workflow,
   %Schema.Case{
-  id: 1,
-  state: :created,
-  workflow_id: traffic_light_workflow.id
-})
+    id: 1,
+    state: :created,
+    workflow_id: traffic_light_workflow.id
+  }
+)

@@ -9,7 +9,7 @@ defmodule WorkflowMetal.Storage do
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
-  @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
+  @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
@@ -81,14 +81,19 @@ defmodule WorkflowMetal.Storage do
   ## Workflow
 
   @doc false
-  @spec create_workflow(application, workflow_params) ::
-          Adapter.on_create_workflow()
-  def create_workflow(application, workflow_params) do
+  @spec insert_workflow(
+          application,
+          workflow_schema,
+          Adapter.workflow_associations_params()
+        ) ::
+          Adapter.on_insert_workflow()
+  def insert_workflow(application, workflow_schema, params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_workflow(
+    adapter.insert_workflow(
       adapter_meta,
-      workflow_params
+      workflow_schema,
+      params
     )
   end
 

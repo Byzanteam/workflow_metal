@@ -11,12 +11,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   describe "execute_workitem" do
     test "execute successfully" do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -35,8 +30,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         {:ok, _tokens} = preexecute(options[:application], workitem)
 
         executor_params = Keyword.fetch!(options, :executor_params)
-        request = Keyword.fetch!(executor_params, :request)
-        reply = Keyword.fetch!(executor_params, :reply)
+        request = Map.fetch!(executor_params, :request)
+        reply = Map.fetch!(executor_params, :reply)
 
         send(request, reply)
 
@@ -47,15 +42,24 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     test "execute successfully and asynchronously" do
       alias WorkflowMetal.Workitem.Workitem
 
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
+          workflow,
           a:
-            SequentialRouting.build_transition(1, AsynchronousTransition,
-              request: self(),
-              reply: :workitem_started
+            SequentialRouting.build_transition(
+              workflow,
+              %{
+                executor: AsynchronousTransition,
+                executor_params: %{
+                  request: self(),
+                  reply: :workitem_started
+                }
+              }
             ),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+          b: SequentialRouting.build_echo_transition(workflow, %{reply: :b_completed})
         )
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
@@ -93,12 +97,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "put an output" do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -125,8 +124,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         {:ok, _tokens} = preexecute(options[:application], workitem)
 
         executor_params = Keyword.fetch!(options, :executor_params)
-        request = Keyword.fetch!(executor_params, :request)
-        reply = Keyword.fetch!(executor_params, :reply)
+        request = Map.fetch!(executor_params, :request)
+        reply = Map.fetch!(executor_params, :reply)
 
         send(request, reply)
 
@@ -135,15 +134,24 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "lock tokens twice" do
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
+          workflow,
           a:
-            SequentialRouting.build_transition(1, TwiceLockTransition,
-              request: self(),
-              reply: :locked_twice
+            SequentialRouting.build_transition(
+              workflow,
+              %{
+                executor: TwiceLockTransition,
+                executor_params: %{
+                  request: self(),
+                  reply: :locked_twice
+                }
+              }
             ),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+          b: SequentialRouting.build_echo_transition(workflow, %{reply: :b_completed})
         )
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
@@ -165,12 +173,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   describe "complete" do
     setup do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -198,7 +201,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.insert_task(
           DummyApplication,
           %Schema.Task{
-            id: 1,
+            id: make_id(),
             state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
@@ -217,7 +220,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
           %Schema.Workitem{
-            id: 1,
+            id: make_id(),
             state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
@@ -291,15 +294,21 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   describe "abandon" do
     setup do
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
+          workflow,
           a:
-            SequentialRouting.build_asynchronous_transition(1,
-              reply: :a_completed,
-              abandon_reply: :a_abandoned
+            SequentialRouting.build_asynchronous_transition(
+              workflow,
+              %{
+                reply: :a_completed,
+                abandon_reply: :a_abandoned
+              }
             ),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+          b: SequentialRouting.build_echo_transition(workflow, %{reply: :b_completed})
         )
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
@@ -328,7 +337,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.insert_task(
           DummyApplication,
           %Schema.Task{
-            id: 1,
+            id: make_id(),
             state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
@@ -347,7 +356,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
           %Schema.Workitem{
-            id: 1,
+            id: make_id(),
             state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
@@ -448,12 +457,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   describe "restore" do
     setup do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -481,7 +485,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.insert_task(
           DummyApplication,
           %Schema.Task{
-            id: 1,
+            id: make_id(),
             state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
@@ -500,7 +504,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
           %Schema.Workitem{
-            id: 1,
+            id: make_id(),
             state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
@@ -564,4 +568,6 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
                )
     end
   end
+
+  defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
 end

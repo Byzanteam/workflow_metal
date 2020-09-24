@@ -13,12 +13,7 @@ defmodule WorkflowMetal.Task.TaskTest do
 
   describe "complete_task" do
     test "successfully" do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -55,12 +50,7 @@ defmodule WorkflowMetal.Task.TaskTest do
 
   describe "restore_from_storage" do
     setup do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
@@ -88,7 +78,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.insert_task(
           DummyApplication,
           %Schema.Task{
-            id: 1,
+            id: make_id(),
             state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
@@ -153,7 +143,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
           %Schema.Workitem{
-            id: 1,
+            id: make_id(),
             state: :created,
             workflow_id: task_schema.workflow_id,
             transition_id: a_transition.id,
@@ -234,11 +224,14 @@ defmodule WorkflowMetal.Task.TaskTest do
 
   describe "restore and request tokens" do
     setup do
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
-          a: SequentialRouting.build_asynchronous_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+          workflow,
+          a: SequentialRouting.build_asynchronous_transition(workflow, %{reply: :a_completed}),
+          b: SequentialRouting.build_echo_transition(workflow, %{reply: :b_completed})
         )
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
@@ -267,7 +260,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.insert_task(
           DummyApplication,
           %Schema.Task{
-            id: 1,
+            id: make_id(),
             state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
@@ -300,7 +293,7 @@ defmodule WorkflowMetal.Task.TaskTest do
         WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
           %Schema.Workitem{
-            id: 1,
+            id: make_id(),
             state: :created,
             workflow_id: task_schema.workflow_id,
             transition_id: a_transition.id,
@@ -361,4 +354,6 @@ defmodule WorkflowMetal.Task.TaskTest do
       end)
     end
   end
+
+  defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
 end

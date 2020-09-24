@@ -27,8 +27,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
 
       executor_params = Keyword.fetch!(options, :executor_params)
 
-      request = Keyword.fetch!(executor_params, :request)
-      reply = Keyword.fetch!(executor_params, :reply)
+      request = Map.fetch!(executor_params, :request)
+      reply = Map.fetch!(executor_params, :reply)
 
       send(request, reply)
 
@@ -45,8 +45,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     def execute(_workitem, options) do
       executor_params = Keyword.fetch!(options, :executor_params)
 
-      request = Keyword.fetch!(executor_params, :request)
-      reply = Keyword.fetch!(executor_params, :reply)
+      request = Map.fetch!(executor_params, :request)
+      reply = Map.fetch!(executor_params, :reply)
 
       send(request, reply)
 
@@ -57,8 +57,8 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
     def abandon(%Schema.Workitem{}, options) do
       executor_params = Keyword.fetch!(options, :executor_params)
 
-      request = Keyword.fetch!(executor_params, :request)
-      reply = Keyword.fetch!(executor_params, :abandon_reply)
+      request = Map.fetch!(executor_params, :request)
+      reply = Map.fetch!(executor_params, :abandon_reply)
 
       send(request, reply)
 
@@ -67,64 +67,166 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
   end
 
   @doc false
-  def create(application, executors \\ []) do
-    a_transition = Keyword.get_lazy(executors, :a, fn -> build_simple_transition(1) end)
-    b_transition = Keyword.get_lazy(executors, :b, fn -> build_simple_transition(2) end)
+  def create(application) do
+    workflow = build_workflow()
 
-    WorkflowMetal.Storage.create_workflow(
+    workflow_associations_params =
+      build_workflow_associations_params(workflow, [
+        build_place(workflow, :start),
+        build_echo_transition(workflow, %{reply: :a_completed}),
+        build_place(workflow, :normal),
+        build_echo_transition(workflow, %{reply: :b_completed}),
+        build_place(workflow, :end)
+      ])
+
+    WorkflowMetal.Storage.insert_workflow(
       application,
-      %Schema.Workflow.Params{
-        places: [
-          %Schema.Place.Params{id: 1, type: :start},
-          %Schema.Place.Params{id: 2, type: :normal},
-          %Schema.Place.Params{id: 3, type: :end}
-        ],
-        transitions: [
-          a_transition,
-          b_transition
-        ],
-        arcs: [
-          %Schema.Arc.Params{place_id: 1, transition_id: 1, direction: :out},
-          %Schema.Arc.Params{place_id: 2, transition_id: 1, direction: :in},
-          %Schema.Arc.Params{place_id: 2, transition_id: 2, direction: :out},
-          %Schema.Arc.Params{place_id: 3, transition_id: 2, direction: :in}
-        ]
+      workflow,
+      workflow_associations_params
+    )
+  end
+
+  @doc false
+  def create(application, workflow, transitions) do
+    workflow_associations_params =
+      build_workflow_associations_params(workflow, [
+        build_place(workflow, :start),
+        Keyword.get_lazy(transitions, :a, fn ->
+          build_echo_transition(workflow, %{reply: :a_completed})
+        end),
+        build_place(workflow, :normal),
+        Keyword.get_lazy(transitions, :b, fn ->
+          build_echo_transition(workflow, %{reply: :b_completed})
+        end),
+        build_place(workflow, :end)
+      ])
+
+    WorkflowMetal.Storage.insert_workflow(
+      application,
+      workflow,
+      workflow_associations_params
+    )
+  end
+
+  @doc false
+  def build_workflow do
+    %Schema.Workflow{
+      id: make_id(),
+      state: :active
+    }
+  end
+
+  @doc false
+  def build_workflow_associations_params(
+        %Schema.Workflow{} = workflow_schema,
+        [first | rest] = nodes
+      ) do
+    {_, arcs} =
+      Enum.reduce(rest, {first, []}, fn
+        %Schema.Place{} = to, {%Schema.Transition{} = from, arcs} ->
+          {to,
+           [
+             %Schema.Arc{
+               id: make_id(),
+               place_id: to.id,
+               transition_id: from.id,
+               direction: :in,
+               workflow_id: workflow_schema.id
+             }
+             | arcs
+           ]}
+
+        %Schema.Transition{} = to, {%Schema.Place{} = from, arcs} ->
+          {to,
+           [
+             %Schema.Arc{
+               id: make_id(),
+               place_id: from.id,
+               transition_id: to.id,
+               direction: :out,
+               workflow_id: workflow_schema.id
+             }
+             | arcs
+           ]}
+      end)
+
+    {places, transitions} =
+      Enum.split_with(nodes, fn
+        %Schema.Place{} -> true
+        %Schema.Transition{} -> false
+      end)
+
+    %{
+      places: places,
+      transitions: transitions,
+      arcs: arcs
+    }
+  end
+
+  @doc false
+  def build_place(%Schema.Workflow{id: workflow_id}, place_type) do
+    %Schema.Place{id: make_id(), type: place_type, workflow_id: workflow_id}
+  end
+
+  @doc false
+  def build_simple_transition(%Schema.Workflow{id: workflow_id}) do
+    struct(
+      Schema.Transition,
+      %{
+        id: make_id(),
+        join_type: :none,
+        split_type: :none,
+        executor: SimpleTransition,
+        workflow_id: workflow_id
       }
     )
   end
 
   @doc false
-  def build_simple_transition(id) do
-    %Schema.Transition.Params{
-      id: id,
-      executor: SimpleTransition
-    }
+  def build_echo_transition(%Schema.Workflow{id: workflow_id}, executor_params) do
+    struct(
+      Schema.Transition,
+      %{
+        id: make_id(),
+        join_type: :none,
+        split_type: :none,
+        executor: EchoTransition,
+        executor_params: Map.put_new(executor_params, :request, self()),
+        workflow_id: workflow_id
+      }
+    )
   end
 
   @doc false
-  def build_echo_transition(id, params \\ []) do
-    %Schema.Transition.Params{
-      id: id,
-      executor: EchoTransition,
-      executor_params: Keyword.put_new(params, :request, self())
-    }
+  def build_asynchronous_transition(%Schema.Workflow{id: workflow_id}, executor_params) do
+    struct(
+      Schema.Transition,
+      %{
+        id: make_id(),
+        join_type: :none,
+        split_type: :none,
+        executor: AsynchronousTransition,
+        executor_params: Map.put_new(executor_params, :request, self()),
+        workflow_id: workflow_id
+      }
+    )
   end
 
   @doc false
-  def build_asynchronous_transition(id, params \\ []) do
-    %Schema.Transition.Params{
-      id: id,
-      executor: AsynchronousTransition,
-      executor_params: Keyword.put_new(params, :request, self())
-    }
+  def build_transition(%Schema.Workflow{id: workflow_id}, params) do
+    struct(
+      Schema.Transition,
+      Map.merge(
+        %{
+          id: make_id(),
+          join_type: :none,
+          split_type: :none,
+          workflow_id: workflow_id
+        },
+        params
+      )
+    )
   end
 
-  @doc false
-  def build_transition(id, executor, executor_params) do
-    %Schema.Transition.Params{
-      id: id,
-      executor: executor,
-      executor_params: executor_params
-    }
-  end
+  defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
 end

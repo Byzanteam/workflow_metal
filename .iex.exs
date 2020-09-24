@@ -10,7 +10,7 @@ Airbase.ProjectWorkflow.start_link()
 
 # (1) -> [1] -> (2) -> [2] -> (3)
 {:ok, workflow_schema} =
-  WorkflowMetal.Storage.create_workflow(
+  WorkflowMetal.Storage.insert_workflow(
     Airbase.ProjectWorkflow,
     %Schema.Workflow.Params{
       places: [

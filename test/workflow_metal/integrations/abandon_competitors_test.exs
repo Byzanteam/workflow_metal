@@ -12,18 +12,24 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
   }
 
   setup do
-    a_transition = build_simple_transition(1)
-    b_transition = build_manul_transition(2)
-    c_transition = build_manul_transition(3)
-    d_transition = build_manul_transition(4)
-    e_transition = build_manul_transition(5)
-    f_transition = build_simple_transition(6)
+    params = %{workflow_id: 1}
+
+    a_transition = build_simple_transition(1, params)
+    b_transition = build_manul_transition(2, params)
+    c_transition = build_manul_transition(3, params)
+    d_transition = build_manul_transition(4, params)
+    e_transition = build_manul_transition(5, params)
+    f_transition = build_simple_transition(6, params)
 
     {:ok, workflow_schema} =
-      WorkflowMetal.Storage.create_workflow(
+      WorkflowMetal.Storage.insert_workflow(
         DummyApplication,
-        %Schema.Workflow.Params{
-          places: build_places(1..7),
+        %Schema.Workflow{
+          id: 1,
+          state: :active
+        },
+        %{
+          places: build_places(1..7, params),
           transitions: [
             a_transition,
             b_transition,
@@ -33,21 +39,24 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
             f_transition
           ],
           arcs:
-            build_arcs([
-              {1, 1, :out},
-              {2, 1, :in},
-              {2, 2, :out},
-              {2, 3, :out},
-              {3, 2, :in},
-              {4, 3, :in},
-              {3, 4, :out},
-              {4, 5, :out},
-              {5, 4, :in},
-              {6, 5, :in},
-              {5, 6, :out},
-              {6, 6, :out},
-              {7, 6, :in}
-            ])
+            build_arcs(
+              [
+                {1, 1, :out},
+                {2, 1, :in},
+                {2, 2, :out},
+                {2, 3, :out},
+                {3, 2, :in},
+                {4, 3, :in},
+                {3, 4, :out},
+                {4, 5, :out},
+                {5, 4, :in},
+                {6, 5, :in},
+                {5, 6, :out},
+                {6, 6, :out},
+                {7, 6, :in}
+              ],
+              params
+            )
         }
       )
 
@@ -69,41 +78,76 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
     end)
   end
 
-  defp build_places(range) do
+  defp build_places(range, params) do
     first..last = range
 
     for id <- range do
-      case id do
-        ^first ->
-          %Schema.Place.Params{id: id, type: :start}
+      place_type =
+        case id do
+          ^first ->
+            :start
 
-        ^last ->
-          %Schema.Place.Params{id: id, type: :end}
+          ^last ->
+            :end
 
-        _ ->
-          %Schema.Place.Params{id: id, type: :normal}
-      end
+          _ ->
+            :normal
+        end
+
+      struct(
+        Schema.Place,
+        Map.merge(%{id: id, type: place_type}, params)
+      )
     end
   end
 
-  defp build_arcs(pairs) do
-    Enum.map(pairs, fn {place_id, transition_id, direction} ->
-      %Schema.Arc.Params{place_id: place_id, transition_id: transition_id, direction: direction}
+  defp build_arcs(pairs, params) do
+    pairs
+    |> Enum.with_index()
+    |> Enum.map(fn {{place_id, transition_id, direction}, index} ->
+      struct(
+        Schema.Arc,
+        Map.merge(
+          %{
+            id: index,
+            place_id: place_id,
+            transition_id: transition_id,
+            direction: direction
+          },
+          params
+        )
+      )
     end)
   end
 
-  defp build_simple_transition(id) do
-    %Schema.Transition.Params{
-      id: id,
-      executor: SimpleTransition
-    }
+  defp build_simple_transition(id, params) do
+    struct(
+      Schema.Transition,
+      Map.merge(
+        %{
+          join_type: :none,
+          split_type: :none,
+          id: id,
+          executor: SimpleTransition
+        },
+        params
+      )
+    )
   end
 
-  defp build_manul_transition(id) do
-    %Schema.Transition.Params{
-      id: id,
-      executor: ManualTransition,
-      executor_params: [request: self(), id: id]
-    }
+  defp build_manul_transition(id, params) do
+    struct(
+      Schema.Transition,
+      Map.merge(
+        %{
+          id: id,
+          join_type: :none,
+          split_type: :none,
+          executor: ManualTransition,
+          executor_params: [request: self(), id: id]
+        },
+        params
+      )
+    )
   end
 end
