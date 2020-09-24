@@ -191,7 +191,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   @impl GenStateMachine
   def handle_event({:call, from}, {:complete, output}, :started, %__MODULE__{} = data) do
-    {:ok, data} = update_workitem({:completed, output}, data)
+    {:ok, data} = update_workitem(%{state: :completed, output: output}, data)
 
     {
       :next_state,
@@ -208,7 +208,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
   @impl GenStateMachine
   def handle_event(:cast, {:complete, output}, :started, %__MODULE__{} = data) do
-    {:ok, data} = update_workitem({:completed, output}, data)
+    {:ok, data} = update_workitem(%{state: :completed, output: output}, data)
 
     {
       :next_state,
@@ -222,7 +222,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       when state not in [:abandoned, :completed] do
     do_abanodn(data)
 
-    {:ok, data} = update_workitem(:abandoned, data)
+    {:ok, data} = update_workitem(%{state: :abandoned}, data)
 
     {
       :next_state,
@@ -245,7 +245,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
   def handle_event(:internal, :execute, :created, %__MODULE__{} = data) do
     case do_execute(data) do
       {:ok, :started, data} ->
-        {:ok, data} = update_workitem(:started, data)
+        {:ok, data} = update_workitem(%{state: :started}, data)
 
         {:next_state, :started, data}
 
@@ -258,7 +258,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
         }
 
       {:ok, :abandoned, data} ->
-        {:ok, data} = update_workitem(:abandoned, data)
+        {:ok, data} = update_workitem(%{state: :abandoned}, data)
 
         {:next_state, :abandoned, data}
     end
@@ -269,7 +269,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
     {:state, %{current_state: state, data: data}}
   end
 
-  defp update_workitem(state_and_options, %__MODULE__{} = data) do
+  defp update_workitem(params, %__MODULE__{} = data) do
     %{
       application: application,
       workitem_schema: workitem_schema
@@ -279,7 +279,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       WorkflowMetal.Storage.update_workitem(
         application,
         workitem_schema.id,
-        state_and_options
+        params
       )
 
     {:ok, %{data | workitem_schema: workitem_schema}}

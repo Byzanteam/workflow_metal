@@ -239,7 +239,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "complete a started workitem", %{workitem_schema: workitem_schema} do
-      WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+      WorkflowMetal.Storage.update_workitem(
+        DummyApplication,
+        workitem_schema.id,
+        %{state: :started}
+      )
 
       :ok =
         WorkflowMetal.Workitem.Supervisor.complete_workitem(
@@ -258,7 +262,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        {:completed, nil}
+        %{state: :completed}
       )
 
       {:error, :workitem_not_available} =
@@ -273,7 +277,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        :abandoned
+        %{state: :abandoned}
       )
 
       {:error, :workitem_not_available} =
@@ -357,7 +361,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "can abandon a started workitem", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :started}
+        )
 
       :ok =
         WorkflowMetal.Workitem.Supervisor.abandon_workitem(
@@ -377,7 +385,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "can abandon a running started workitem", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :started}
+        )
 
       {:ok, pid} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(
@@ -407,7 +419,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        {:completed, nil}
+        %{state: :completed}
       )
 
       {:error, :workitem_not_available} =
@@ -421,7 +433,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        :abandoned
+        %{state: :abandoned}
       )
 
       {:error, :workitem_not_available} =
@@ -510,7 +522,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "from started", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :started}
+        )
 
       {:ok, _pid} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
@@ -523,7 +539,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_workitem(
           DummyApplication,
           workitem_schema.id,
-          {:completed, nil}
+          %{state: :completed}
         )
 
       assert {:error, :workitem_not_available} =
@@ -535,7 +551,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "from abandoned", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :abandoned)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :abandoned}
+        )
 
       assert {:error, :workitem_not_available} =
                WorkflowMetal.Workitem.Supervisor.open_workitem(

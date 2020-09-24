@@ -298,19 +298,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def update_workitem(adapter_meta, workitem_id, state_and_options) do
+  def update_workitem(adapter_meta, workitem_id, params) do
     storage = storage_name(adapter_meta)
 
-    case state_and_options do
-      :started ->
-        GenServer.call(storage, {:start_workitem, workitem_id})
-
-      {:completed, workitem_output} ->
-        GenServer.call(storage, {:complete_workitem, workitem_id, workitem_output})
-
-      :abandoned ->
-        GenServer.call(storage, {:abandon_workitem, workitem_id})
-    end
+    GenServer.call(storage, {:update_workitem, workitem_id, params})
   end
 
   @doc """
@@ -786,51 +777,17 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:start_workitem, workitem_id},
+        {:update_workitem, workitem_id, params},
         _from,
         %State{} = state
       ) do
     reply =
       with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
-        do_start_workitem(
-          workitem_schema,
-          state
-        )
-      end
+        workitem_schema = struct(workitem_schema, params)
 
-    {:reply, reply, state}
-  end
+        {:ok, _state} = upsert_workitem(workitem_schema, state)
 
-  @impl GenServer
-  def handle_call(
-        {:complete_workitem, workitem_id, workitem_output},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
-        do_complete_workitem(
-          workitem_schema,
-          workitem_output,
-          state
-        )
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:abandon_workitem, workitem_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
-        do_abandon_workitem(
-          workitem_schema,
-          state
-        )
+        {:ok, workitem_schema}
       end
 
     {:reply, reply, state}
@@ -1335,78 +1292,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       }
     )
-
-    {:ok, workitem_schema}
-  end
-
-  defp do_start_workitem(
-         %Schema.Workitem{state: :started} = workitem_schema,
-         %State{} = _state
-       ) do
-    {:ok, workitem_schema}
-  end
-
-  defp do_start_workitem(
-         %Schema.Workitem{state: :created} = workitem_schema,
-         %State{} = state
-       ) do
-    workitem_schema = %{workitem_schema | state: :started}
-
-    {:ok, _state} = upsert_workitem(workitem_schema, state)
-
-    {:ok, workitem_schema}
-  end
-
-  defp do_start_workitem(_workitem_schema, %State{} = _state) do
-    {:error, :workitem_not_available}
-  end
-
-  defp do_complete_workitem(
-         %Schema.Workitem{state: :completed} = workitem_schema,
-         _workitem_output,
-         %State{} = _state
-       ) do
-    {:ok, workitem_schema}
-  end
-
-  defp do_complete_workitem(
-         %Schema.Workitem{state: workitem_state} = workitem_schema,
-         workitem_output,
-         %State{} = state
-       )
-       when workitem_state in [:created, :started] do
-    workitem_schema = %{workitem_schema | state: :completed, output: workitem_output}
-
-    {:ok, _state} = upsert_workitem(workitem_schema, state)
-
-    {:ok, workitem_schema}
-  end
-
-  defp do_complete_workitem(_workitem_schema, _workitem_output, %State{} = _state) do
-    {:error, :workitem_not_available}
-  end
-
-  defp do_abandon_workitem(
-         %Schema.Workitem{state: :abandoned} = workitem_schema,
-         %State{} = _state
-       ) do
-    {:ok, workitem_schema}
-  end
-
-  defp do_abandon_workitem(
-         %Schema.Workitem{state: :completed},
-         %State{} = _state
-       ) do
-    {:error, :workitem_not_available}
-  end
-
-  defp do_abandon_workitem(
-         %Schema.Workitem{} = workitem_schema,
-         %State{} = state
-       ) do
-    workitem_schema = %{workitem_schema | state: :abandoned}
-
-    {:ok, _state} = upsert_workitem(workitem_schema, state)
 
     {:ok, workitem_schema}
   end
