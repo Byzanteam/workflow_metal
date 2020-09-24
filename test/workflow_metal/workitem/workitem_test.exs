@@ -214,9 +214,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         )
 
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: 1,
+            state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
             case_id: case_schema.id,
@@ -338,9 +340,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         )
 
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: 1,
+            state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
             case_id: case_schema.id,
@@ -481,9 +485,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         )
 
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: 1,
+            state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
             case_id: case_schema.id,

@@ -323,11 +323,10 @@ defmodule WorkflowMetal.Storage.Adapter do
 
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
   @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
-  @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
   @type update_workitem_params :: :started | {:completed, workitem_output} | :abandoned
 
-  @type on_create_workitem ::
+  @type on_insert_workitem ::
           {:ok, workitem_schema}
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
@@ -344,12 +343,12 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workitem_not_available}
 
   @doc """
-  Create a workitem of a task.
+  Insert a workitem of a task.
   """
-  @callback create_workitem(
+  @callback insert_workitem(
               adapter_meta,
-              workitem_params
-            ) :: on_create_workitem
+              workitem_schema
+            ) :: on_insert_workitem
 
   @doc """
   Fetch a workitem of a task.

@@ -150,9 +150,11 @@ defmodule WorkflowMetal.Task.TaskTest do
         )
 
       {:ok, _workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: 1,
+            state: :created,
             workflow_id: task_schema.workflow_id,
             transition_id: a_transition.id,
             case_id: case_schema.id,
@@ -295,9 +297,11 @@ defmodule WorkflowMetal.Task.TaskTest do
         )
 
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: 1,
+            state: :created,
             workflow_id: task_schema.workflow_id,
             transition_id: a_transition.id,
             case_id: case_schema.id,

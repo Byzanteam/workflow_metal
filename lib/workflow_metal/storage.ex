@@ -28,7 +28,7 @@ defmodule WorkflowMetal.Storage do
   @type token_states :: nonempty_list(token_state)
 
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
-  @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @type config :: keyword()
@@ -332,14 +332,14 @@ defmodule WorkflowMetal.Storage do
   ## Workitem
 
   @doc false
-  @spec create_workitem(application, workitem_params) ::
-          Adapter.on_create_workitem()
-  def create_workitem(application, workitem_params) do
+  @spec insert_workitem(application, workitem_schema) ::
+          Adapter.on_insert_workitem()
+  def insert_workitem(application, workitem_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_workitem(
+    adapter.insert_workitem(
       adapter_meta,
-      workitem_params
+      workitem_schema
     )
   end
 

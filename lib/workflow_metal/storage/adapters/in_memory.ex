@@ -277,10 +277,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   # Workitem
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_workitem(adapter_meta, workitem_params) do
+  def insert_workitem(adapter_meta, workitem_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_workitem, workitem_params})
+    GenServer.call(storage, {:insert_workitem, workitem_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -726,7 +726,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create_workitem, workitem_params},
+        {:insert_workitem, workitem_schema},
         _from,
         %State{} = state
       ) do
@@ -734,21 +734,15 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       workflow_id: workflow_id,
       case_id: case_id,
       task_id: task_id
-    } = workitem_params
+    } = workitem_schema
 
     reply =
       with(
-        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
-        {:ok, case_schema} <- find_case(case_id, state),
-        {:ok, task_schema} <- find_task(task_id, state)
+        {:ok, _workflow_schema} <- find_workflow(workflow_id, state),
+        {:ok, _case_schema} <- find_case(case_id, state),
+        {:ok, _task_schema} <- find_task(task_id, state)
       ) do
-        persist_workitem(
-          workitem_params,
-          state,
-          workflow_id: workflow_schema.id,
-          case_id: case_schema.id,
-          task_id: task_schema.id
-        )
+        persist_workitem(workitem_schema, state)
       end
 
     {:reply, reply, state}
@@ -1326,22 +1320,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, state}
   end
 
-  defp persist_workitem(workitem_params, %State{} = state, options) do
+  defp persist_workitem(workitem_schema, %State{} = state) do
     workitem_table = get_table(:workitem, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    case_id = Keyword.fetch!(options, :case_id)
-    task_id = Keyword.fetch!(options, :task_id)
-
-    workitem_schema =
-      struct(
-        Schema.Workitem,
-        workitem_params
-        |> Map.from_struct()
-        |> Map.put(:id, make_id())
-        |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:case_id, case_id)
-        |> Map.put(:task_id, task_id)
-      )
 
     :ets.insert(
       workitem_table,
