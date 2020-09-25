@@ -599,24 +599,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     %{
       workflow_id: workflow_id,
       case_id: case_id,
-      place_id: place_id,
-      produced_by_task_id: produced_by_task_id
+      place_id: place_id
     } = token_schema
 
     reply =
       with(
         {:ok, _workflow_schema} <- find_workflow(workflow_id, state),
         {:ok, _case_schema} <- find_case(case_id, state),
-        {:ok, _place_schema} <- find_place(place_id, state),
-        {:ok, _produced_by_task} <- find_produced_by_task(produced_by_task_id, state)
+        {:ok, _place_schema} <- find_place(place_id, state)
       ) do
         {:ok, _state} = upsert_token(token_schema, state)
 
         {:ok, token_schema}
       else
-        {:error, :task_not_found} ->
-          {:error, :produced_by_task_not_found}
-
         reply ->
           reply
       end
@@ -1145,9 +1140,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
     {:ok, task_schema}
   end
-
-  defp find_produced_by_task(:genesis, %State{}), do: {:ok, nil}
-  defp find_produced_by_task(task_id, %State{} = state), do: find_task(task_id, state)
 
   defp find_task(task_id, %State{} = state) do
     :task

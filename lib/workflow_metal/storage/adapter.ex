@@ -192,11 +192,12 @@ defmodule WorkflowMetal.Storage.Adapter do
           optional(:state) => task_state,
           optional(:token_payload) => token_payload()
         }
-  @type fetch_tasks_options :: [
-          # TODO: nil -> list
-          states: nonempty_list(task_state) | nil,
-          transition_id: transition_id
-        ]
+  @type fetch_tasks_options ::
+          [
+            states: nonempty_list(task_state) | nil,
+            transition_id: transition_id
+          ]
+          | [transition_id: transition_id]
 
   @type on_insert_task ::
           {:ok, task_schema}
@@ -266,7 +267,6 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
           | {:error, :case_not_found}
           | {:error, :place_not_found}
-          | {:error, :produced_by_task_not_found}
   @type on_lock_tokens ::
           {:ok, token_schema}
           | {:error, :tokens_not_available}
