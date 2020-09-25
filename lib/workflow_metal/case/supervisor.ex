@@ -45,18 +45,6 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @doc """
-  Insert a case.
-  """
-  @spec insert_case(application, case_schema) ::
-          Supervisor.on_start()
-          | {:error, :workflow_not_found}
-          | {:error, :case_not_found}
-  def insert_case(application, %Schema.Case{} = case_schema) do
-    {:ok, case_schema} = WorkflowMetal.Storage.insert_case(application, case_schema)
-    open_case(application, case_schema.id)
-  end
-
-  @doc """
   Open a case(`GenServer').
   """
   @spec open_case(application, case_id) ::

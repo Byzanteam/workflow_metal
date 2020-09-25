@@ -60,13 +60,6 @@ defmodule WorkflowMetal.Application do
       end
 
       @doc """
-      Insert a case
-      """
-      def insert_case(case_schema) do
-        WorkflowMetal.Case.Supervisor.insert_case(application(), case_schema)
-      end
-
-      @doc """
       Open a case('GenServer')
       """
       def open_case(case_id) do

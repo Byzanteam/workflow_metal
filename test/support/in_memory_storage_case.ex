@@ -6,7 +6,7 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
   alias WorkflowMetal.Storage.Schema
 
   using do
-    quote do
+    quote location: :keep do
       alias WorkflowMetal.Storage.Schema
 
       defmodule DummyApplication do

@@ -38,7 +38,7 @@ defmodule WorkflowMetal.Controller.Split.And do
 
         struct(
           Schema.Token,
-          Map.merge(params, %{id: token_id, payload: token_payload})
+          Map.merge(params, %{id: token_id, payload: token_payload, state: :free})
         )
       end)
     }

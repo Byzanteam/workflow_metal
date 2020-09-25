@@ -525,7 +525,7 @@ defmodule WorkflowMetal.Case.Case do
     genesis_token_schema =
       struct(
         Schema.Token,
-        Map.merge(params, %{id: token_id, payload: nil})
+        Map.merge(params, %{id: token_id, payload: nil, state: :free})
       )
 
     {:ok, token_schema} = do_issue_token(genesis_token_schema, data)

@@ -960,7 +960,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end)
   end
 
-  defp persist_case(case_schema, %State{} = state) do
+  defp persist_case(%Schema.Case{} = case_schema, %State{} = state) do
     case_table = get_table(:case, state)
 
     :ets.insert(

@@ -3,7 +3,6 @@ defmodule WorkflowMetal.Case.SupervisorTest do
   use WorkflowMetal.Support.InMemoryStorageCase
 
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
-  alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
 
   describe ".open_case/2" do
@@ -20,15 +19,7 @@ defmodule WorkflowMetal.Case.SupervisorTest do
     test "open a case successfully" do
       {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.insert_case(
-          DummyApplication,
-          %Schema.Case{
-            id: 1,
-            state: :created,
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
