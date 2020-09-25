@@ -205,8 +205,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       :finished ->
         GenServer.call(storage, {:finish_case, case_id})
 
-      :canceled ->
-        GenServer.call(storage, {:cancel_case, case_id})
+      :terminated ->
+        GenServer.call(storage, {:terminate_case, case_id})
     end
   end
 
@@ -565,13 +565,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:cancel_case, case_id},
+        {:terminate_case, case_id},
         _from,
         %State{} = state
       ) do
     reply =
       with({:ok, case_schema} <- find_case(case_id, state)) do
-        do_cancel_case(case_schema, state)
+        do_terminate_case(case_schema, state)
       end
 
     {:reply, reply, state}
@@ -1240,14 +1240,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:error, :case_not_available}
   end
 
-  defp do_cancel_case(
-         %Schema.Case{state: :canceled} = case_schema,
+  defp do_terminate_case(
+         %Schema.Case{state: :terminated} = case_schema,
          %State{} = _state
        ) do
     {:ok, case_schema}
   end
 
-  defp do_cancel_case(
+  defp do_terminate_case(
          %Schema.Case{state: case_state} = case_schema,
          %State{} = state
        )
@@ -1256,7 +1256,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
     case_schema = %{
       case_schema
-      | state: :canceled
+      | state: :terminated
     }
 
     true =
@@ -1272,7 +1272,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, case_schema}
   end
 
-  defp do_cancel_case(_case_schema, %State{} = _state) do
+  defp do_terminate_case(_case_schema, %State{} = _state) do
     {:error, :case_not_available}
   end
 

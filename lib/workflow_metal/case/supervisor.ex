@@ -81,6 +81,19 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @doc """
+  Terminate a case(`GenServer').
+  """
+  @spec terminate_case(application, case_id) ::
+          :ok
+          | {:error, :case_not_found}
+          | {:error, :workflow_not_found}
+  def terminate_case(application, case_id) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.terminate(case_server)
+    end
+  end
+
+  @doc """
   Request `:free` and `:locked`(locked by the task) tokens which should offer to the task.
 
   This usually happens after a task restore from the storage.
