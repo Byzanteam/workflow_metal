@@ -551,7 +551,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       {:ok, task_schema} ->
         task_schema = struct(task_schema, params)
 
-        {:ok, state} = upsert_task(task_schema, state)
+        {:ok, task_schema} = upsert_task(task_schema, state)
 
         {:reply, {:ok, task_schema}, state}
 
@@ -566,7 +566,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
-    {:ok, token_schema, state} = upsert_token(token_schema, state)
+    {:ok, token_schema} = upsert_token(token_schema, state)
 
     {:reply, {:ok, token_schema}, state}
   end
@@ -707,7 +707,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
         workitem_schema = struct(workitem_schema, params)
 
-        {:ok, _state} = upsert_workitem(workitem_schema, state)
+        {:ok, workitem_schema} = upsert_workitem(workitem_schema, state)
 
         {:ok, workitem_schema}
       end
@@ -983,7 +983,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       Enum.map(tokens, fn token ->
         token_schema = %{token | state: :locked, locked_by_task_id: locked_by_task_id}
 
-        {:ok, token_schema, _state} = upsert_token(token_schema, state)
+        {:ok, token_schema} = upsert_token(token_schema, state)
 
         token_schema
       end)
@@ -996,7 +996,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       Enum.map(tokens, fn token ->
         token_schema = %{token | state: :free, locked_by_task_id: nil}
 
-        {:ok, token_schema, _state} = upsert_token(token_schema, state)
+        {:ok, token_schema} = upsert_token(token_schema, state)
 
         token_schema
       end)
@@ -1011,7 +1011,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       Enum.map(tokens, fn token ->
         token_schema = %{token | state: :consumed, consumed_by_task_id: task_id}
 
-        {:ok, token_schema, _state} = upsert_token(token_schema, state)
+        {:ok, token_schema} = upsert_token(token_schema, state)
 
         token_schema
       end)
@@ -1021,7 +1021,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   defp do_consume_termination_token(token, %State{} = state) do
     token_schema = %{token | state: :consumed}
-    {:ok, token_schema, _state} = upsert_token(token_schema, state)
+    {:ok, token_schema} = upsert_token(token_schema, state)
 
     {:ok, [token_schema]}
   end
@@ -1044,7 +1044,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       )
 
-    {:ok, token_schema, state}
+    {:ok, token_schema}
   end
 
   defp persist_task(%Schema.Task{} = task_schema, %State{} = state) do
@@ -1121,7 +1121,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       )
 
-    {:ok, state}
+    {:ok, task_schema}
   end
 
   defp persist_workitem(workitem_schema, %State{} = state) do
@@ -1168,7 +1168,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       )
 
-    {:ok, state}
+    {:ok, workitem_schema}
   end
 
   defp get_table(table_type, %State{} = state) do
