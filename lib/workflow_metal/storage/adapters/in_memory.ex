@@ -1114,8 +1114,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     do: Map.get(adapter_meta, :name)
 
   defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
-  defp make_id(nil), do: :erlang.unique_integer([:positive, :monotonic])
-  defp make_id(id), do: :"#{inspect(id)}-#{:erlang.unique_integer([:positive, :monotonic])}"
 
   defp reversed_arc_direction(:in), do: :out
   defp reversed_arc_direction(:out), do: :in
