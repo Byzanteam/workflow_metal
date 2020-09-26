@@ -311,6 +311,18 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
+  @spec fetch_unconsumed_tokens(application, case_id) ::
+          Adapter.on_fetch_unconsumed_tokens()
+  def fetch_unconsumed_tokens(application, case_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_unconsumed_tokens(
+      adapter_meta,
+      case_id
+    )
+  end
+
+  @doc false
   @spec fetch_tokens(application, case_id, Adapter.fetch_tokens_options()) ::
           Adapter.on_fetch_tokens()
   def fetch_tokens(application, case_id, options) do

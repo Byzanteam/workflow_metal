@@ -262,6 +262,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
+  def fetch_unconsumed_tokens(adapter_meta, token_ids) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_unconsumed_tokens, token_ids})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
   def fetch_tokens(adapter_meta, case_id, options) do
     storage = storage_name(adapter_meta)
 
@@ -616,6 +623,26 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
         token_schema
       end)
+
+    {:reply, {:ok, tokens}, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:fetch_unconsumed_tokens, case_id},
+        _from,
+        %State{} = state
+      ) do
+    tokens =
+      :token
+      |> get_table(state)
+      |> :ets.select([
+        {
+          {:_, :"$1", {:_, case_id, :_, :_, :_, :"$2"}},
+          [ETSUtil.make_condition([:free, :locked], :"$2", :in)],
+          [:"$1"]
+        }
+      ])
 
     {:reply, {:ok, tokens}, state}
   end

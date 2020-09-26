@@ -446,10 +446,7 @@ defmodule WorkflowMetal.Case.Case do
       }
     } = data
 
-    with(
-      {:ok, tokens} <-
-        WorkflowMetal.Storage.fetch_tokens(application, case_id, states: [:free, :locked])
-    ) do
+    with({:ok, tokens} <- WorkflowMetal.Storage.fetch_unconsumed_tokens(application, case_id)) do
       free_token_ids =
         Enum.reduce(tokens, MapSet.new(), fn
           %Schema.Token{state: :free} = token, acc ->

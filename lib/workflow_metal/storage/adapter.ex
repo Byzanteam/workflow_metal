@@ -266,6 +266,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_tokens ::
           {:ok, [token_schema]}
           | {:error, :task_not_found}
+  @type on_fetch_unconsumed_tokens :: {:ok, [token_schema]}
 
   @doc """
   Issue a token.
@@ -302,6 +303,14 @@ defmodule WorkflowMetal.Storage.Adapter do
               [token_id],
               task_id | :termination
             ) :: on_consume_tokens
+
+  @doc """
+  Retrive tokens of the task.
+  """
+  @callback fetch_unconsumed_tokens(
+              adapter_meta,
+              case_id
+            ) :: on_fetch_unconsumed_tokens
 
   @doc """
   Retrive tokens of the task.
