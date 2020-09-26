@@ -408,19 +408,7 @@ defmodule WorkflowMetal.Case.Case do
         :active,
         %__MODULE__{} = data
       ) do
-    %{
-      token_table: token_table
-    } = data
-
-    token_ids =
-      token_table
-      |> :ets.select([
-        {
-          {:"$1", :_, :_, :_, :"$5", :_},
-          [ETSUtil.make_condition(task_id, :"$5", :"=:=")],
-          [:"$1"]
-        }
-      ])
+    token_ids = find_locked_token_ids(task_id, data)
 
     {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, token_ids)
 
@@ -696,7 +684,11 @@ defmodule WorkflowMetal.Case.Case do
       application: application
     } = data
 
-    with({:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, task_id)) do
+    token_ids = find_locked_token_ids(task_id, data)
+
+    with(
+      {:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
+    ) do
       {:ok, data} =
         Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
           upsert_ets_token(token, data)
@@ -730,15 +722,16 @@ defmodule WorkflowMetal.Case.Case do
   defp do_finish_case(%__MODULE__{} = data) do
     %{
       application: application,
-      case_schema: %Schema.Case{
-        id: case_id
-      }
+      free_token_ids: free_token_ids
     } = data
+
+    [free_token_id] = MapSet.to_list(free_token_ids)
 
     {:ok, [termination_token]} =
       WorkflowMetal.Storage.consume_tokens(
         application,
-        {case_id, :termination}
+        [free_token_id],
+        :termination
       )
 
     {:ok, data} = upsert_ets_token(termination_token, data)
@@ -809,6 +802,21 @@ defmodule WorkflowMetal.Case.Case do
       states: [:started, :allocated, :executing],
       transition_id: transition_id
     )
+  end
+
+  defp find_locked_token_ids(task_id, %__MODULE__{} = data) do
+    %{
+      token_table: token_table
+    } = data
+
+    token_table
+    |> :ets.select([
+      {
+        {:"$1", :_, :locked, :_, task_id, :_},
+        [],
+        [:"$1"]
+      }
+    ])
   end
 
   defp do_offer_tokens_to_task(task_id, %__MODULE__{} = data) do

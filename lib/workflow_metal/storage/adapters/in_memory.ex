@@ -255,10 +255,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def consume_tokens(adapter_meta, task_id) do
+  def consume_tokens(adapter_meta, token_ids, consumed_by_task_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:consume_tokens, task_id})
+    GenServer.call(storage, {:consume_tokens, token_ids, consumed_by_task_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -602,37 +602,22 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:consume_tokens, {case_id, :termination}},
+        {:consume_tokens, token_ids, consumed_by_task_id},
         _from,
         %State{} = state
       ) do
-    reply =
-      with({:ok, [token]} <- find_tokens(case_id, [states: [:free]], state)) do
-        do_consume_termination_token(token, state)
-      else
-        {:ok, _} -> {:error, :tokens_not_available}
-        reply -> reply
-      end
+    tokens =
+      token_ids
+      |> find_tokens(state)
+      |> Enum.map(fn token ->
+        token_schema = %{token | state: :consumed, consumed_by_task_id: consumed_by_task_id}
 
-    {:reply, reply, state}
-  end
+        {:ok, token_schema} = upsert_token(token_schema, state)
 
-  @impl GenServer
-  def handle_call(
-        {:consume_tokens, task_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with(
-        {:ok, %Schema.Task{case_id: case_id} = task_schema} <- find_task(task_id, state),
-        {:ok, tokens} <-
-          find_tokens(case_id, [states: [:locked], locked_by_task_id: task_id], state)
-      ) do
-        do_consume_tokens(tokens, task_schema, state)
-      end
+        token_schema
+      end)
 
-    {:reply, reply, state}
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
@@ -974,28 +959,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       end)
 
     {:ok, tokens}
-  end
-
-  defp do_consume_tokens(tokens, %Schema.Task{} = task_schema, %State{} = state) do
-    task_id = task_schema.id
-
-    tokens =
-      Enum.map(tokens, fn token ->
-        token_schema = %{token | state: :consumed, consumed_by_task_id: task_id}
-
-        {:ok, token_schema} = upsert_token(token_schema, state)
-
-        token_schema
-      end)
-
-    {:ok, tokens}
-  end
-
-  defp do_consume_termination_token(token, %State{} = state) do
-    token_schema = %{token | state: :consumed}
-    {:ok, token_schema} = upsert_token(token_schema, state)
-
-    {:ok, [token_schema]}
   end
 
   defp upsert_token(%Schema.Token{} = token_schema, %State{} = state) do

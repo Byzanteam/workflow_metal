@@ -299,7 +299,8 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback consume_tokens(
               adapter_meta,
-              locked_by_task_id :: task_id | {case_id, :termination}
+              [token_id],
+              task_id | :termination
             ) :: on_consume_tokens
 
   @doc """
