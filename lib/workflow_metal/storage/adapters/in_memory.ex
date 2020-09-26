@@ -269,10 +269,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def fetch_tokens(adapter_meta, case_id, options) do
+  def fetch_tokens(adapter_meta, token_ids) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:fetch_tokens, case_id, options})
+    GenServer.call(storage, {:fetch_tokens, token_ids})
   end
 
   # Workitem
@@ -649,13 +649,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:fetch_tokens, case_id, options},
+        {:fetch_tokens, token_ids},
         _from,
         %State{} = state
       ) do
-    reply = find_tokens(case_id, options, state)
+    tokens = find_tokens(token_ids, state)
 
-    {:reply, reply, state}
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
@@ -945,34 +945,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         [:"$2"]
       }
     ])
-  end
-
-  defp find_tokens(case_id, options, %State{} = state) do
-    states_condition =
-      ETSUtil.make_condition(
-        Keyword.get(options, :states, []),
-        :"$3",
-        :in
-      )
-
-    locked_by_task_condition =
-      case Keyword.get(options, :locked_by_task_id) do
-        nil -> nil
-        task_id -> {:"=:=", :"$2", task_id}
-      end
-
-    {
-      :ok,
-      :token
-      |> get_table(state)
-      |> :ets.select([
-        {
-          {:_, :"$1", {:_, case_id, :_, :_, :"$2", :"$3"}},
-          [ETSUtil.make_and([states_condition, locked_by_task_condition])],
-          [:"$1"]
-        }
-      ])
-    }
   end
 
   defp do_lock_tokens(tokens, locked_by_task_id, %State{} = state) do

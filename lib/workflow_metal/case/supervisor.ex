@@ -7,7 +7,6 @@ defmodule WorkflowMetal.Case.Supervisor do
 
   alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Registration
-  alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
@@ -123,6 +122,21 @@ defmodule WorkflowMetal.Case.Supervisor do
   def unlock_tokens(application, case_id, task_id) do
     with({:ok, case_server} <- open_case(application, case_id)) do
       WorkflowMetal.Case.Case.free_tokens_from_task(case_server, task_id)
+    end
+  end
+
+  @doc """
+  Fetch tokens that locked by the task.
+
+  This usually happens when a task is starting.
+  """
+  @spec fetch_locked_tokens(application, case_id, task_id) ::
+          {:ok, [token_schema]}
+          | {:error, :case_not_available}
+          | {:error, :case_not_found}
+  def fetch_locked_tokens(application, case_id, task_id) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.fetch_locked_tokens_from_task(case_server, task_id)
     end
   end
 

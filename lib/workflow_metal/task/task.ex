@@ -572,11 +572,10 @@ defmodule WorkflowMetal.Task.Task do
     } = data
 
     {:ok, locked_token_schemas} =
-      WorkflowMetal.Storage.fetch_tokens(
+      WorkflowMetal.Case.Supervisor.fetch_locked_tokens(
         application,
         case_id,
-        states: [:locked],
-        locked_by_task_id: task_id
+        task_id
       )
 
     {:ok, data} =

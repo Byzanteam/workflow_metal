@@ -154,7 +154,17 @@ defmodule WorkflowMetal.Case.Case do
   """
   @spec free_tokens_from_task(:gen_statem.server_ref(), task_id) :: :ok
   def free_tokens_from_task(case_server, task_id) do
-    GenStateMachine.cast(case_server, {:free_tokens_from_task, task_id})
+    GenStateMachine.call(case_server, {:free_tokens_from_task, task_id})
+  end
+
+  @doc """
+  Free tokens that locked by the task.
+
+  eg: free `:locked` tokens when a task has been abandoned.
+  """
+  @spec fetch_locked_tokens_from_task(:gen_statem.server_ref(), task_id) :: {:ok, [token_schema]}
+  def fetch_locked_tokens_from_task(case_server, task_id) do
+    GenStateMachine.call(case_server, {:fetch_locked_tokens_from_task, task_id})
   end
 
   # Server (callbacks)
@@ -194,7 +204,7 @@ defmodule WorkflowMetal.Case.Case do
         }
 
       :active ->
-        {:ok, data} = fetch_tokens(data)
+        {:ok, data} = fetch_unconsumed_tokens(data)
 
         {
           :keep_state,
@@ -397,6 +407,18 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
+  def handle_event(
+        {:call, from},
+        {:fetch_locked_tokens_from_task, task_id},
+        :active,
+        %__MODULE__{} = data
+      ) do
+    {:ok, tokens} = do_fetch_locked_tokens_from_task(task_id, data)
+
+    {:keep_state_and_data, {:reply, from, {:ok, tokens}}}
+  end
+
+  @impl GenStateMachine
   def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
     {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
   end
@@ -438,7 +460,7 @@ defmodule WorkflowMetal.Case.Case do
     {:state, %{current_state: state, data: data}}
   end
 
-  defp fetch_tokens(%__MODULE__{} = data) do
+  defp fetch_unconsumed_tokens(%__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
@@ -866,6 +888,19 @@ defmodule WorkflowMetal.Case.Case do
 
         {:ok, tokens, data}
     end
+  end
+
+  defp do_fetch_locked_tokens_from_task(task_id, %__MODULE__{} = data) do
+    %{
+      application: application
+    } = data
+
+    token_ids = find_locked_token_ids(task_id, data)
+
+    WorkflowMetal.Storage.fetch_tokens(
+      application,
+      token_ids
+    )
   end
 
   defp force_abandon_tasks(%__MODULE__{} = data) do

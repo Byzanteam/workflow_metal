@@ -246,10 +246,6 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
-  @type fetch_tokens_options :: [
-          states: nonempty_list(token_state) | nil,
-          locked_by_task_id: task_id
-        ]
 
   @type on_issue_token ::
           {:ok, token_schema}
@@ -317,8 +313,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback fetch_tokens(
               adapter_meta,
-              case_id,
-              fetch_tokens_options
+              [token_id]
             ) :: on_fetch_tokens
 
   # Workitem
