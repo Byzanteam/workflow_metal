@@ -24,19 +24,18 @@ defmodule WorkflowMetal.Controller.Split.None do
         :out
       )
 
-    params = %{
-      workflow_id: workflow_id,
-      place_id: arc.place_id,
-      case_id: case_id,
-      produced_by_task_id: task_id
-    }
-
-    token_id = WorkflowMetal.Storage.generate_id(application, :token, params)
-
     new_token =
       struct(
         Schema.Token,
-        Map.merge(params, %{id: token_id, payload: token_payload, state: :free})
+        %{
+          id: nil,
+          state: :free,
+          payload: token_payload,
+          workflow_id: workflow_id,
+          place_id: arc.place_id,
+          case_id: case_id,
+          produced_by_task_id: task_id
+        }
       )
 
     {:ok, [new_token]}

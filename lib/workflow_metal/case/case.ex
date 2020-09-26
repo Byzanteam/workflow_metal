@@ -513,19 +513,17 @@ defmodule WorkflowMetal.Case.Case do
       free_token_ids: free_token_ids
     } = data
 
-    params = %{
-      workflow_id: workflow_id,
-      place_id: start_place_id,
-      case_id: case_id,
-      produced_by_task_id: :genesis
-    }
-
-    token_id = WorkflowMetal.Storage.generate_id(application, :token, params)
-
     genesis_token_schema =
       struct(
         Schema.Token,
-        Map.merge(params, %{id: token_id, payload: nil, state: :free})
+        %{
+          id: nil,
+          state: :free,
+          workflow_id: workflow_id,
+          place_id: start_place_id,
+          case_id: case_id,
+          produced_by_task_id: :genesis
+        }
       )
 
     {:ok, token_schema} = do_issue_token(genesis_token_schema, data)
@@ -637,26 +635,15 @@ defmodule WorkflowMetal.Case.Case do
           }
         } = data
 
-        task_id =
-          WorkflowMetal.Storage.generate_id(
-            application,
-            :task,
-            %{
-              workflow_id: workflow_id,
-              case_id: case_id,
-              transition_id: transition_id
-            }
-          )
-
-        task_params = %Schema.Task{
-          id: task_id,
+        task_schema = %Schema.Task{
+          id: nil,
           state: :started,
           workflow_id: workflow_id,
           case_id: case_id,
           transition_id: transition_id
         }
 
-        {:ok, _} = WorkflowMetal.Storage.insert_task(application, task_params)
+        {:ok, _} = WorkflowMetal.Storage.insert_task(application, task_schema)
     end
   end
 

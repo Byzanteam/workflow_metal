@@ -30,19 +30,18 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
     {:ok, {start_place, _end_place}} =
       WorkflowMetal.Storage.fetch_edge_places(application, workflow_schema.id)
 
-    params = %{
-      workflow_id: workflow_schema.id,
-      place_id: start_place.id,
-      case_id: case_schema.id,
-      produced_by_task_id: :genesis
-    }
-
-    token_id = WorkflowMetal.Storage.generate_id(application, :token, params)
-
     genesis_token_schema =
       struct(
         Schema.Token,
-        Map.merge(params, %{id: token_id, payload: nil})
+        %{
+          id: nil,
+          state: :free,
+          payload: nil,
+          workflow_id: workflow_schema.id,
+          place_id: start_place.id,
+          case_id: case_schema.id,
+          produced_by_task_id: :genesis
+        }
       )
 
     WorkflowMetal.Storage.issue_token(application, genesis_token_schema)

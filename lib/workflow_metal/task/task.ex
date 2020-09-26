@@ -637,19 +637,17 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    params = %{
-      workflow_id: workflow_id,
-      transition_id: transition_id,
-      case_id: case_id,
-      task_id: task_id
-    }
-
-    workitem_id = WorkflowMetal.Storage.generate_id(application, :token, params)
-
     workitem_schema =
       struct(
         Schema.Workitem,
-        Map.merge(params, %{id: workitem_id, state: :created})
+        %{
+          id: nil,
+          state: :created,
+          workflow_id: workflow_id,
+          transition_id: transition_id,
+          case_id: case_id,
+          task_id: task_id
+        }
       )
 
     {:ok, workitem_schema} = WorkflowMetal.Storage.insert_workitem(application, workitem_schema)

@@ -19,7 +19,7 @@ defmodule WorkflowMetal.Storage.Schema.Token do
 
   typedstruct enforce: true do
     field :id, id()
-    field :state, state(), default: :free
+    field :state, state()
     field :payload, payload(), enforce: false
 
     field :workflow_id, workflow_id()

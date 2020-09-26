@@ -118,12 +118,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
-  # Util
-  @impl WorkflowMetal.Storage.Adapter
-  def generate_id(_adapter_meta, _schema_type, _options) do
-    :erlang.unique_integer([:positive, :monotonic])
-  end
-
   # Workflow
 
   @impl WorkflowMetal.Storage.Adapter
@@ -514,6 +508,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
+    task_schema = %{task_schema | id: make_id()}
     reply = persist_task(task_schema, state)
 
     {:reply, reply, state}
@@ -566,6 +561,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
+    token_schema = %{token_schema | id: make_id()}
     {:ok, token_schema} = upsert_token(token_schema, state)
 
     {:reply, {:ok, token_schema}, state}
@@ -661,6 +657,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
+    workitem_schema = %{workitem_schema | id: make_id()}
     reply = persist_workitem(workitem_schema, state)
 
     {:reply, reply, state}
