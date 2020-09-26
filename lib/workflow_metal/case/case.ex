@@ -786,8 +786,9 @@ defmodule WorkflowMetal.Case.Case do
       {:ok, [%Schema.Task{id: task_id}]} when task_id !== except_task_id ->
         Logger.info(fn ->
           """
-          #{describe(data)}
-          withdraw token(#{inspect(token_schema.id)}) from task #{inspect(task_id)}.
+          #{describe(data)} withdraw token(#{inspect(token_schema.id)}) from task #{
+            inspect(task_id)
+          }.
           """
         end)
 
