@@ -32,9 +32,7 @@ defmodule WorkflowMetal.Storage.Adapter do
         }
 
   @type on_insert_workflow :: {:ok, workflow_schema}
-  @type on_fetch_workflow ::
-          {:ok, workflow_schema}
-          | {:error, :workflow_not_found}
+  @type on_fetch_workflow :: {:ok, workflow_schema}
   @type on_delete_workflow :: :ok
 
   @doc """
@@ -79,7 +77,6 @@ defmodule WorkflowMetal.Storage.Adapter do
           | {:error, :workflow_not_found}
   @type on_fetch_edge_places ::
           {:ok, {place_schema, place_schema}}
-          | {:error, :workflow_not_found}
   @type on_fetch_places ::
           {:ok, [place_schema]}
           | {:error, :transition_not_found}
