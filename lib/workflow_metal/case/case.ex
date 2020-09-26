@@ -408,7 +408,21 @@ defmodule WorkflowMetal.Case.Case do
         :active,
         %__MODULE__{} = data
       ) do
-    {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, task_id)
+    %{
+      token_table: token_table
+    } = data
+
+    token_ids =
+      token_table
+      |> :ets.select([
+        {
+          {:"$1", :_, :_, :_, :"$5", :_},
+          [ETSUtil.make_condition(task_id, :"$5", :"=:=")],
+          [:"$1"]
+        }
+      ])
+
+    {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, token_ids)
 
     Logger.debug(fn ->
       "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been freed by the task(#{
@@ -502,7 +516,6 @@ defmodule WorkflowMetal.Case.Case do
 
   defp do_activate_case(%__MODULE__{} = data) do
     %{
-      application: application,
       start_place: %Schema.Place{
         id: start_place_id
       },

@@ -248,10 +248,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def unlock_tokens(adapter_meta, task_id) do
+  def unlock_tokens(adapter_meta, token_ids) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:unlock_tokens, task_id})
+    GenServer.call(storage, {:unlock_tokens, token_ids})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -582,27 +582,22 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:unlock_tokens, task_id},
+        {:unlock_tokens, token_ids},
         _from,
         %State{} = state
       ) do
-    reply =
-      case find_task(task_id, state) do
-        {:ok, %Schema.Task{case_id: case_id}} ->
-          {:ok, tokens} =
-            find_tokens(
-              case_id,
-              [states: [:locked], locked_by_task_id: task_id],
-              state
-            )
+    tokens =
+      token_ids
+      |> find_tokens(state)
+      |> Enum.map(fn token ->
+        token_schema = %{token | state: :free, locked_by_task_id: nil}
 
-          do_unlock_tokens(tokens, state)
+        {:ok, token_schema} = upsert_token(token_schema, state)
 
-        {:error, :task_not_found} ->
-          :ok
-      end
+        token_schema
+      end)
 
-    {:reply, reply, state}
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
@@ -929,19 +924,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   defp find_tokens(token_ids, %State{} = state) do
-    ids_condition =
-      ETSUtil.make_condition(
-        token_ids,
-        :"$1",
-        :in
-      )
-
     :token
     |> get_table(state)
     |> :ets.select([
       {
         {:"$1", :"$2", :_},
-        List.wrap(ids_condition),
+        [ETSUtil.make_condition(token_ids, :"$1", :in)],
         [:"$2"]
       }
     ])
@@ -968,7 +956,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       |> :ets.select([
         {
           {:_, :"$1", {:_, case_id, :_, :_, :"$2", :"$3"}},
-          List.wrap(ETSUtil.make_and([states_condition, locked_by_task_condition])),
+          [ETSUtil.make_and([states_condition, locked_by_task_condition])],
           [:"$1"]
         }
       ])
@@ -979,19 +967,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     tokens =
       Enum.map(tokens, fn token ->
         token_schema = %{token | state: :locked, locked_by_task_id: locked_by_task_id}
-
-        {:ok, token_schema} = upsert_token(token_schema, state)
-
-        token_schema
-      end)
-
-    {:ok, tokens}
-  end
-
-  defp do_unlock_tokens(tokens, %State{} = state) do
-    tokens =
-      Enum.map(tokens, fn token ->
-        token_schema = %{token | state: :free, locked_by_task_id: nil}
 
         {:ok, token_schema} = upsert_token(token_schema, state)
 
@@ -1095,7 +1070,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       |> :ets.select([
         {
           {:_, :"$1", {:"$2", :_, :"$3", case_id}},
-          List.wrap(ETSUtil.make_and([states_condition, transition_condition])),
+          [ETSUtil.make_and([states_condition, transition_condition])],
           [:"$1"]
         }
       ])

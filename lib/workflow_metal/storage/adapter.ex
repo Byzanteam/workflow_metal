@@ -291,7 +291,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback unlock_tokens(
               adapter_meta,
-              locked_by_task_id :: task_id
+              [token_id]
             ) :: on_unlock_tokens
 
   @doc """
