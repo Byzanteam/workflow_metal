@@ -48,12 +48,9 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
   end
 
   def insert_case(application, %Schema.Workflow{} = workflow_schema) do
-    case_id = :erlang.unique_integer([:positive, :monotonic])
-
     WorkflowMetal.Storage.insert_case(
       application,
       %Schema.Case{
-        id: case_id,
         state: :created,
         workflow_id: workflow_schema.id
       }

@@ -479,6 +479,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
+    case_schema = %{case_schema | id: make_id()}
     reply = persist_case(case_schema, state)
 
     {:reply, reply, state}
