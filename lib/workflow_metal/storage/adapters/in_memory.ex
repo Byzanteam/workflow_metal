@@ -1014,7 +1014,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp do_fetch_tasks(case_id, options, %State{} = state) do
     states_condition =
       ETSUtil.make_condition(
-        Keyword.get(options, :states, []),
+        Keyword.get(options, :state, []),
         :"$2",
         :in
       )

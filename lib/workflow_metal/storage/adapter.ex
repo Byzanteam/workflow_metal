@@ -183,7 +183,7 @@ defmodule WorkflowMetal.Storage.Adapter do
         }
   @type fetch_tasks_options ::
           [
-            states: nonempty_list(task_state) | nil,
+            state: nonempty_list(task_state),
             transition_id: transition_id
           ]
           | [transition_id: transition_id]

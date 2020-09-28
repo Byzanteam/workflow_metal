@@ -819,7 +819,7 @@ defmodule WorkflowMetal.Case.Case do
     WorkflowMetal.Storage.fetch_tasks(
       application,
       case_id,
-      states: [:started, :allocated, :executing],
+      state: [:started, :allocated, :executing],
       transition_id: transition_id
     )
   end
@@ -916,7 +916,7 @@ defmodule WorkflowMetal.Case.Case do
       WorkflowMetal.Storage.fetch_tasks(
         application,
         case_id,
-        states: [:started, :allocated, :executing]
+        state: [:started, :allocated, :executing]
       )
 
     tasks
