@@ -14,7 +14,7 @@ defmodule WorkflowMetal.Storage.Schema.Task do
   @type token_payload :: Schema.Token.payload()
 
   typedstruct enforce: true do
-    field :id, id()
+    field :id, id(), enforce: false
 
     field :state, state()
     field :token_payload, token_payload(), enforce: false

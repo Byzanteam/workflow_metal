@@ -640,7 +640,6 @@ defmodule WorkflowMetal.Task.Task do
       struct(
         Schema.Workitem,
         %{
-          id: nil,
           state: :created,
           workflow_id: workflow_id,
           transition_id: transition_id,

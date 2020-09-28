@@ -28,7 +28,6 @@ defmodule WorkflowMetal.Controller.Split.None do
       struct(
         Schema.Token,
         %{
-          id: nil,
           state: :free,
           payload: token_payload,
           workflow_id: workflow_id,

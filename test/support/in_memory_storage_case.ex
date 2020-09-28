@@ -34,7 +34,6 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
       struct(
         Schema.Token,
         %{
-          id: nil,
           state: :free,
           payload: nil,
           workflow_id: workflow_schema.id,

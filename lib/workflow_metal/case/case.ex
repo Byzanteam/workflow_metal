@@ -537,7 +537,6 @@ defmodule WorkflowMetal.Case.Case do
       struct(
         Schema.Token,
         %{
-          id: nil,
           state: :free,
           workflow_id: workflow_id,
           place_id: start_place_id,
@@ -656,11 +655,10 @@ defmodule WorkflowMetal.Case.Case do
         } = data
 
         task_schema = %Schema.Task{
-          id: nil,
           state: :started,
-          workflow_id: workflow_id,
           case_id: case_id,
-          transition_id: transition_id
+          transition_id: transition_id,
+          workflow_id: workflow_id
         }
 
         {:ok, _} = WorkflowMetal.Storage.insert_task(application, task_schema)
