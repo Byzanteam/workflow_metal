@@ -7,6 +7,8 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type application :: WorkflowMetal.Application.t()
   @type config :: keyword
 
+  @type error :: term()
+
   @doc """
   Return a child spec for the storage
   """
@@ -23,7 +25,7 @@ defmodule WorkflowMetal.Storage.Adapter do
           arcs: [arc_schema()]
         }
 
-  @type on_insert_workflow :: {:ok, workflow_schema}
+  @type on_insert_workflow :: {:ok, workflow_schema} | {:error, error}
   @type on_fetch_workflow :: {:ok, workflow_schema}
   @type on_delete_workflow :: :ok
 
@@ -64,20 +66,11 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
   @type arc_beginning :: {:transition, transition_id} | {:place, place_id}
 
-  @type on_fetch_arcs ::
-          {:ok, [arc_schema]}
-          | {:error, :workflow_not_found}
-  @type on_fetch_edge_places ::
-          {:ok, {place_schema, place_schema}}
-  @type on_fetch_places ::
-          {:ok, [place_schema]}
-          | {:error, :transition_not_found}
-  @type on_fetch_transition ::
-          {:ok, transition_schema}
-          | {:error, :transition_not_found}
-  @type on_fetch_transitions ::
-          {:ok, [transition_schema]}
-          | {:error, :place_not_found}
+  @type on_fetch_arcs :: {:ok, [arc_schema]}
+  @type on_fetch_edge_places :: {:ok, {place_schema, place_schema}}
+  @type on_fetch_places :: {:ok, [place_schema]}
+  @type on_fetch_transition :: {:ok, transition_schema} | {:error, :transition_not_found}
+  @type on_fetch_transitions :: {:ok, [transition_schema]}
 
   @doc """
   Retrive start and end of a workflow.
@@ -131,15 +124,9 @@ defmodule WorkflowMetal.Storage.Adapter do
           optional(:state) => case_state
         }
 
-  @type on_insert_case ::
-          {:ok, case_schema}
-          | {:error, :workflow_not_found}
-  @type on_fetch_case ::
-          {:ok, case_schema}
-          | {:error, :case_not_found}
-  @type on_update_case ::
-          {:ok, case_schema}
-          | {:error, :case_not_found}
+  @type on_insert_case :: {:ok, case_schema} | {:error, error}
+  @type on_fetch_case :: {:ok, case_schema} | {:error, :case_not_found}
+  @type on_update_case :: {:ok, case_schema} | {:error, error}
 
   @doc """
   Insert a case.
@@ -168,7 +155,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   """
   @callback update_case(
               adapter_meta,
-              case_id | case_schema,
+              case_id,
               update_case_params
             ) :: on_update_case
 
@@ -196,9 +183,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type on_fetch_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
-  @type on_fetch_tasks ::
-          {:ok, [task_schema]}
-          | {:error, :case_not_found}
+  @type on_fetch_tasks :: {:ok, [task_schema]}
   @type on_update_task ::
           {:ok, task_schema}
           | {:error, :task_not_found}
@@ -247,21 +232,11 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
 
-  @type on_issue_token ::
-          {:ok, token_schema}
-          | {:error, :workflow_not_found}
-          | {:error, :case_not_found}
-          | {:error, :place_not_found}
-  @type on_lock_tokens ::
-          {:ok, token_schema}
-          | {:error, :tokens_not_available}
+  @type on_issue_token :: {:ok, token_schema}
+  @type on_lock_tokens :: {:ok, token_schema}
   @type on_unlock_tokens :: {:ok, [token_schema]}
-  @type on_consume_tokens ::
-          {:ok, [token_schema]}
-          | {:error, :tokens_not_available}
-  @type on_fetch_tokens ::
-          {:ok, [token_schema]}
-          | {:error, :task_not_found}
+  @type on_consume_tokens :: {:ok, [token_schema]}
+  @type on_fetch_tokens :: {:ok, [token_schema]}
   @type on_fetch_unconsumed_tokens :: {:ok, [token_schema]}
 
   @doc """
