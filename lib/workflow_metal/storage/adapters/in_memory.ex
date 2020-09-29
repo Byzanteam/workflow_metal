@@ -121,10 +121,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   # Workflow
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_workflow(adapter_meta, workflow_params) do
+  def insert_workflow(adapter_meta, workflow_schema, params) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_workflow, workflow_params})
+    GenServer.call(storage, {:insert_workflow, workflow_schema, params})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -181,10 +181,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   # Case
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_case(adapter_meta, case_params) do
+  def insert_case(adapter_meta, case_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_case, case_params})
+    GenServer.call(storage, {:insert_case, case_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -195,28 +195,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def update_case(adapter_meta, case_id, state_and_options) do
+  def update_case(adapter_meta, case_id, params) do
     storage = storage_name(adapter_meta)
 
-    case state_and_options do
-      :active ->
-        GenServer.call(storage, {:activate_case, case_id})
-
-      :finished ->
-        GenServer.call(storage, {:finish_case, case_id})
-
-      :terminated ->
-        GenServer.call(storage, {:terminate_case, case_id})
-    end
+    GenServer.call(storage, {:update_case, case_id, params})
   end
 
   # Task
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_task(adapter_meta, task_params) do
+  def insert_task(adapter_meta, task_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_task, task_params})
+    GenServer.call(storage, {:insert_task, task_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -234,31 +225,19 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def update_task(adapter_meta, task_id, state_and_options) do
+  def update_task(adapter_meta, task_id, params) do
     storage = storage_name(adapter_meta)
 
-    case state_and_options do
-      :allocated ->
-        GenServer.call(storage, {:update_task, task_id, :allocate})
-
-      :executing ->
-        GenServer.call(storage, {:update_task, task_id, :execute})
-
-      {:completed, token_payload} ->
-        GenServer.call(storage, {:update_task, task_id, {:complete, token_payload}})
-
-      :abandoned ->
-        GenServer.call(storage, {:update_task, task_id, :abandon})
-    end
+    GenServer.call(storage, {:update_task, task_id, params})
   end
 
   # Token
 
   @impl WorkflowMetal.Storage.Adapter
-  def issue_token(adapter_meta, token_params) do
+  def issue_token(adapter_meta, token_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:issue_token, token_params})
+    GenServer.call(storage, {:issue_token, token_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -269,33 +248,40 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def unlock_tokens(adapter_meta, task_id) do
+  def unlock_tokens(adapter_meta, token_ids) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:unlock_tokens, task_id})
+    GenServer.call(storage, {:unlock_tokens, token_ids})
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def consume_tokens(adapter_meta, task_id) do
+  def consume_tokens(adapter_meta, token_ids, consumed_by_task_id) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:consume_tokens, task_id})
+    GenServer.call(storage, {:consume_tokens, token_ids, consumed_by_task_id})
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def fetch_tokens(adapter_meta, case_id, options) do
+  def fetch_unconsumed_tokens(adapter_meta, token_ids) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:fetch_tokens, case_id, options})
+    GenServer.call(storage, {:fetch_unconsumed_tokens, token_ids})
+  end
+
+  @impl WorkflowMetal.Storage.Adapter
+  def fetch_tokens(adapter_meta, token_ids) do
+    storage = storage_name(adapter_meta)
+
+    GenServer.call(storage, {:fetch_tokens, token_ids})
   end
 
   # Workitem
 
   @impl WorkflowMetal.Storage.Adapter
-  def create_workitem(adapter_meta, workitem_params) do
+  def insert_workitem(adapter_meta, workitem_schema) do
     storage = storage_name(adapter_meta)
 
-    GenServer.call(storage, {:create_workitem, workitem_params})
+    GenServer.call(storage, {:insert_workitem, workitem_schema})
   end
 
   @impl WorkflowMetal.Storage.Adapter
@@ -313,19 +299,10 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   end
 
   @impl WorkflowMetal.Storage.Adapter
-  def update_workitem(adapter_meta, workitem_id, state_and_options) do
+  def update_workitem(adapter_meta, workitem_id, params) do
     storage = storage_name(adapter_meta)
 
-    case state_and_options do
-      :started ->
-        GenServer.call(storage, {:start_workitem, workitem_id})
-
-      {:completed, workitem_output} ->
-        GenServer.call(storage, {:complete_workitem, workitem_id, workitem_output})
-
-      :abandoned ->
-        GenServer.call(storage, {:abandon_workitem, workitem_id})
-    end
+    GenServer.call(storage, {:update_workitem, workitem_id, params})
   end
 
   @doc """
@@ -362,11 +339,11 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:create_workflow, workflow_params},
+        {:insert_workflow, workflow_schema, params},
         _from,
         %State{} = state
       ) do
-    {:ok, workflow_schema} = persist_workflow(workflow_params, state)
+    {:ok, workflow_schema} = persist_workflow(workflow_schema, state, params)
 
     {:reply, {:ok, workflow_schema}, state}
   end
@@ -408,19 +385,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       ) do
     arc_direction = reversed_arc_direction(arc_direction)
 
-    reply =
-      with({:ok, transition_schema} <- find_transition(transition_id, state)) do
-        arcs =
-          :arc
-          |> get_table(state)
-          |> :ets.select([
-            {{:_, :"$1", {:_, :_, transition_schema.id, arc_direction}}, [], [:"$1"]}
-          ])
+    arcs =
+      :arc
+      |> get_table(state)
+      |> :ets.select([
+        {{:_, :"$1", {:_, :_, transition_id, arc_direction}}, [], [:"$1"]}
+      ])
 
-        {:ok, arcs}
-      end
-
-    {:reply, reply, state}
+    {:reply, {:ok, arcs}, state}
   end
 
   @impl GenServer
@@ -446,24 +418,22 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
-    reply =
-      with({:ok, transition_schema} <- find_transition(transition_id, state)) do
-        direction = reversed_arc_direction(arc_direction)
+    direction = reversed_arc_direction(arc_direction)
 
-        :arc
-        |> get_table(state)
-        |> :ets.select([
-          {
-            {:_, :_, {transition_schema.workflow_id, :"$1", transition_schema.id, direction}},
-            [],
-            [:"$1"]
-          }
-        ])
-        |> Enum.reduce({:ok, []}, fn place_id, {:ok, places} ->
-          {:ok, place_schema} = find_place(place_id, state)
-          {:ok, [place_schema | places]}
-        end)
-      end
+    reply =
+      :arc
+      |> get_table(state)
+      |> :ets.select([
+        {
+          {:_, :_, {:_, :"$1", transition_id, direction}},
+          [],
+          [:"$1"]
+        }
+      ])
+      |> Enum.reduce({:ok, []}, fn place_id, {:ok, places} ->
+        {:ok, place_schema} = find_place(place_id, state)
+        {:ok, [place_schema | places]}
+      end)
 
     {:reply, reply, state}
   end
@@ -474,10 +444,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
-    reply =
-      with({:ok, transition_schema} <- find_transition(transition_id, state)) do
-        {:ok, transition_schema}
-      end
+    reply = find_transition(transition_id, state)
 
     {:reply, reply, state}
   end
@@ -489,37 +456,31 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         %State{} = state
       ) do
     reply =
-      with({:ok, place_schema} <- find_place(place_id, state)) do
-        :arc
-        |> get_table(state)
-        |> :ets.select([
-          {
-            {:_, :_, {place_schema.workflow_id, place_schema.id, :"$1", arc_direction}},
-            [],
-            [:"$1"]
-          }
-        ])
-        |> Enum.reduce({:ok, []}, fn transition_id, {:ok, transitions} ->
-          {:ok, transition_schema} = find_transition(transition_id, state)
-          {:ok, [transition_schema | transitions]}
-        end)
-      end
+      :arc
+      |> get_table(state)
+      |> :ets.select([
+        {
+          {:_, :_, {:_, place_id, :"$1", arc_direction}},
+          [],
+          [:"$1"]
+        }
+      ])
+      |> Enum.reduce({:ok, []}, fn transition_id, {:ok, transitions} ->
+        {:ok, transition_schema} = find_transition(transition_id, state)
+        {:ok, [transition_schema | transitions]}
+      end)
 
     {:reply, reply, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:create_case, case_params},
+        {:insert_case, case_schema},
         _from,
         %State{} = state
       ) do
-    %{workflow_id: workflow_id} = case_params
-
-    reply =
-      with({:ok, workflow_schema} <- find_workflow(workflow_id, state)) do
-        persist_case(case_params, state, workflow_id: workflow_schema.id)
-      end
+    case_schema = %{case_schema | id: make_id()}
+    reply = persist_case(case_schema, state)
 
     {:reply, reply, state}
   end
@@ -537,13 +498,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:activate_case, case_id},
+        {:update_case, case_id, params},
         _from,
         %State{} = state
       ) do
     reply =
       with({:ok, case_schema} <- find_case(case_id, state)) do
-        do_activate_case(case_schema, state)
+        do_update_case(case_schema, params, state)
       end
 
     {:reply, reply, state}
@@ -551,58 +512,12 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:finish_case, case_id},
+        {:insert_task, task_schema},
         _from,
         %State{} = state
       ) do
-    reply =
-      with({:ok, case_schema} <- find_case(case_id, state)) do
-        do_finish_case(case_schema, state)
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:terminate_case, case_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, case_schema} <- find_case(case_id, state)) do
-        do_terminate_case(case_schema, state)
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:create_task, task_params},
-        _from,
-        %State{} = state
-      ) do
-    %{
-      workflow_id: workflow_id,
-      transition_id: transition_id,
-      case_id: case_id
-    } = task_params
-
-    reply =
-      with(
-        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
-        {:ok, transition_schema} <- find_transition(transition_id, state),
-        {:ok, case_schema} <- find_case(case_id, state)
-      ) do
-        persist_task(
-          task_params,
-          state,
-          workflow_id: workflow_schema.id,
-          transition_id: transition_schema.id,
-          case_id: case_schema.id
-        )
-      end
+    task_schema = %{task_schema | id: make_id()}
+    reply = persist_task(task_schema, state)
 
     {:reply, reply, state}
   end
@@ -631,176 +546,127 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
 
   @impl GenServer
   def handle_call(
-        {:update_task, task_id, action},
+        {:update_task, task_id, params},
         _from,
         %State{} = state
       ) do
-    with(
-      {:ok, task_schema} <- find_task(task_id, state),
-      {:ok, task_schema, state} <- do_update_task(action, task_schema, state)
-    ) do
-      {:reply, {:ok, task_schema}, state}
-    else
-      reply -> {:reply, reply, state}
+    case find_task(task_id, state) do
+      {:ok, task_schema} ->
+        task_schema = struct(task_schema, params)
+
+        {:ok, task_schema} = upsert_task(task_schema, state)
+
+        {:reply, {:ok, task_schema}, state}
+
+      error ->
+        {:reply, error, state}
     end
   end
 
   @impl GenServer
   def handle_call(
-        {:issue_token, token_params},
+        {:issue_token, token_schema},
         _from,
         %State{} = state
       ) do
-    %{
-      workflow_id: workflow_id,
-      case_id: case_id,
-      place_id: place_id,
-      produced_by_task_id: produced_by_task_id
-    } = token_params
+    token_schema = %{token_schema | id: make_id()}
+    {:ok, token_schema} = upsert_token(token_schema, state)
 
-    reply =
-      with(
-        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
-        {:ok, case_schema} <- find_case(case_id, state),
-        {:ok, place_schema} <- find_place(place_id, state),
-        {:ok, produced_by_task} <- find_produced_by_task(produced_by_task_id, state)
+    {:reply, {:ok, token_schema}, state}
+  end
+
+  @impl GenServer
+  def handle_call(
+        {:lock_tokens, token_ids, locked_by_task_id},
+        _from,
+        %State{} = state
       ) do
-        persist_token(
-          token_params,
-          state,
-          workflow_id: workflow_schema.id,
-          case_id: case_schema.id,
-          place_id: place_schema.id,
-          produced_by_task_id: produced_by_task && produced_by_task.id
-        )
-      else
-        {:error, :task_not_found} ->
-          {:error, :produced_by_task_not_found}
+    tokens = find_tokens(token_ids, state)
 
-        reply ->
-          reply
-      end
+    reply = do_lock_tokens(tokens, locked_by_task_id, state)
 
     {:reply, reply, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:lock_tokens, token_ids, task_id},
+        {:unlock_tokens, token_ids},
         _from,
         %State{} = state
       ) do
-    reply =
-      with(
-        {:ok, task_schema} <- find_task(task_id, state),
-        {:ok, tokens} <- prepare_lock_tokens(token_ids, task_schema, state)
-      ) do
-        do_lock_tokens(tokens, task_schema, state)
-      end
+    tokens =
+      token_ids
+      |> find_tokens(state)
+      |> Enum.map(fn token ->
+        token_schema = %{token | state: :free, locked_by_task_id: nil}
 
-    {:reply, reply, state}
+        {:ok, token_schema} = upsert_token(token_schema, state)
+
+        token_schema
+      end)
+
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:unlock_tokens, task_id},
+        {:consume_tokens, token_ids, consumed_by_task_id},
         _from,
         %State{} = state
       ) do
-    reply =
-      case find_task(task_id, state) do
-        {:ok, %Schema.Task{case_id: case_id}} ->
-          {:ok, tokens} =
-            find_tokens(
-              case_id,
-              [states: [:locked], locked_by_task_id: task_id],
-              state
-            )
+    tokens =
+      token_ids
+      |> find_tokens(state)
+      |> Enum.map(fn token ->
+        token_schema = %{token | state: :consumed, consumed_by_task_id: consumed_by_task_id}
 
-          do_unlock_tokens(tokens, state)
+        {:ok, token_schema} = upsert_token(token_schema, state)
 
-        {:error, :task_not_found} ->
-          :ok
-      end
+        token_schema
+      end)
 
-    {:reply, reply, state}
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:consume_tokens, {case_id, :termination}},
+        {:fetch_unconsumed_tokens, case_id},
         _from,
         %State{} = state
       ) do
-    reply =
-      with(
-        {:ok, %Schema.Case{id: case_id}} <- find_case(case_id, state),
-        {:ok, [token]} <- find_tokens(case_id, [states: [:free]], state)
-      ) do
-        do_consume_termination_token(token, state)
-      else
-        {:ok, _} -> {:error, :tokens_not_available}
-        reply -> reply
-      end
+    tokens =
+      :token
+      |> get_table(state)
+      |> :ets.select([
+        {
+          {:_, :"$1", {:_, case_id, :_, :_, :_, :"$2"}},
+          [ETSUtil.make_condition([:free, :locked], :"$2", :in)],
+          [:"$1"]
+        }
+      ])
 
-    {:reply, reply, state}
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:consume_tokens, task_id},
+        {:fetch_tokens, token_ids},
         _from,
         %State{} = state
       ) do
-    reply =
-      with(
-        {:ok, %Schema.Task{case_id: case_id} = task_schema} <- find_task(task_id, state),
-        {:ok, tokens} <-
-          find_tokens(case_id, [states: [:locked], locked_by_task_id: task_id], state)
-      ) do
-        do_consume_tokens(tokens, task_schema, state)
-      end
+    tokens = find_tokens(token_ids, state)
 
-    {:reply, reply, state}
+    {:reply, {:ok, tokens}, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:fetch_tokens, case_id, options},
+        {:insert_workitem, workitem_schema},
         _from,
         %State{} = state
       ) do
-    reply = find_tokens(case_id, options, state)
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:create_workitem, workitem_params},
-        _from,
-        %State{} = state
-      ) do
-    %{
-      workflow_id: workflow_id,
-      case_id: case_id,
-      task_id: task_id
-    } = workitem_params
-
-    reply =
-      with(
-        {:ok, workflow_schema} <- find_workflow(workflow_id, state),
-        {:ok, case_schema} <- find_case(case_id, state),
-        {:ok, task_schema} <- find_task(task_id, state)
-      ) do
-        persist_workitem(
-          workitem_params,
-          state,
-          workflow_id: workflow_schema.id,
-          case_id: case_schema.id,
-          task_id: task_schema.id
-        )
-      end
+    workitem_schema = %{workitem_schema | id: make_id()}
+    reply = persist_workitem(workitem_schema, state)
 
     {:reply, reply, state}
   end
@@ -822,72 +688,33 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         _from,
         %State{} = state
       ) do
-    reply =
-      with({:ok, task_schema} <- find_task(task_id, state)) do
+    workitems =
+      :workitem
+      |> get_table(state)
+      |> :ets.select([
         {
-          :ok,
-          :workitem
-          |> get_table(state)
-          |> :ets.select([
-            {
-              {:_, :"$1", {task_schema.workflow_id, task_schema.case_id, task_schema.id}},
-              [],
-              [:"$1"]
-            }
-          ])
+          {:_, :"$1", {:_, :_, task_id}},
+          [],
+          [:"$1"]
         }
-      end
+      ])
 
-    {:reply, reply, state}
+    {:reply, {:ok, workitems}, state}
   end
 
   @impl GenServer
   def handle_call(
-        {:start_workitem, workitem_id},
+        {:update_workitem, workitem_id, params},
         _from,
         %State{} = state
       ) do
     reply =
       with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
-        do_start_workitem(
-          workitem_schema,
-          state
-        )
-      end
+        workitem_schema = struct(workitem_schema, params)
 
-    {:reply, reply, state}
-  end
+        {:ok, workitem_schema} = upsert_workitem(workitem_schema, state)
 
-  @impl GenServer
-  def handle_call(
-        {:complete_workitem, workitem_id, workitem_output},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
-        do_complete_workitem(
-          workitem_schema,
-          workitem_output,
-          state
-        )
-      end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call(
-        {:abandon_workitem, workitem_id},
-        _from,
-        %State{} = state
-      ) do
-    reply =
-      with({:ok, workitem_schema} <- find_workitem(workitem_id, state)) do
-        do_abandon_workitem(
-          workitem_schema,
-          state
-        )
+        {:ok, workitem_schema}
       end
 
     {:reply, reply, state}
@@ -931,40 +758,14 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:reply, {:ok, workitems}, state}
   end
 
-  defp persist_workflow(workflow_params, %State{} = state) do
+  defp persist_workflow(workflow_schema, %State{} = state, params) do
     workflow_table = get_table(:workflow, state)
-
-    workflow_id = Map.get(workflow_params, :id) |> make_id()
-
-    workflow_schema =
-      struct(
-        Schema.Workflow,
-        workflow_params |> Map.from_struct() |> Map.put(:id, workflow_id)
-      )
 
     :ets.insert(workflow_table, {workflow_schema.id, workflow_schema})
 
-    place_schemas =
-      persist_places(
-        Map.get(workflow_params, :places),
-        state,
-        workflow_id: workflow_schema.id
-      )
-
-    transition_schemas =
-      persist_transitions(
-        Map.get(workflow_params, :transitions),
-        state,
-        workflow_id: workflow_schema.id
-      )
-
-    persist_arcs(
-      Map.get(workflow_params, :arcs),
-      state,
-      workflow_id: workflow_schema.id,
-      place_schemas: place_schemas,
-      transition_schemas: transition_schemas
-    )
+    persist_places(Map.fetch!(params, :places), state)
+    persist_transitions(Map.fetch!(params, :transitions), state)
+    persist_arcs(Map.fetch!(params, :arcs), state)
 
     {:ok, workflow_schema}
   end
@@ -979,20 +780,8 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
-  defp persist_place(place_params, %State{} = state, options) do
+  defp persist_place(%Schema.Place{} = place_schema, %State{} = state) do
     place_table = get_table(:place, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-
-    place_id = Map.get(place_params, :id) |> make_id()
-
-    place_schema =
-      struct(
-        Schema.Place,
-        place_params
-        |> Map.from_struct()
-        |> Map.put(:id, place_id)
-        |> Map.put(:workflow_id, workflow_id)
-      )
 
     :ets.insert(
       place_table,
@@ -1029,28 +818,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
-  defp persist_places(places_params, %State{} = state, options) do
-    Enum.into(places_params, %{}, fn place_params ->
-      {:ok, place_schema} = persist_place(place_params, state, options)
+  defp persist_places(places_schema, %State{} = state) do
+    Enum.into(places_schema, %{}, fn place_params ->
+      {:ok, place_schema} = persist_place(place_params, state)
 
       {place_params.id, place_schema}
     end)
   end
 
-  defp persist_transition(transition_params, %State{} = state, options) do
+  defp persist_transition(transition_schema, %State{} = state) do
     transition_table = get_table(:transition, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-
-    transition_id = Map.get(transition_params, :id) |> make_id()
-
-    transition_schema =
-      struct(
-        Schema.Transition,
-        transition_params
-        |> Map.from_struct()
-        |> Map.put(:id, transition_id)
-        |> Map.put(:workflow_id, workflow_id)
-      )
 
     :ets.insert(
       transition_table,
@@ -1074,37 +851,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
-  defp persist_transitions(transitions_params, %State{} = state, options) do
-    Enum.into(transitions_params, %{}, fn transition_params ->
-      {:ok, transition_schema} = persist_transition(transition_params, state, options)
+  defp persist_transitions(transitions_schema, %State{} = state) do
+    Enum.into(transitions_schema, %{}, fn transition_schema ->
+      {:ok, transition_schema} = persist_transition(transition_schema, state)
 
-      {transition_params.id, transition_schema}
+      {transition_schema.id, transition_schema}
     end)
   end
 
-  defp persist_arc(arc_params, %State{} = state, options) do
+  defp persist_arc(arc_schema, %State{} = state) do
     arc_table = get_table(:arc, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    place_schemas = Keyword.fetch!(options, :place_schemas)
-    transition_schemas = Keyword.fetch!(options, :transition_schemas)
-
-    %{
-      place_id: place_id,
-      transition_id: transition_id
-    } = arc_params
-
-    arc_id = Map.get(arc_params, :id) |> make_id()
-
-    arc_schema =
-      struct(
-        Schema.Arc,
-        arc_params
-        |> Map.from_struct()
-        |> Map.put(:id, arc_id)
-        |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:place_id, place_schemas[place_id].id)
-        |> Map.put(:transition_id, transition_schemas[transition_id].id)
-      )
 
     :ets.insert(
       arc_table,
@@ -1123,27 +879,16 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, arc_schema}
   end
 
-  defp persist_arcs(arcs_params, %State{} = state, options) do
-    Enum.map(arcs_params, fn arc_params ->
-      {:ok, arc_schema} = persist_arc(arc_params, state, options)
+  defp persist_arcs(arcs_schema, %State{} = state) do
+    Enum.map(arcs_schema, fn arc_params ->
+      {:ok, arc_schema} = persist_arc(arc_params, state)
 
       arc_schema
     end)
   end
 
-  defp persist_case(case_params, %State{} = state, options) do
+  defp persist_case(case_schema, %State{} = state) do
     case_table = get_table(:case, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    case_id = Map.get(case_params, :id) |> make_id()
-
-    case_schema =
-      struct(
-        Schema.Case,
-        case_params
-        |> Map.from_struct()
-        |> Map.put(:id, case_id)
-        |> Map.put(:workflow_id, workflow_id)
-      )
 
     :ets.insert(
       case_table,
@@ -1170,23 +915,13 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     end
   end
 
-  defp do_activate_case(
-         %Schema.Case{state: :active} = case_schema,
-         %State{} = _state
-       ) do
-    {:ok, case_schema}
-  end
-
-  defp do_activate_case(
-         %Schema.Case{state: :created} = case_schema,
+  defp do_update_case(
+         %Schema.Case{} = case_schema,
+         %{} = params,
          %State{} = state
        ) do
     case_table = get_table(:case, state)
-
-    case_schema = %{
-      case_schema
-      | state: :active
-    }
+    case_schema = struct(case_schema, params)
 
     true =
       :ets.update_element(
@@ -1201,198 +936,29 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, case_schema}
   end
 
-  defp do_activate_case(_case_schema, %State{} = _state) do
-    {:error, :case_not_available}
+  defp find_tokens(token_ids, %State{} = state) do
+    :token
+    |> get_table(state)
+    |> :ets.select([
+      {
+        {:"$1", :"$2", :_},
+        [ETSUtil.make_condition(token_ids, :"$1", :in)],
+        [:"$2"]
+      }
+    ])
   end
 
-  defp do_finish_case(
-         %Schema.Case{state: :finished} = case_schema,
-         %State{} = _state
-       ) do
-    {:ok, case_schema}
-  end
-
-  defp do_finish_case(
-         %Schema.Case{state: :active} = case_schema,
-         %State{} = state
-       ) do
-    case_table = get_table(:case, state)
-
-    case_schema = %{
-      case_schema
-      | state: :finished
-    }
-
-    true =
-      :ets.update_element(
-        case_table,
-        case_schema.id,
-        [
-          {2, case_schema},
-          {3, {case_schema.state, case_schema.workflow_id}}
-        ]
-      )
-
-    {:ok, case_schema}
-  end
-
-  defp do_finish_case(_case_schema, %State{} = _state) do
-    {:error, :case_not_available}
-  end
-
-  defp do_terminate_case(
-         %Schema.Case{state: :terminated} = case_schema,
-         %State{} = _state
-       ) do
-    {:ok, case_schema}
-  end
-
-  defp do_terminate_case(
-         %Schema.Case{state: case_state} = case_schema,
-         %State{} = state
-       )
-       when case_state in [:created, :active] do
-    case_table = get_table(:case, state)
-
-    case_schema = %{
-      case_schema
-      | state: :terminated
-    }
-
-    true =
-      :ets.update_element(
-        case_table,
-        case_schema.id,
-        [
-          {2, case_schema},
-          {3, {case_schema.state, case_schema.workflow_id}}
-        ]
-      )
-
-    {:ok, case_schema}
-  end
-
-  defp do_terminate_case(_case_schema, %State{} = _state) do
-    {:error, :case_not_available}
-  end
-
-  defp persist_token(token_params, %State{} = state, options) do
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    case_id = Keyword.fetch!(options, :case_id)
-    place_id = Keyword.fetch!(options, :place_id)
-    produced_by_task_id = Keyword.fetch!(options, :produced_by_task_id)
-
-    token_schema =
-      struct(
-        Schema.Token,
-        token_params
-        |> Map.from_struct()
-        |> Map.put(:id, make_id())
-        |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:case_id, case_id)
-        |> Map.put(:place_id, place_id)
-        |> Map.put(:produced_by_task_id, produced_by_task_id)
-      )
-
-    {:ok, _state} = upsert_token(token_schema, state)
-
-    {:ok, token_schema}
-  end
-
-  defp find_tokens(case_id, options, %State{} = state) do
-    states_condition =
-      ETSUtil.make_condition(
-        Keyword.get(options, :states, []),
-        :"$3",
-        :in
-      )
-
-    locked_by_task_condition =
-      case Keyword.get(options, :locked_by_task_id) do
-        nil -> nil
-        task_id -> {:"=:=", :"$2", task_id}
-      end
-
-    {
-      :ok,
-      :token
-      |> get_table(state)
-      |> :ets.select([
-        {
-          {:_, :"$1", {:_, case_id, :_, :_, :"$2", :"$3"}},
-          List.wrap(ETSUtil.make_and([states_condition, locked_by_task_condition])),
-          [:"$1"]
-        }
-      ])
-    }
-  end
-
-  defp prepare_lock_tokens(token_ids, %Schema.Task{} = task_schema, %State{} = state) do
-    free_tokens =
-      task_schema.case_id
-      |> find_tokens([states: [:free]], state)
-      |> elem(1)
-      |> Enum.into(%{}, &{&1.id, &1})
-
-    Enum.reduce_while(token_ids, {:ok, []}, fn token_id, {:ok, tokens} ->
-      case free_tokens[token_id] do
-        nil ->
-          {:halt, {:error, :tokens_not_available}}
-
-        token ->
-          {:cont, {:ok, [token | tokens]}}
-      end
-    end)
-  end
-
-  defp do_lock_tokens(tokens, %Schema.Task{} = task_schema, %State{} = state) do
-    task_id = task_schema.id
-
+  defp do_lock_tokens(tokens, locked_by_task_id, %State{} = state) do
     tokens =
       Enum.map(tokens, fn token ->
-        token_schema = %{token | state: :locked, locked_by_task_id: task_id}
+        token_schema = %{token | state: :locked, locked_by_task_id: locked_by_task_id}
 
-        {:ok, _state} = upsert_token(token_schema, state)
+        {:ok, token_schema} = upsert_token(token_schema, state)
 
         token_schema
       end)
 
     {:ok, tokens}
-  end
-
-  defp do_unlock_tokens(tokens, %State{} = state) do
-    tokens =
-      Enum.map(tokens, fn token ->
-        token_schema = %{token | state: :free, locked_by_task_id: nil}
-
-        {:ok, _state} = upsert_token(token_schema, state)
-
-        token_schema
-      end)
-
-    {:ok, tokens}
-  end
-
-  defp do_consume_tokens(tokens, %Schema.Task{} = task_schema, %State{} = state) do
-    task_id = task_schema.id
-
-    tokens =
-      Enum.map(tokens, fn token ->
-        token_schema = %{token | state: :consumed, consumed_by_task_id: task_id}
-
-        {:ok, _state} = upsert_token(token_schema, state)
-
-        token_schema
-      end)
-
-    {:ok, tokens}
-  end
-
-  defp do_consume_termination_token(token, %State{} = state) do
-    token_schema = %{token | state: :consumed}
-    {:ok, _state} = upsert_token(token_schema, state)
-
-    {:ok, [token_schema]}
   end
 
   defp upsert_token(%Schema.Token{} = token_schema, %State{} = state) do
@@ -1413,25 +979,11 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       )
 
-    {:ok, state}
+    {:ok, token_schema}
   end
 
-  defp persist_task(task_params, %State{} = state, options) do
+  defp persist_task(%Schema.Task{} = task_schema, %State{} = state) do
     task_table = get_table(:task, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    transition_id = Keyword.fetch!(options, :transition_id)
-    case_id = Keyword.fetch!(options, :case_id)
-
-    task_schema =
-      struct(
-        Schema.Task,
-        task_params
-        |> Map.from_struct()
-        |> Map.put(:id, make_id())
-        |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:transition_id, transition_id)
-        |> Map.put(:case_id, case_id)
-      )
 
     :ets.insert(
       task_table,
@@ -1450,81 +1002,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     {:ok, task_schema}
   end
 
-  defp find_produced_by_task(:genesis, %State{}), do: {:ok, nil}
-  defp find_produced_by_task(task_id, %State{} = state), do: find_task(task_id, state)
-
-  defp do_update_task(
-         :allocate,
-         %Schema.Task{state: :allocated} = task_schema,
-         %State{} = state
-       ),
-       do: {:ok, task_schema, state}
-
-  defp do_update_task(
-         :execute,
-         %Schema.Task{state: :executing} = task_schema,
-         %State{} = state
-       ),
-       do: {:ok, task_schema, state}
-
-  defp do_update_task(
-         {:complete, _token_payload},
-         %Schema.Task{state: :completed} = task_schema,
-         %State{} = state
-       ),
-       do: {:ok, task_schema, state}
-
-  defp do_update_task(
-         :abandon,
-         %Schema.Task{state: :abandoned} = task_schema,
-         %State{} = state
-       ),
-       do: {:ok, task_schema, state}
-
-  defp do_update_task(:allocate, %Schema.Task{state: :started} = task_schema, %State{} = state) do
-    task_schema = %{task_schema | state: :allocated}
-
-    {:ok, state} = upsert_task(task_schema, state)
-
-    {:ok, task_schema, state}
-  end
-
-  defp do_update_task(:execute, %Schema.Task{state: :allocated} = task_schema, %State{} = state) do
-    task_schema = %{task_schema | state: :executing}
-
-    {:ok, state} = upsert_task(task_schema, state)
-
-    {:ok, task_schema, state}
-  end
-
-  defp do_update_task(
-         {:complete, token_payload},
-         %Schema.Task{state: :executing} = task_schema,
-         %State{} = state
-       ) do
-    task_schema = %{task_schema | state: :completed, token_payload: token_payload}
-
-    {:ok, state} = upsert_task(task_schema, state)
-
-    {:ok, task_schema, state}
-  end
-
-  defp do_update_task(
-         :abandon,
-         %Schema.Task{state: task_state} = task_schema,
-         %State{} = state
-       )
-       when task_state in [:started, :allocated, :executing] do
-    task_schema = %{task_schema | state: :abandoned}
-
-    {:ok, state} = upsert_task(task_schema, state)
-
-    {:ok, task_schema, state}
-  end
-
-  defp do_update_task(_action, %Schema.Task{}, %State{} = _state),
-    do: {:error, :task_not_available}
-
   defp find_task(task_id, %State{} = state) do
     :task
     |> get_table(state)
@@ -1538,7 +1015,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
   defp do_fetch_tasks(case_id, options, %State{} = state) do
     states_condition =
       ETSUtil.make_condition(
-        Keyword.get(options, :states, []),
+        Keyword.get(options, :state, []),
         :"$2",
         :in
       )
@@ -1556,7 +1033,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
       |> :ets.select([
         {
           {:_, :"$1", {:"$2", :_, :"$3", case_id}},
-          List.wrap(ETSUtil.make_and([states_condition, transition_condition])),
+          [ETSUtil.make_and([states_condition, transition_condition])],
           [:"$1"]
         }
       ])
@@ -1579,25 +1056,11 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       )
 
-    {:ok, state}
+    {:ok, task_schema}
   end
 
-  defp persist_workitem(workitem_params, %State{} = state, options) do
+  defp persist_workitem(workitem_schema, %State{} = state) do
     workitem_table = get_table(:workitem, state)
-    workflow_id = Keyword.fetch!(options, :workflow_id)
-    case_id = Keyword.fetch!(options, :case_id)
-    task_id = Keyword.fetch!(options, :task_id)
-
-    workitem_schema =
-      struct(
-        Schema.Workitem,
-        workitem_params
-        |> Map.from_struct()
-        |> Map.put(:id, make_id())
-        |> Map.put(:workflow_id, workflow_id)
-        |> Map.put(:case_id, case_id)
-        |> Map.put(:task_id, task_id)
-      )
 
     :ets.insert(
       workitem_table,
@@ -1611,78 +1074,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       }
     )
-
-    {:ok, workitem_schema}
-  end
-
-  defp do_start_workitem(
-         %Schema.Workitem{state: :started} = workitem_schema,
-         %State{} = _state
-       ) do
-    {:ok, workitem_schema}
-  end
-
-  defp do_start_workitem(
-         %Schema.Workitem{state: :created} = workitem_schema,
-         %State{} = state
-       ) do
-    workitem_schema = %{workitem_schema | state: :started}
-
-    {:ok, _state} = upsert_workitem(workitem_schema, state)
-
-    {:ok, workitem_schema}
-  end
-
-  defp do_start_workitem(_workitem_schema, %State{} = _state) do
-    {:error, :workitem_not_available}
-  end
-
-  defp do_complete_workitem(
-         %Schema.Workitem{state: :completed} = workitem_schema,
-         _workitem_output,
-         %State{} = _state
-       ) do
-    {:ok, workitem_schema}
-  end
-
-  defp do_complete_workitem(
-         %Schema.Workitem{state: workitem_state} = workitem_schema,
-         workitem_output,
-         %State{} = state
-       )
-       when workitem_state in [:created, :started] do
-    workitem_schema = %{workitem_schema | state: :completed, output: workitem_output}
-
-    {:ok, _state} = upsert_workitem(workitem_schema, state)
-
-    {:ok, workitem_schema}
-  end
-
-  defp do_complete_workitem(_workitem_schema, _workitem_output, %State{} = _state) do
-    {:error, :workitem_not_available}
-  end
-
-  defp do_abandon_workitem(
-         %Schema.Workitem{state: :abandoned} = workitem_schema,
-         %State{} = _state
-       ) do
-    {:ok, workitem_schema}
-  end
-
-  defp do_abandon_workitem(
-         %Schema.Workitem{state: :completed},
-         %State{} = _state
-       ) do
-    {:error, :workitem_not_available}
-  end
-
-  defp do_abandon_workitem(
-         %Schema.Workitem{} = workitem_schema,
-         %State{} = state
-       ) do
-    workitem_schema = %{workitem_schema | state: :abandoned}
-
-    {:ok, _state} = upsert_workitem(workitem_schema, state)
 
     {:ok, workitem_schema}
   end
@@ -1712,7 +1103,7 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
         }
       )
 
-    {:ok, state}
+    {:ok, workitem_schema}
   end
 
   defp get_table(table_type, %State{} = state) do
@@ -1724,8 +1115,6 @@ defmodule WorkflowMetal.Storage.Adapters.InMemory do
     do: Map.get(adapter_meta, :name)
 
   defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
-  defp make_id(nil), do: :erlang.unique_integer([:positive, :monotonic])
-  defp make_id(id), do: :"#{inspect(id)}-#{:erlang.unique_integer([:positive, :monotonic])}"
 
   defp reversed_arc_direction(:in), do: :out
   defp reversed_arc_direction(:out), do: :in

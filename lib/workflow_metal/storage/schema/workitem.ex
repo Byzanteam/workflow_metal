@@ -14,27 +14,12 @@ defmodule WorkflowMetal.Storage.Schema.Workitem do
 
   typedstruct enforce: true do
     field :id, id()
-    field :state, state(), default: :created
+    field :state, state()
     field :output, output(), enforce: false
 
     field :workflow_id, workflow_id()
     field :transition_id, transition_id()
     field :case_id, case_id()
     field :task_id, task_id()
-  end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct enforce: true do
-      field :workflow_id, Workitem.workflow_id()
-      field :transition_id, Workitem.transition_id()
-      field :case_id, Workitem.case_id()
-      field :task_id, Workitem.task_id()
-    end
   end
 end

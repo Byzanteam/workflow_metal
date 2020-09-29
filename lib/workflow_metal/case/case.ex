@@ -42,7 +42,6 @@ defmodule WorkflowMetal.Case.Case do
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
   typedstruct do
     field :application, application
@@ -113,10 +112,10 @@ defmodule WorkflowMetal.Case.Case do
   @doc """
   Issue tokens.
   """
-  @spec issue_tokens(:gen_statem.server_ref(), nonempty_list(token_params)) ::
+  @spec issue_tokens(:gen_statem.server_ref(), nonempty_list(token_schema)) ::
           {:ok, nonempty_list(token_schema)}
-  def issue_tokens(case_server, [_ | _] = token_params_list) do
-    GenStateMachine.call(case_server, {:issue_tokens, token_params_list})
+  def issue_tokens(case_server, [_ | _] = token_schema_list) do
+    GenStateMachine.call(case_server, {:issue_tokens, token_schema_list})
   end
 
   @doc """
@@ -155,7 +154,17 @@ defmodule WorkflowMetal.Case.Case do
   """
   @spec free_tokens_from_task(:gen_statem.server_ref(), task_id) :: :ok
   def free_tokens_from_task(case_server, task_id) do
-    GenStateMachine.cast(case_server, {:free_tokens_from_task, task_id})
+    GenStateMachine.call(case_server, {:free_tokens_from_task, task_id})
+  end
+
+  @doc """
+  Free tokens that locked by the task.
+
+  eg: free `:locked` tokens when a task has been abandoned.
+  """
+  @spec fetch_locked_tokens_from_task(:gen_statem.server_ref(), task_id) :: {:ok, [token_schema]}
+  def fetch_locked_tokens_from_task(case_server, task_id) do
+    GenStateMachine.call(case_server, {:fetch_locked_tokens_from_task, task_id})
   end
 
   # Server (callbacks)
@@ -195,7 +204,7 @@ defmodule WorkflowMetal.Case.Case do
         }
 
       :active ->
-        {:ok, data} = fetch_tokens(data)
+        {:ok, data} = fetch_unconsumed_tokens(data)
 
         {
           :keep_state,
@@ -234,7 +243,7 @@ defmodule WorkflowMetal.Case.Case do
     case state do
       :created ->
         {:ok, data} = do_activate_case(data)
-        {:ok, data} = update_case(:active, data)
+        {:ok, data} = update_case(%{state: :active}, data)
 
         {
           :next_state,
@@ -291,7 +300,7 @@ defmodule WorkflowMetal.Case.Case do
       {:finished, data} <- case_finishment(data),
       {:ok, data} <- do_finish_case(data)
     ) do
-      {:ok, data} = update_case(:finished, data)
+      {:ok, data} = update_case(%{state: :finished}, data)
 
       {
         :next_state,
@@ -341,40 +350,32 @@ defmodule WorkflowMetal.Case.Case do
         :active,
         %__MODULE__{} = data
       ) do
-    case do_consume_tokens(task_id, data) do
-      {:ok, tokens, data} ->
-        Logger.debug(fn ->
-          "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{
-            task_id
-          })"
-        end)
+    {:ok, tokens, data} = do_consume_tokens(task_id, data)
 
-        {
-          :keep_state,
-          data,
-          [
-            {:reply, from, {:ok, tokens}},
-            {:next_event, :internal, {:revoke_tokens, tokens, task_id}}
-          ]
-        }
+    Logger.debug(fn ->
+      "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{
+        task_id
+      })"
+    end)
 
-      error ->
-        {
-          :keep_state,
-          data,
-          {:reply, from, error}
-        }
-    end
+    {
+      :keep_state,
+      data,
+      [
+        {:reply, from, {:ok, tokens}},
+        {:next_event, :internal, {:revoke_tokens, tokens, task_id}}
+      ]
+    }
   end
 
   @impl GenStateMachine
   def handle_event(
         {:call, from},
-        {:issue_tokens, token_params_list},
+        {:issue_tokens, token_schema_list},
         :active,
         %__MODULE__{} = data
       ) do
-    {:ok, tokens, data} = do_issue_tokens(token_params_list, data)
+    {:ok, tokens, data} = do_issue_tokens(token_schema_list, data)
 
     Logger.debug(fn ->
       "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been issued"
@@ -398,6 +399,18 @@ defmodule WorkflowMetal.Case.Case do
   end
 
   @impl GenStateMachine
+  def handle_event(
+        {:call, from},
+        {:fetch_locked_tokens_from_task, task_id},
+        :active,
+        %__MODULE__{} = data
+      ) do
+    {:ok, tokens} = do_fetch_locked_tokens_from_task(task_id, data)
+
+    {:keep_state_and_data, {:reply, from, {:ok, tokens}}}
+  end
+
+  @impl GenStateMachine
   def handle_event({:call, from}, _event_content, _state, %__MODULE__{}) do
     {:keep_state_and_data, {:reply, from, {:error, :case_not_available}}}
   end
@@ -409,7 +422,9 @@ defmodule WorkflowMetal.Case.Case do
         :active,
         %__MODULE__{} = data
       ) do
-    {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, task_id)
+    token_ids = find_locked_token_ids(task_id, data)
+
+    {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, token_ids)
 
     Logger.debug(fn ->
       "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been freed by the task(#{
@@ -427,7 +442,7 @@ defmodule WorkflowMetal.Case.Case do
   @impl GenStateMachine
   def handle_event(:cast, :terminate, state, %__MODULE__{} = data)
       when state in [:created, :active] do
-    {:ok, data} = update_case(:terminated, data)
+    {:ok, data} = update_case(%{state: :terminated}, data)
 
     {:next_state, :terminated, data}
   end
@@ -437,7 +452,7 @@ defmodule WorkflowMetal.Case.Case do
     {:state, %{current_state: state, data: data}}
   end
 
-  defp fetch_tokens(%__MODULE__{} = data) do
+  defp fetch_unconsumed_tokens(%__MODULE__{} = data) do
     %{
       application: application,
       case_schema: %Schema.Case{
@@ -445,10 +460,7 @@ defmodule WorkflowMetal.Case.Case do
       }
     } = data
 
-    with(
-      {:ok, tokens} <-
-        WorkflowMetal.Storage.fetch_tokens(application, case_id, states: [:free, :locked])
-    ) do
+    with({:ok, tokens} <- WorkflowMetal.Storage.fetch_unconsumed_tokens(application, case_id)) do
       free_token_ids =
         Enum.reduce(tokens, MapSet.new(), fn
           %Schema.Token{state: :free} = token, acc ->
@@ -485,7 +497,7 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, %{data | start_place: start_place, end_place: end_place}}
   end
 
-  defp update_case(state_and_options, %__MODULE__{} = data) do
+  defp update_case(params, %__MODULE__{} = data) do
     %{
       application: application,
       case_schema: case_schema
@@ -495,7 +507,7 @@ defmodule WorkflowMetal.Case.Case do
       WorkflowMetal.Storage.update_case(
         application,
         case_schema.id,
-        state_and_options
+        params
       )
 
     {:ok, %{data | case_schema: case_schema}}
@@ -513,15 +525,19 @@ defmodule WorkflowMetal.Case.Case do
       free_token_ids: free_token_ids
     } = data
 
-    genesis_token_params = %Schema.Token.Params{
-      workflow_id: workflow_id,
-      place_id: start_place_id,
-      case_id: case_id,
-      produced_by_task_id: :genesis,
-      payload: nil
-    }
+    genesis_token_schema =
+      struct(
+        Schema.Token,
+        %{
+          state: :free,
+          workflow_id: workflow_id,
+          place_id: start_place_id,
+          case_id: case_id,
+          produced_by_task_id: :genesis
+        }
+      )
 
-    {:ok, token_schema} = do_issue_token(genesis_token_params, data)
+    {:ok, token_schema} = do_issue_token(genesis_token_schema, data)
 
     {
       :ok,
@@ -529,21 +545,21 @@ defmodule WorkflowMetal.Case.Case do
     }
   end
 
-  defp do_issue_token(token_params, %__MODULE__{} = data) do
+  defp do_issue_token(token_schema, %__MODULE__{} = data) do
     %{
       application: application
     } = data
 
-    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_params)
+    {:ok, token_schema} = WorkflowMetal.Storage.issue_token(application, token_schema)
 
     {:ok, _data} = upsert_ets_token(token_schema, data)
 
     {:ok, token_schema}
   end
 
-  defp do_issue_tokens(token_params_list, %__MODULE__{} = data) do
+  defp do_issue_tokens(token_schema_list, %__MODULE__{} = data) do
     new_tokens =
-      Enum.map(token_params_list, fn token_schema ->
+      Enum.map(token_schema_list, fn token_schema ->
         {:ok, token_schema} = do_issue_token(token_schema, data)
 
         token_schema
@@ -602,7 +618,7 @@ defmodule WorkflowMetal.Case.Case do
 
     transitions
     |> Stream.map(fn transition ->
-      fetch_or_create_task(transition, data)
+      fetch_or_insert_task(transition, data)
     end)
     |> Stream.each(fn {:ok, task} ->
       :ok = WorkflowMetal.Task.Supervisor.offer_tokens(application, task.id, [token_schema])
@@ -614,7 +630,7 @@ defmodule WorkflowMetal.Case.Case do
     |> Stream.run()
   end
 
-  defp fetch_or_create_task(transition, %__MODULE__{} = data) do
+  defp fetch_or_insert_task(transition, %__MODULE__{} = data) do
     %{id: transition_id} = transition
 
     case fetch_available_tasks(transition_id, data) do
@@ -630,13 +646,14 @@ defmodule WorkflowMetal.Case.Case do
           }
         } = data
 
-        task_params = %Schema.Task.Params{
-          workflow_id: workflow_id,
+        task_schema = %Schema.Task{
+          state: :started,
           case_id: case_id,
-          transition_id: transition_id
+          transition_id: transition_id,
+          workflow_id: workflow_id
         }
 
-        {:ok, _} = WorkflowMetal.Storage.create_task(application, task_params)
+        {:ok, _} = WorkflowMetal.Storage.insert_task(application, task_schema)
     end
   end
 
@@ -676,14 +693,16 @@ defmodule WorkflowMetal.Case.Case do
       application: application
     } = data
 
-    with({:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, task_id)) do
-      {:ok, data} =
-        Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
-          upsert_ets_token(token, data)
-        end)
+    token_ids = find_locked_token_ids(task_id, data)
 
-      {:ok, tokens, data}
-    end
+    {:ok, tokens} = WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
+
+    {:ok, data} =
+      Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
+        upsert_ets_token(token, data)
+      end)
+
+    {:ok, tokens, data}
   end
 
   defp case_finishment(%__MODULE__{} = data) do
@@ -710,15 +729,16 @@ defmodule WorkflowMetal.Case.Case do
   defp do_finish_case(%__MODULE__{} = data) do
     %{
       application: application,
-      case_schema: %Schema.Case{
-        id: case_id
-      }
+      free_token_ids: free_token_ids
     } = data
+
+    [free_token_id] = MapSet.to_list(free_token_ids)
 
     {:ok, [termination_token]} =
       WorkflowMetal.Storage.consume_tokens(
         application,
-        {case_id, :termination}
+        [free_token_id],
+        :termination
       )
 
     {:ok, data} = upsert_ets_token(termination_token, data)
@@ -754,8 +774,9 @@ defmodule WorkflowMetal.Case.Case do
       {:ok, [%Schema.Task{id: task_id}]} when task_id !== except_task_id ->
         Logger.info(fn ->
           """
-          #{describe(data)}
-          withdraw token(#{inspect(token_schema.id)}) from task #{inspect(task_id)}.
+          #{describe(data)} withdraw token(#{inspect(token_schema.id)}) from task #{
+            inspect(task_id)
+          }.
           """
         end)
 
@@ -786,9 +807,24 @@ defmodule WorkflowMetal.Case.Case do
     WorkflowMetal.Storage.fetch_tasks(
       application,
       case_id,
-      states: [:started, :allocated, :executing],
+      state: [:started, :allocated, :executing],
       transition_id: transition_id
     )
+  end
+
+  defp find_locked_token_ids(task_id, %__MODULE__{} = data) do
+    %{
+      token_table: token_table
+    } = data
+
+    token_table
+    |> :ets.select([
+      {
+        {:"$1", :_, :locked, :_, task_id, :_},
+        [],
+        [:"$1"]
+      }
+    ])
   end
 
   defp do_offer_tokens_to_task(task_id, %__MODULE__{} = data) do
@@ -843,6 +879,19 @@ defmodule WorkflowMetal.Case.Case do
     end
   end
 
+  defp do_fetch_locked_tokens_from_task(task_id, %__MODULE__{} = data) do
+    %{
+      application: application
+    } = data
+
+    token_ids = find_locked_token_ids(task_id, data)
+
+    WorkflowMetal.Storage.fetch_tokens(
+      application,
+      token_ids
+    )
+  end
+
   defp force_abandon_tasks(%__MODULE__{} = data) do
     %{
       application: application,
@@ -855,7 +904,7 @@ defmodule WorkflowMetal.Case.Case do
       WorkflowMetal.Storage.fetch_tasks(
         application,
         case_id,
-        states: [:started, :allocated, :executing]
+        state: [:started, :allocated, :executing]
       )
 
     tasks

@@ -24,13 +24,18 @@ defmodule WorkflowMetal.Controller.Split.None do
         :out
       )
 
-    new_token = %Schema.Token.Params{
-      workflow_id: workflow_id,
-      place_id: arc.place_id,
-      case_id: case_id,
-      produced_by_task_id: task_id,
-      payload: token_payload
-    }
+    new_token =
+      struct(
+        Schema.Token,
+        %{
+          state: :free,
+          payload: token_payload,
+          workflow_id: workflow_id,
+          place_id: arc.place_id,
+          case_id: case_id,
+          produced_by_task_id: task_id
+        }
+      )
 
     {:ok, [new_token]}
   end

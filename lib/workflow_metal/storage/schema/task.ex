@@ -14,27 +14,13 @@ defmodule WorkflowMetal.Storage.Schema.Task do
   @type token_payload :: Schema.Token.payload()
 
   typedstruct enforce: true do
-    field :id, id()
+    field :id, id(), enforce: false
 
-    field :state, state(), default: :started
+    field :state, state()
     field :token_payload, token_payload(), enforce: false
 
     field :workflow_id, workflow_id()
     field :transition_id, transition_id()
     field :case_id, case_id()
-  end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct enforce: true do
-      field :workflow_id, Task.workflow_id()
-      field :transition_id, Task.transition_id()
-      field :case_id, Task.case_id()
-    end
   end
 end

@@ -12,7 +12,7 @@ by adding `workflow_metal` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:workflow_metal, "~> 0.1.0"}
+    {:workflow_metal, "~> 0.2.0"}
   ]
 end
 ```

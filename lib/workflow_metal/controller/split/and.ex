@@ -27,13 +27,17 @@ defmodule WorkflowMetal.Controller.Split.And do
     {
       :ok,
       Enum.map(arcs, fn arc ->
-        %Schema.Token.Params{
-          workflow_id: workflow_id,
-          place_id: arc.place_id,
-          case_id: case_id,
-          produced_by_task_id: task_id,
-          payload: token_payload
-        }
+        struct(
+          Schema.Token,
+          %{
+            state: :free,
+            payload: token_payload,
+            workflow_id: workflow_id,
+            place_id: arc.place_id,
+            case_id: case_id,
+            produced_by_task_id: task_id
+          }
+        )
       end)
     }
   end

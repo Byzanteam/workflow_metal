@@ -46,22 +46,4 @@ defmodule WorkflowMetal.Storage.Schema.Arc do
 
     field :workflow_id, workflow_id()
   end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct do
-      field :id, Arc.id()
-
-      field :place_id, Arc.place_id(), enforce: true
-      field :direction, Arc.direction(), enforce: true
-      field :transition_id, Arc.transition_id(), enforce: true
-
-      field :metadata, Arc.metadata()
-    end
-  end
 end

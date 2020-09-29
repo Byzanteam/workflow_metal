@@ -12,7 +12,7 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
   @type split_type :: atom()
   @type executor :: module()
   @type executor_params :: term()
-  @type metadata :: map()
+  @type metadata :: map() | nil
 
   @type workflow_id :: Schema.Workflow.id()
 
@@ -27,24 +27,5 @@ defmodule WorkflowMetal.Storage.Schema.Transition do
     field :metadata, map(), enforce: false
 
     field :workflow_id, workflow_id()
-  end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct do
-      field :id, Transition.id(), enforce: true
-
-      field :join_type, Transition.join_type(), default: :none
-      field :split_type, Transition.split_type(), default: :none
-      field :executor, Transition.executor(), enforce: true
-      field :executor_params, Transition.executor_params()
-
-      field :metadata, Transition.metadata()
-    end
   end
 end

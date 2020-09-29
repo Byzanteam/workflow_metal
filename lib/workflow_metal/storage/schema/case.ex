@@ -15,22 +15,9 @@ defmodule WorkflowMetal.Storage.Schema.Case do
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
   typedstruct enforce: true do
-    field :id, id()
-    field :state, state(), enforce: false, default: :created
+    field :id, id(), enforce: false
+    field :state, state()
 
     field :workflow_id, workflow_id()
-  end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct do
-      field :id, Case.id()
-      field :workflow_id, Case.workflow_id(), enforce: true
-    end
   end
 end

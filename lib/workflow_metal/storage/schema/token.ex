@@ -19,34 +19,15 @@ defmodule WorkflowMetal.Storage.Schema.Token do
 
   typedstruct enforce: true do
     field :id, id()
-    field :state, state(), default: :free
+    field :state, state()
     field :payload, payload(), enforce: false
 
     field :workflow_id, workflow_id()
     field :case_id, case_id()
     field :place_id, place_id()
 
-    field :produced_by_task_id, task_id()
+    field :produced_by_task_id, task_id() | :genesis
     field :locked_by_task_id, task_id(), enforce: false
     field :consumed_by_task_id, task_id(), enforce: false
-  end
-
-  alias __MODULE__
-
-  defmodule Params do
-    @moduledoc false
-
-    use TypedStruct
-
-    typedstruct enforce: true do
-      field :payload, Token.payload()
-
-      field :workflow_id, Token.workflow_id()
-      field :case_id, Token.case_id()
-      field :place_id, Token.place_id()
-
-      # `:genesis` stands for genesis token
-      field :produced_by_task_id, Token.task_id() | :genesis
-    end
   end
 end

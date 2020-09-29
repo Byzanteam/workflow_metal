@@ -235,7 +235,7 @@ defmodule WorkflowMetal.Task.Task do
         Logger.debug(fn -> "#{describe(data)} allocate a workitem." end)
 
         {:ok, data} = allocate_workitem(data)
-        {:ok, data} = update_task(:allocated, data)
+        {:ok, data} = update_task(%{state: :allocated}, data)
 
         {:keep_state, data}
 
@@ -355,7 +355,7 @@ defmodule WorkflowMetal.Task.Task do
       {:ok, data} ->
         {:ok, data} = unlock_tokens(data)
         {:ok, data} = do_abandon_workitems(data)
-        {:ok, data} = update_task(:abandoned, data)
+        {:ok, data} = update_task(%{state: :abandoned}, data)
 
         {
           :next_state,
@@ -374,7 +374,7 @@ defmodule WorkflowMetal.Task.Task do
     case tokens_abandonment(data) do
       {:ok, data} ->
         {:ok, data} = do_abandon_workitems(data)
-        {:ok, data} = update_task(:abandoned, data)
+        {:ok, data} = update_task(%{state: :abandoned}, data)
 
         {
           :next_state,
@@ -391,7 +391,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event(:cast, :force_abandon, state, %__MODULE__{} = data)
       when state in [:started, :allocated, :executing] do
     {:ok, data} = do_abandon_workitems(data)
-    {:ok, data} = update_task(:abandoned, data)
+    {:ok, data} = update_task(%{state: :abandoned}, data)
 
     {
       :next_state,
@@ -447,7 +447,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event({:call, from}, :preexecute, :allocated, %__MODULE__{} = data) do
     case do_lock_tokens(data) do
       {:ok, locked_token_schemas, data} ->
-        {:ok, data} = update_task(:executing, data)
+        {:ok, data} = update_task(%{state: :executing}, data)
 
         {
           :next_state,
@@ -572,11 +572,10 @@ defmodule WorkflowMetal.Task.Task do
     } = data
 
     {:ok, locked_token_schemas} =
-      WorkflowMetal.Storage.fetch_tokens(
+      WorkflowMetal.Case.Supervisor.fetch_locked_tokens(
         application,
         case_id,
-        states: [:locked],
-        locked_by_task_id: task_id
+        task_id
       )
 
     {:ok, data} =
@@ -610,7 +609,7 @@ defmodule WorkflowMetal.Task.Task do
     {:ok, data}
   end
 
-  defp update_task(state_and_options, %__MODULE__{} = data) do
+  defp update_task(params, %__MODULE__{} = data) do
     %{
       application: application,
       task_schema: task_schema
@@ -620,7 +619,7 @@ defmodule WorkflowMetal.Task.Task do
       WorkflowMetal.Storage.update_task(
         application,
         task_schema.id,
-        state_and_options
+        params
       )
 
     {:ok, %{data | task_schema: task_schema}}
@@ -637,14 +636,19 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    workitem_params = %Schema.Workitem.Params{
-      workflow_id: workflow_id,
-      transition_id: transition_id,
-      case_id: case_id,
-      task_id: task_id
-    }
+    workitem_schema =
+      struct(
+        Schema.Workitem,
+        %{
+          state: :created,
+          workflow_id: workflow_id,
+          transition_id: transition_id,
+          case_id: case_id,
+          task_id: task_id
+        }
+      )
 
-    {:ok, workitem_schema} = WorkflowMetal.Storage.create_workitem(application, workitem_params)
+    {:ok, workitem_schema} = WorkflowMetal.Storage.insert_workitem(application, workitem_schema)
 
     {:ok, data} = upsert_ets_workitem(workitem_schema, data)
 
@@ -741,16 +745,16 @@ defmodule WorkflowMetal.Task.Task do
 
     {:ok, token_payload} = build_token_payload(data)
 
-    {:ok, token_params_list} = SplitController.issue_tokens(data, token_payload)
+    {:ok, token_schema_list} = SplitController.issue_tokens(data, token_payload)
 
     {:ok, _tokens} =
       WorkflowMetal.Case.Supervisor.issue_tokens(
         application,
         case_id,
-        token_params_list
+        token_schema_list
       )
 
-    update_task({:completed, token_payload}, data)
+    update_task(%{state: :completed, token_payload: token_payload}, data)
   end
 
   defp build_token_payload(%__MODULE__{} = data) do

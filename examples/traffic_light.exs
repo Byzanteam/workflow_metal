@@ -160,47 +160,147 @@ defmodule TrafficLight do
       "."
     ])
   end
+
+  def make_id, do: :erlang.unique_integer([:positive, :monotonic])
 end
 
 {:ok, _pid} = TrafficLight.Workflow.start_link()
 
 {:ok, traffic_light_workflow} =
-  WorkflowMetal.Storage.create_workflow(
+  WorkflowMetal.Storage.insert_workflow(
     TrafficLight.Workflow,
-    %Schema.Workflow.Params{
+    %Schema.Workflow{
+      id: :traffic_light,
+      state: :active
+    },
+    %{
       places: [
-        %Schema.Place.Params{id: :start, type: :start},
-        %Schema.Place.Params{id: :yellow, type: :normal},
-        %Schema.Place.Params{id: :red, type: :normal},
-        %Schema.Place.Params{id: :green, type: :normal},
-        %Schema.Place.Params{id: :end, type: :end}
+        %Schema.Place{id: :start, type: :start, workflow_id: :traffic_light},
+        %Schema.Place{id: :yellow, type: :normal, workflow_id: :traffic_light},
+        %Schema.Place{id: :red, type: :normal, workflow_id: :traffic_light},
+        %Schema.Place{id: :green, type: :normal, workflow_id: :traffic_light},
+        %Schema.Place{id: :end, type: :end, workflow_id: :traffic_light}
       ],
       transitions: [
-        %Schema.Transition.Params{id: :init, executor: TrafficLight.Init},
-        %Schema.Transition.Params{id: :y2r, executor: TrafficLight.Y2R},
-        %Schema.Transition.Params{id: :r2g, executor: TrafficLight.R2G},
-        %Schema.Transition.Params{id: :g2y, executor: TrafficLight.G2Y},
-        %Schema.Transition.Params{id: :will_end, executor: TrafficLight.WillEnd}
+        %Schema.Transition{
+          id: :init,
+          join_type: :none,
+          split_type: :none,
+          executor: TrafficLight.Init,
+          workflow_id: :traffic_light
+        },
+        %Schema.Transition{
+          id: :y2r,
+          join_type: :none,
+          split_type: :none,
+          executor: TrafficLight.Y2R,
+          workflow_id: :traffic_light
+        },
+        %Schema.Transition{
+          id: :r2g,
+          join_type: :none,
+          split_type: :none,
+          executor: TrafficLight.R2G,
+          workflow_id: :traffic_light
+        },
+        %Schema.Transition{
+          id: :g2y,
+          join_type: :none,
+          split_type: :none,
+          executor: TrafficLight.G2Y,
+          workflow_id: :traffic_light
+        },
+        %Schema.Transition{
+          id: :will_end,
+          join_type: :none,
+          split_type: :none,
+          executor: TrafficLight.WillEnd,
+          workflow_id: :traffic_light
+        }
       ],
       arcs: [
-        %Schema.Arc.Params{place_id: :start, transition_id: :init, direction: :out},
-        %Schema.Arc.Params{place_id: :yellow, transition_id: :init, direction: :in},
-        %Schema.Arc.Params{place_id: :yellow, transition_id: :y2r, direction: :out},
-        %Schema.Arc.Params{place_id: :yellow, transition_id: :g2y, direction: :in},
-        %Schema.Arc.Params{place_id: :red, transition_id: :y2r, direction: :in},
-        %Schema.Arc.Params{place_id: :red, transition_id: :will_end, direction: :out},
-        %Schema.Arc.Params{place_id: :red, transition_id: :r2g, direction: :out},
-        %Schema.Arc.Params{place_id: :green, transition_id: :r2g, direction: :in},
-        %Schema.Arc.Params{place_id: :green, transition_id: :g2y, direction: :out},
-        %Schema.Arc.Params{place_id: :end, transition_id: :will_end, direction: :in}
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :start,
+          transition_id: :init,
+          direction: :out,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :yellow,
+          transition_id: :init,
+          direction: :in,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :yellow,
+          transition_id: :y2r,
+          direction: :out,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :yellow,
+          transition_id: :g2y,
+          direction: :in,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :red,
+          transition_id: :y2r,
+          direction: :in,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :red,
+          transition_id: :will_end,
+          direction: :out,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :red,
+          transition_id: :r2g,
+          direction: :out,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :green,
+          transition_id: :r2g,
+          direction: :in,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :green,
+          transition_id: :g2y,
+          direction: :out,
+          workflow_id: :traffic_light
+        },
+        %Schema.Arc{
+          id: TrafficLight.make_id(),
+          place_id: :end,
+          transition_id: :will_end,
+          direction: :in,
+          workflow_id: :traffic_light
+        }
       ]
     }
   )
 
-# Create a case
-# ```elixir
-# WorkflowMetal.Case.Supervisor.create_case TrafficLight, %Schema.Case.Params{workflow_id: traffic_light_workflow.id}
-# ```
-WorkflowMetal.Case.Supervisor.create_case(TrafficLight.Workflow, %Schema.Case.Params{
-  workflow_id: traffic_light_workflow.id
-})
+{:ok, case_schema} =
+  WorkflowMetal.Storage.insert_case(
+    TrafficLight.Workflow,
+    %Schema.Case{
+      id: 1,
+      state: :created,
+      workflow_id: traffic_light_workflow.id
+    }
+  )
+
+TrafficLight.Workflow.open_case(case_schema.id)

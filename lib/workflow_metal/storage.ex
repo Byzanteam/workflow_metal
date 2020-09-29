@@ -9,26 +9,26 @@ defmodule WorkflowMetal.Storage do
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
-  @type workflow_params :: WorkflowMetal.Storage.Schema.Workflow.Params.t()
+  @type workflow_schema :: WorkflowMetal.Storage.Schema.Workflow.t()
 
   @type arc_direction :: WorkflowMetal.Storage.Schema.Arc.direction()
   @type place_id :: WorkflowMetal.Storage.Schema.Place.id()
   @type transition_id :: WorkflowMetal.Storage.Schema.Transition.id()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
+  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
-  @type task_params :: WorkflowMetal.Storage.Schema.Task.Params.t()
+  @type task_schema :: WorkflowMetal.Storage.Schema.Task.t()
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_state :: WorkflowMetal.Storage.Schema.Token.state()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
   @type token_states :: nonempty_list(token_state)
 
   @type workitem_id :: WorkflowMetal.Storage.Schema.Workitem.id()
-  @type workitem_params :: WorkflowMetal.Storage.Schema.Workitem.Params.t()
+  @type workitem_schema :: WorkflowMetal.Storage.Schema.Workitem.t()
   @type workitem_output :: WorkflowMetal.Storage.Schema.Workitem.output()
 
   @type config :: keyword()
@@ -65,17 +65,23 @@ defmodule WorkflowMetal.Storage do
   end
 
   # API
+
   ## Workflow
 
   @doc false
-  @spec create_workflow(application, workflow_params) ::
-          Adapter.on_create_workflow()
-  def create_workflow(application, workflow_params) do
+  @spec insert_workflow(
+          application,
+          workflow_schema,
+          Adapter.workflow_associations_params()
+        ) ::
+          Adapter.on_insert_workflow()
+  def insert_workflow(application, workflow_schema, params) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_workflow(
+    adapter.insert_workflow(
       adapter_meta,
-      workflow_params
+      workflow_schema,
+      params
     )
   end
 
@@ -171,15 +177,12 @@ defmodule WorkflowMetal.Storage do
   ## Case
 
   @doc false
-  @spec create_case(application, case_params) ::
-          Adapter.on_create_case()
-  def create_case(application, case_params) do
+  @spec insert_case(application, case_schema) ::
+          Adapter.on_insert_case()
+  def insert_case(application, case_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_case(
-      adapter_meta,
-      case_params
-    )
+    adapter.insert_case(adapter_meta, case_schema)
   end
 
   @doc false
@@ -210,15 +213,12 @@ defmodule WorkflowMetal.Storage do
   ## Task
 
   @doc false
-  @spec create_task(application, task_params) ::
-          Adapter.on_create_task()
-  def create_task(application, task_params) do
+  @spec insert_task(application, task_schema) ::
+          Adapter.on_insert_task()
+  def insert_task(application, task_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_task(
-      adapter_meta,
-      task_params
-    )
+    adapter.insert_task(adapter_meta, task_schema)
   end
 
   @doc false
@@ -262,14 +262,14 @@ defmodule WorkflowMetal.Storage do
   ## Token
 
   @doc false
-  @spec issue_token(application, token_params) ::
+  @spec issue_token(application, token_schema) ::
           Adapter.on_issue_token()
-  def issue_token(application, token_params) do
+  def issue_token(application, token_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.issue_token(
       adapter_meta,
-      token_params
+      token_schema
     )
   end
 
@@ -287,52 +287,64 @@ defmodule WorkflowMetal.Storage do
   end
 
   @doc false
-  @spec unlock_tokens(application, task_id) :: Adapter.on_unlock_tokens()
-  def unlock_tokens(application, locked_by_task_id) do
+  @spec unlock_tokens(application, [token_id]) :: Adapter.on_unlock_tokens()
+  def unlock_tokens(application, token_ids) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.unlock_tokens(
       adapter_meta,
-      locked_by_task_id
+      token_ids
     )
   end
 
   @doc false
-  @spec consume_tokens(application, task_id | {case_id, :termination}) ::
+  @spec consume_tokens(application, [token_id], task_id | :termination) ::
           Adapter.on_consume_tokens()
-  def consume_tokens(application, locked_by_task_id) do
+  def consume_tokens(application, token_ids, consumed_by_task_id) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.consume_tokens(
       adapter_meta,
-      locked_by_task_id
+      token_ids,
+      consumed_by_task_id
     )
   end
 
   @doc false
-  @spec fetch_tokens(application, case_id, Adapter.fetch_tokens_options()) ::
+  @spec fetch_unconsumed_tokens(application, case_id) ::
+          Adapter.on_fetch_unconsumed_tokens()
+  def fetch_unconsumed_tokens(application, case_id) do
+    {adapter, adapter_meta} = Application.storage_adapter(application)
+
+    adapter.fetch_unconsumed_tokens(
+      adapter_meta,
+      case_id
+    )
+  end
+
+  @doc false
+  @spec fetch_tokens(application, [token_id]) ::
           Adapter.on_fetch_tokens()
-  def fetch_tokens(application, case_id, options) do
+  def fetch_tokens(application, token_ids) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
     adapter.fetch_tokens(
       adapter_meta,
-      case_id,
-      options
+      token_ids
     )
   end
 
   ## Workitem
 
   @doc false
-  @spec create_workitem(application, workitem_params) ::
-          Adapter.on_create_workitem()
-  def create_workitem(application, workitem_params) do
+  @spec insert_workitem(application, workitem_schema) ::
+          Adapter.on_insert_workitem()
+  def insert_workitem(application, workitem_schema) do
     {adapter, adapter_meta} = Application.storage_adapter(application)
 
-    adapter.create_workitem(
+    adapter.insert_workitem(
       adapter_meta,
-      workitem_params
+      workitem_schema
     )
   end
 

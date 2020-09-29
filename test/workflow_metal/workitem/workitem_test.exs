@@ -4,39 +4,16 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   import WorkflowMetal.Helpers.Wait
 
-  alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
   alias WorkflowMetal.Storage.Adapters.InMemory, as: InMemoryStorage
   alias WorkflowMetal.Storage.Schema
   alias WorkflowMetal.Support.Workflows.SequentialRouting
 
-  defmodule DummyApplication do
-    use WorkflowMetal.Application,
-      storage: InMemoryStorage
-  end
-
-  setup_all do
-    start_supervised!(DummyApplication)
-
-    [application: DummyApplication]
-  end
-
   describe "execute_workitem" do
     test "execute successfully" do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
@@ -53,8 +30,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         {:ok, _tokens} = preexecute(options[:application], workitem)
 
         executor_params = Keyword.fetch!(options, :executor_params)
-        request = Keyword.fetch!(executor_params, :request)
-        reply = Keyword.fetch!(executor_params, :reply)
+        request = Map.fetch!(executor_params, :request)
+        reply = Map.fetch!(executor_params, :reply)
 
         send(request, reply)
 
@@ -65,24 +42,27 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     test "execute successfully and asynchronously" do
       alias WorkflowMetal.Workitem.Workitem
 
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
+          workflow,
           a:
-            SequentialRouting.build_transition(1, AsynchronousTransition,
-              request: self(),
-              reply: :workitem_started
+            SequentialRouting.build_transition(
+              workflow,
+              %{
+                executor: AsynchronousTransition,
+                executor_params: %{
+                  request: self(),
+                  reply: :workitem_started
+                }
+              }
             ),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+          b: SequentialRouting.build_echo_transition(workflow, %{reply: :b_completed})
         )
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
@@ -117,20 +97,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "put an output" do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
@@ -155,8 +124,8 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         {:ok, _tokens} = preexecute(options[:application], workitem)
 
         executor_params = Keyword.fetch!(options, :executor_params)
-        request = Keyword.fetch!(executor_params, :request)
-        reply = Keyword.fetch!(executor_params, :reply)
+        request = Map.fetch!(executor_params, :request)
+        reply = Map.fetch!(executor_params, :reply)
 
         send(request, reply)
 
@@ -165,24 +134,27 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "lock tokens twice" do
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
+          workflow,
           a:
-            SequentialRouting.build_transition(1, TwiceLockTransition,
-              request: self(),
-              reply: :locked_twice
+            SequentialRouting.build_transition(
+              workflow,
+              %{
+                executor: TwiceLockTransition,
+                executor_params: %{
+                  request: self(),
+                  reply: :locked_twice
+                }
+              }
             ),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+          b: SequentialRouting.build_echo_transition(workflow, %{reply: :b_completed})
         )
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
@@ -201,20 +173,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   describe "complete" do
     setup do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       {:ok, _genesis_token} =
         generate_genesis_token(
@@ -227,7 +188,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :active
+          %{state: :active}
         )
 
       {:ok, {start_place, _end_place}} =
@@ -237,9 +198,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
-        WorkflowMetal.Storage.create_task(
+        WorkflowMetal.Storage.insert_task(
           DummyApplication,
-          %Schema.Task.Params{
+          %Schema.Task{
+            id: make_id(),
+            state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
             transition_id: a_transition.id
@@ -250,13 +213,15 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: make_id(),
+            state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
             case_id: case_schema.id,
@@ -277,7 +242,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "complete a started workitem", %{workitem_schema: workitem_schema} do
-      WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+      WorkflowMetal.Storage.update_workitem(
+        DummyApplication,
+        workitem_schema.id,
+        %{state: :started}
+      )
 
       :ok =
         WorkflowMetal.Workitem.Supervisor.complete_workitem(
@@ -296,7 +265,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        {:completed, nil}
+        %{state: :completed}
       )
 
       {:error, :workitem_not_available} =
@@ -311,7 +280,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        :abandoned
+        %{state: :abandoned}
       )
 
       {:error, :workitem_not_available} =
@@ -325,24 +294,24 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   describe "abandon" do
     setup do
+      workflow = SequentialRouting.build_workflow()
+
       {:ok, workflow_schema} =
         SequentialRouting.create(
           DummyApplication,
+          workflow,
           a:
-            SequentialRouting.build_asynchronous_transition(1,
-              reply: :a_completed,
-              abandon_reply: :a_abandoned
+            SequentialRouting.build_asynchronous_transition(
+              workflow,
+              %{
+                reply: :a_completed,
+                abandon_reply: :a_abandoned
+              }
             ),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
+          b: SequentialRouting.build_echo_transition(workflow, %{reply: :b_completed})
         )
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       {:ok, _genesis_token} =
         generate_genesis_token(
@@ -355,7 +324,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :active
+          %{state: :active}
         )
 
       {:ok, {start_place, _end_place}} =
@@ -365,9 +334,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
-        WorkflowMetal.Storage.create_task(
+        WorkflowMetal.Storage.insert_task(
           DummyApplication,
-          %Schema.Task.Params{
+          %Schema.Task{
+            id: make_id(),
+            state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
             transition_id: a_transition.id
@@ -378,13 +349,15 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: make_id(),
+            state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
             case_id: case_schema.id,
@@ -397,7 +370,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "can abandon a started workitem", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :started}
+        )
 
       :ok =
         WorkflowMetal.Workitem.Supervisor.abandon_workitem(
@@ -417,7 +394,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "can abandon a running started workitem", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :started}
+        )
 
       {:ok, pid} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(
@@ -447,7 +428,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        {:completed, nil}
+        %{state: :completed}
       )
 
       {:error, :workitem_not_available} =
@@ -461,7 +442,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
         workitem_schema.id,
-        :abandoned
+        %{state: :abandoned}
       )
 
       {:error, :workitem_not_available} =
@@ -476,20 +457,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
   describe "restore" do
     setup do
-      {:ok, workflow_schema} =
-        SequentialRouting.create(
-          DummyApplication,
-          a: SequentialRouting.build_echo_transition(1, reply: :a_completed),
-          b: SequentialRouting.build_echo_transition(2, reply: :b_completed)
-        )
+      {:ok, workflow_schema} = SequentialRouting.create(DummyApplication)
 
-      {:ok, case_schema} =
-        WorkflowMetal.Storage.create_case(
-          DummyApplication,
-          %Schema.Case.Params{
-            workflow_id: workflow_schema.id
-          }
-        )
+      {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
       {:ok, _genesis_token} =
         generate_genesis_token(
@@ -502,7 +472,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_case(
           DummyApplication,
           case_schema.id,
-          :active
+          %{state: :active}
         )
 
       {:ok, {start_place, _end_place}} =
@@ -512,9 +482,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
-        WorkflowMetal.Storage.create_task(
+        WorkflowMetal.Storage.insert_task(
           DummyApplication,
-          %Schema.Task.Params{
+          %Schema.Task{
+            id: make_id(),
+            state: :started,
             workflow_id: workflow_schema.id,
             case_id: case_schema.id,
             transition_id: a_transition.id
@@ -525,13 +497,15 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
-          :allocated
+          %{state: :allocated}
         )
 
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.create_workitem(
+        WorkflowMetal.Storage.insert_workitem(
           DummyApplication,
-          %Schema.Workitem.Params{
+          %Schema.Workitem{
+            id: make_id(),
+            state: :created,
             workflow_id: workflow_schema.id,
             transition_id: a_transition.id,
             case_id: case_schema.id,
@@ -552,7 +526,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "from started", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :started)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :started}
+        )
 
       {:ok, _pid} =
         WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
@@ -565,7 +543,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         WorkflowMetal.Storage.update_workitem(
           DummyApplication,
           workitem_schema.id,
-          {:completed, nil}
+          %{state: :completed}
         )
 
       assert {:error, :workitem_not_available} =
@@ -577,7 +555,11 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
     test "from abandoned", %{workitem_schema: workitem_schema} do
       {:ok, workitem_schema} =
-        WorkflowMetal.Storage.update_workitem(DummyApplication, workitem_schema.id, :abandoned)
+        WorkflowMetal.Storage.update_workitem(
+          DummyApplication,
+          workitem_schema.id,
+          %{state: :abandoned}
+        )
 
       assert {:error, :workitem_not_available} =
                WorkflowMetal.Workitem.Supervisor.open_workitem(
@@ -586,4 +568,6 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
                )
     end
   end
+
+  defp make_id, do: :erlang.unique_integer([:positive, :monotonic])
 end

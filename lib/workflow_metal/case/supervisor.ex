@@ -7,7 +7,6 @@ defmodule WorkflowMetal.Case.Supervisor do
 
   alias WorkflowMetal.Application.WorkflowsSupervisor
   alias WorkflowMetal.Registration
-  alias WorkflowMetal.Storage.Schema
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_identifier :: WorkflowMetal.Workflow.Supervisor.workflow_identifier()
@@ -15,13 +14,12 @@ defmodule WorkflowMetal.Case.Supervisor do
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
 
   @type case_id :: WorkflowMetal.Storage.Schema.Case.id()
-  @type case_params :: WorkflowMetal.Storage.Schema.Case.Params.t()
+  @type case_schema :: WorkflowMetal.Storage.Schema.Case.t()
 
   @type task_id :: WorkflowMetal.Storage.Schema.Task.id()
 
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
 
   @doc false
   @spec start_link(workflow_identifier) :: Supervisor.on_start()
@@ -43,16 +41,6 @@ defmodule WorkflowMetal.Case.Supervisor do
       strategy: :one_for_one,
       extra_arguments: [{application, workflow_id}]
     )
-  end
-
-  @doc """
-  Create a case.
-  """
-  @spec create_case(application, case_params) ::
-          Supervisor.on_start() | {:error, :workflow_not_found} | {:error, :case_not_found}
-  def create_case(application, %Schema.Case.Params{} = case_params) do
-    {:ok, case_schema} = WorkflowMetal.Storage.create_case(application, case_params)
-    open_case(application, case_schema.id)
   end
 
   @doc """
@@ -138,6 +126,21 @@ defmodule WorkflowMetal.Case.Supervisor do
   end
 
   @doc """
+  Fetch tokens that locked by the task.
+
+  This usually happens when a task is starting.
+  """
+  @spec fetch_locked_tokens(application, case_id, task_id) ::
+          {:ok, [token_schema]}
+          | {:error, :case_not_available}
+          | {:error, :case_not_found}
+  def fetch_locked_tokens(application, case_id, task_id) do
+    with({:ok, case_server} <- open_case(application, case_id)) do
+      WorkflowMetal.Case.Case.fetch_locked_tokens_from_task(case_server, task_id)
+    end
+  end
+
+  @doc """
   consume tokens that locked by the task
 
   This usually happens after a task execution.
@@ -155,12 +158,12 @@ defmodule WorkflowMetal.Case.Supervisor do
   @doc """
   Issue tokens after a task completion.
   """
-  @spec issue_tokens(application, case_id, nonempty_list(token_params)) ::
+  @spec issue_tokens(application, case_id, nonempty_list(token_schema)) ::
           {:ok, nonempty_list(token_schema)}
           | {:error, :case_not_found}
-  def issue_tokens(application, case_id, token_params_list) do
+  def issue_tokens(application, case_id, token_schema_list) do
     with({:ok, case_server} <- open_case(application, case_id)) do
-      WorkflowMetal.Case.Case.issue_tokens(case_server, token_params_list)
+      WorkflowMetal.Case.Case.issue_tokens(case_server, token_schema_list)
     end
   end
 

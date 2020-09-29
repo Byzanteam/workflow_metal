@@ -5,9 +5,9 @@ defmodule WorkflowMetal.Controller.Split do
 
   @type task_data :: WorkflowMetal.Task.Task.t()
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
-  @type token_params :: WorkflowMetal.Storage.Schema.Token.Params.t()
+  @type token_schema :: WorkflowMetal.Storage.Schema.Token.t()
 
-  @type on_issue_tokens :: {:ok, [token_params]}
+  @type on_issue_tokens :: {:ok, [token_schema]}
 
   @doc false
   @callback issue_tokens(
