@@ -350,30 +350,22 @@ defmodule WorkflowMetal.Case.Case do
         :active,
         %__MODULE__{} = data
       ) do
-    case do_consume_tokens(task_id, data) do
-      {:ok, tokens, data} ->
-        Logger.debug(fn ->
-          "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{
-            task_id
-          })"
-        end)
+    {:ok, tokens, data} = do_consume_tokens(task_id, data)
 
-        {
-          :keep_state,
-          data,
-          [
-            {:reply, from, {:ok, tokens}},
-            {:next_event, :internal, {:revoke_tokens, tokens, task_id}}
-          ]
-        }
+    Logger.debug(fn ->
+      "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{
+        task_id
+      })"
+    end)
 
-      error ->
-        {
-          :keep_state,
-          data,
-          {:reply, from, error}
-        }
-    end
+    {
+      :keep_state,
+      data,
+      [
+        {:reply, from, {:ok, tokens}},
+        {:next_event, :internal, {:revoke_tokens, tokens, task_id}}
+      ]
+    }
   end
 
   @impl GenStateMachine
@@ -703,16 +695,14 @@ defmodule WorkflowMetal.Case.Case do
 
     token_ids = find_locked_token_ids(task_id, data)
 
-    with(
-      {:ok, tokens} <- WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
-    ) do
-      {:ok, data} =
-        Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
-          upsert_ets_token(token, data)
-        end)
+    {:ok, tokens} = WorkflowMetal.Storage.consume_tokens(application, token_ids, task_id)
 
-      {:ok, tokens, data}
-    end
+    {:ok, data} =
+      Enum.reduce(tokens, {:ok, data}, fn token, {:ok, data} ->
+        upsert_ets_token(token, data)
+      end)
+
+    {:ok, tokens, data}
   end
 
   defp case_finishment(%__MODULE__{} = data) do
