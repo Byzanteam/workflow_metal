@@ -66,7 +66,7 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
   test "abandon competitors between b and c transitions", %{workflow_schema: workflow_schema} do
     {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-    assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+    assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
     assert_receive {2, b_callback}
     assert_receive {3, _c_callback}

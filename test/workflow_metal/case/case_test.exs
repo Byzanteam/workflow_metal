@@ -13,7 +13,7 @@ defmodule WorkflowMetal.Case.CaseTest do
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn ->
         assert_receive :a_completed
@@ -84,7 +84,7 @@ defmodule WorkflowMetal.Case.CaseTest do
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn ->
         assert_receive :a_completed
@@ -128,7 +128,7 @@ defmodule WorkflowMetal.Case.CaseTest do
     end
 
     test "restore from created state", %{case_schema: case_schema} do
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn -> assert_receive :a_completed end)
       until(fn -> assert_receive :b_completed end)

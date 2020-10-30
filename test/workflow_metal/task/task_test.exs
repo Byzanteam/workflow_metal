@@ -17,7 +17,7 @@ defmodule WorkflowMetal.Task.TaskTest do
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn ->
         assert_receive :a_completed
@@ -90,7 +90,7 @@ defmodule WorkflowMetal.Task.TaskTest do
     end
 
     test "restore from started state", %{case_schema: case_schema, task_schema: task_schema} do
-      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+      assert {:ok, _pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
 
       until(fn -> assert_receive :a_completed end)
       until(fn -> assert_receive :b_completed end)
@@ -152,7 +152,7 @@ defmodule WorkflowMetal.Task.TaskTest do
           }
         )
 
-      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+      assert {:ok, _pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
 
       until(fn -> assert_receive :a_completed end)
       until(fn -> assert_receive :b_completed end)
@@ -190,7 +190,7 @@ defmodule WorkflowMetal.Task.TaskTest do
     end
 
     test "restore from completed state", %{task_schema: task_schema} do
-      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+      assert {:ok, _pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
 
       until(fn -> assert_receive :a_completed end)
       until(fn -> assert_receive :b_completed end)
@@ -312,7 +312,7 @@ defmodule WorkflowMetal.Task.TaskTest do
           %{state: :executing}
         )
 
-      assert {:ok, pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+      assert {:ok, _pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
 
       until(fn -> assert_receive :a_completed end)
 

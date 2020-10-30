@@ -15,7 +15,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn ->
         assert_receive :a_completed
@@ -64,7 +64,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn ->
         assert_receive :workitem_started
@@ -101,7 +101,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn ->
         assert_receive :a_completed
@@ -156,7 +156,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
 
       {:ok, case_schema} = insert_case(DummyApplication, workflow_schema)
 
-      assert {:ok, pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
 
       until(fn ->
         assert_receive :locked_twice
