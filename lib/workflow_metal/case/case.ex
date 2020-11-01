@@ -211,9 +211,6 @@ defmodule WorkflowMetal.Case.Case do
           data,
           {:state_timeout, 1, :after_start}
         }
-
-      :terminated ->
-        :keep_state_and_data
     end
   end
 
@@ -231,7 +228,6 @@ defmodule WorkflowMetal.Case.Case do
         {:stop, :normal}
 
       {_, :terminated} ->
-        {:ok, _data} = force_abandon_tasks(data)
         Logger.debug(fn -> "#{describe(data)} is terminated." end)
 
         {:stop, :normal}
@@ -442,6 +438,7 @@ defmodule WorkflowMetal.Case.Case do
   @impl GenStateMachine
   def handle_event(:cast, :terminate, state, %__MODULE__{} = data)
       when state in [:created, :active] do
+    {:ok, data} = force_abandon_tasks(data)
     {:ok, data} = update_case(%{state: :terminated}, data)
 
     {:next_state, :terminated, data}
