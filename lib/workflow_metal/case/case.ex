@@ -227,8 +227,8 @@ defmodule WorkflowMetal.Case.Case do
 
         {:stop, :normal}
 
-      {_, :terminated} ->
-        Logger.debug(fn -> "#{describe(data)} is terminated." end)
+      {from, :terminated} ->
+        Logger.debug(fn -> "#{describe(data)} is terminated from #{from}." end)
 
         {:stop, :normal}
     end

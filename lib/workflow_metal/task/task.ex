@@ -246,8 +246,8 @@ defmodule WorkflowMetal.Task.Task do
 
         {:stop, :normal}
 
-      {from, :abandoned} when from in [:started, :allocated, :executing] ->
-        Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
+      {from, :abandoned} ->
+        Logger.debug(fn -> "#{describe(data)} has been abandoned from #{from}." end)
 
         {:stop, :normal}
     end

@@ -162,7 +162,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
           {:state_timeout, 1, :start_on_created}
         }
 
-      _ ->
+      :started ->
         :keep_state_and_data
     end
   end
@@ -182,8 +182,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
 
         {:stop, :normal}
 
-      {_from, :abandoned} ->
-        Logger.debug(fn -> "#{describe(data)} has been abandoned." end)
+      {from, :abandoned} ->
+        Logger.debug(fn -> "#{describe(data)} has been abandoned from #{from}." end)
 
         {:stop, :normal}
     end
