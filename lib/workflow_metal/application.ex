@@ -67,6 +67,13 @@ defmodule WorkflowMetal.Application do
       end
 
       @doc """
+      Terminate a case('GenServer')
+      """
+      def terminate_case(case_id) do
+        WorkflowMetal.Case.Supervisor.terminate_case(application(), case_id)
+      end
+
+      @doc """
       Pre-execute a task that the workitem belongs to.
 
       Lock tokens before a workitem execution.
