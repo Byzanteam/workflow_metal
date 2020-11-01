@@ -234,9 +234,6 @@ defmodule WorkflowMetal.Task.Task do
       {:started, :allocated} ->
         Logger.debug(fn -> "#{describe(data)} allocate a workitem." end)
 
-        {:ok, data} = allocate_workitem(data)
-        {:ok, data} = update_task(%{state: :allocated}, data)
-
         {:keep_state, data}
 
       {:allocated, :executing} ->
@@ -319,6 +316,9 @@ defmodule WorkflowMetal.Task.Task do
   def handle_event(:cast, :try_allocate, :started, %__MODULE__{} = data) do
     case JoinController.task_enablement(data) do
       {:ok, _token_ids} ->
+        {:ok, data} = allocate_workitem(data)
+        {:ok, data} = update_task(%{state: :allocated}, data)
+
         {
           :next_state,
           :allocated,
