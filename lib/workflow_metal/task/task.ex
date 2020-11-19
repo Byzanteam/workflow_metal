@@ -686,13 +686,6 @@ defmodule WorkflowMetal.Task.Task do
         )
 
       {:ok, locked_token_schemas, data}
-    else
-      {:error, :tokens_not_available} ->
-        # retry
-        do_lock_tokens(data)
-
-      error ->
-        error
     end
   end
 
