@@ -571,23 +571,26 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    {:ok, locked_token_schemas} =
-      WorkflowMetal.Case.Supervisor.fetch_locked_tokens(
-        application,
-        case_id,
-        task_id
-      )
+    case WorkflowMetal.Case.Supervisor.fetch_locked_tokens(
+           application,
+           case_id,
+           task_id
+         ) do
+      {:ok, locked_token_schemas} ->
+        {:ok, data} =
+          Enum.reduce(
+            locked_token_schemas,
+            {:ok, data},
+            fn token_schema, {:ok, data} ->
+              upsert_ets_token(token_schema, data)
+            end
+          )
 
-    {:ok, data} =
-      Enum.reduce(
-        locked_token_schemas,
-        {:ok, data},
-        fn token_schema, {:ok, data} ->
-          upsert_ets_token(token_schema, data)
-        end
-      )
+        {:ok, data}
 
-    {:ok, data}
+      _ ->
+        {:ok, data}
+    end
   end
 
   defp start_created_workitems(%__MODULE__{} = data) do
