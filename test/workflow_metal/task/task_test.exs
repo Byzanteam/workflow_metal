@@ -220,6 +220,36 @@ defmodule WorkflowMetal.Task.TaskTest do
       assert {:error, :task_not_available} =
                TaskSupervisor.open_task(DummyApplication, task_schema.id)
     end
+
+    test "restore from executing state when case is terminate", %{
+      case_schema: case_schema,
+      task_schema: task_schema
+    } do
+      assert :ok = CaseSupervisor.terminate_case(DummyApplication, case_schema.id)
+
+      {:ok, task_schema} =
+        WorkflowMetal.Storage.update_task(
+          DummyApplication,
+          task_schema.id,
+          %{state: :executing}
+        )
+
+      assert {:ok, _pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
+
+      until(fn ->
+        {:ok, tasks} =
+          InMemoryStorage.list_tasks(
+            DummyApplication,
+            task_schema.workflow_id
+          )
+
+        assert length(tasks) === 1
+
+        Enum.each(tasks, fn task ->
+          assert task.state === :abandoned
+        end)
+      end)
+    end
   end
 
   describe "restore and request tokens" do
