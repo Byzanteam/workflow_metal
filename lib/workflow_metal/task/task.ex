@@ -218,13 +218,28 @@ defmodule WorkflowMetal.Task.Task do
         }
 
       :executing ->
-        {:ok, data} = fetch_locked_tokens(data)
+        case fetch_locked_tokens(data) do
+          {:ok, data} ->
+            {
+              :keep_state,
+              data,
+              {:state_timeout, 1, :after_start}
+            }
 
-        {
-          :keep_state,
-          data,
-          {:state_timeout, 1, :after_start}
-        }
+          {:error, reason} ->
+            Logger.warn(fn ->
+              "#{describe(data)} fetch locked_tokens error: #{inspect(reason)}"
+            end)
+
+            %{application: application, task_schema: task_schema} = data
+            WorkflowMetal.Task.Supervisor.force_abandon_task(application, task_schema.id)
+
+            {
+              :keep_state,
+              data,
+              {:state_timeout, 1, :after_start}
+            }
+        end
     end
   end
 
@@ -588,8 +603,8 @@ defmodule WorkflowMetal.Task.Task do
 
         {:ok, data}
 
-      _ ->
-        {:ok, data}
+      error ->
+        error
     end
   end
 

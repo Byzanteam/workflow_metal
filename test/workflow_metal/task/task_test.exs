@@ -222,16 +222,35 @@ defmodule WorkflowMetal.Task.TaskTest do
     end
 
     test "restore from executing state when case is terminate", %{
+      a_transition: a_transition,
       case_schema: case_schema,
       task_schema: task_schema
     } do
       assert :ok = CaseSupervisor.terminate_case(DummyApplication, case_schema.id)
+
+      until(fn ->
+        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
+        assert case_schema.state === :terminated
+      end)
 
       {:ok, task_schema} =
         WorkflowMetal.Storage.update_task(
           DummyApplication,
           task_schema.id,
           %{state: :executing}
+        )
+
+      {:ok, _workitem_schema} =
+        WorkflowMetal.Storage.insert_workitem(
+          DummyApplication,
+          %Schema.Workitem{
+            id: make_id(),
+            state: :created,
+            workflow_id: task_schema.workflow_id,
+            transition_id: a_transition.id,
+            case_id: case_schema.id,
+            task_id: task_schema.id
+          }
         )
 
       assert {:ok, _pid} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
@@ -243,6 +262,7 @@ defmodule WorkflowMetal.Task.TaskTest do
             task_schema.workflow_id
           )
 
+        tasks = Enum.filter(tasks, &(&1.case_id === case_schema.id))
         assert length(tasks) === 1
 
         Enum.each(tasks, fn task ->
