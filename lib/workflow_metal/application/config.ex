@@ -21,7 +21,7 @@ defmodule WorkflowMetal.Application.Config do
   end
 
   @doc """
-  Retrive settings of an application.
+  Retrieve settings of an application.
   """
   @spec get(application, atom) :: term
   def get(application, key) when is_atom(application) and is_atom(key) do

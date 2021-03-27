@@ -34,14 +34,14 @@ defmodule WorkflowMetal.Application do
       end
 
       @doc """
-      Retrive the supervisor name of the current application.
+      Retrieve the supervisor name of the current application.
       """
       def application do
         name(config())
       end
 
       @doc """
-      Retrive the config of the current application.
+      Retrieve the config of the current application.
       """
       def config do
         @config

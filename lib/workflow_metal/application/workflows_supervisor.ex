@@ -34,7 +34,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
   end
 
   @doc """
-  Retrive the workflow from the storage and open it(start `Supervisor` and its children).
+  Retrieve the workflow from the storage and open it(start `Supervisor` and its children).
   """
   @spec open_workflow(application, workflow_id) ::
           WorkflowMetal.Registration.Adapter.on_start_child()
