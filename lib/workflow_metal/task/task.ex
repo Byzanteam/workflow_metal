@@ -218,13 +218,28 @@ defmodule WorkflowMetal.Task.Task do
         }
 
       :executing ->
-        {:ok, data} = fetch_locked_tokens(data)
+        case fetch_locked_tokens(data) do
+          {:ok, data} ->
+            {
+              :keep_state,
+              data,
+              {:state_timeout, 1, :after_start}
+            }
 
-        {
-          :keep_state,
-          data,
-          {:state_timeout, 1, :after_start}
-        }
+          {:error, reason} ->
+            Logger.warn(fn ->
+              "#{describe(data)} fetch locked_tokens error: #{inspect(reason)}"
+            end)
+
+            %{application: application, task_schema: task_schema} = data
+            WorkflowMetal.Task.Supervisor.force_abandon_task(application, task_schema.id)
+
+            {
+              :keep_state,
+              data,
+              {:state_timeout, 1, :after_start}
+            }
+        end
     end
   end
 
@@ -571,23 +586,26 @@ defmodule WorkflowMetal.Task.Task do
       }
     } = data
 
-    {:ok, locked_token_schemas} =
-      WorkflowMetal.Case.Supervisor.fetch_locked_tokens(
-        application,
-        case_id,
-        task_id
-      )
+    case WorkflowMetal.Case.Supervisor.fetch_locked_tokens(
+           application,
+           case_id,
+           task_id
+         ) do
+      {:ok, locked_token_schemas} ->
+        {:ok, data} =
+          Enum.reduce(
+            locked_token_schemas,
+            {:ok, data},
+            fn token_schema, {:ok, data} ->
+              upsert_ets_token(token_schema, data)
+            end
+          )
 
-    {:ok, data} =
-      Enum.reduce(
-        locked_token_schemas,
-        {:ok, data},
-        fn token_schema, {:ok, data} ->
-          upsert_ets_token(token_schema, data)
-        end
-      )
+        {:ok, data}
 
-    {:ok, data}
+      error ->
+        error
+    end
   end
 
   defp start_created_workitems(%__MODULE__{} = data) do
