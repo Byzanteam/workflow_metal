@@ -29,8 +29,8 @@ defmodule WorkflowMetal.Controller.Join.None do
     ]
 
     case :ets.select(token_table, match_spec) do
-      [token_id | _rest] ->
-        {:ok, [token_id]}
+      [_token_id | _rest] ->
+        :ok
 
       _ ->
         {:error, :task_not_enabled}

@@ -8,7 +8,7 @@ defmodule WorkflowMetal.Controller.Join do
   @type token_id :: WorkflowMetal.Storage.Schema.Token.id()
   @type task_data :: WorkflowMetal.Task.Task.t()
 
-  @type on_task_enablement :: {:ok, nonempty_list(token_id)} | {:error, :task_not_enabled}
+  @type on_task_enablement :: :ok | {:error, :task_not_enabled}
 
   @doc false
   @callback task_enablement(task_data) :: on_task_enablement
