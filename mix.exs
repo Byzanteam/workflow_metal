@@ -7,24 +7,36 @@ defmodule WorkflowMetal.MixProject do
       version: "0.2.0",
       elixir: "~> 1.10",
       start_permanent: Mix.env() == :prod,
+      description: description(),
+      package: package(),
       deps: deps(),
       build_per_environment: is_nil(System.get_env("GITHUB_ACTIONS")),
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
-      ]
+      ],
+      source_url: "https://github.com/Byzanteam/workflow_metal"
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger, :gen_state_machine]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
+  defp description() do
+    "Workflow engine based on PetriNet"
+  end
+
+  defp package() do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/Byzanteam/workflow_metal"}
+    ]
+  end
+
   defp deps do
     [
       {:credo, "~> 1.2", only: [:dev, :test], runtime: false},
