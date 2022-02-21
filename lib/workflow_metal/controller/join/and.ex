@@ -17,7 +17,8 @@ defmodule WorkflowMetal.Controller.Join.And do
 
     {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
 
-    Enum.reduce_while(places, {:ok, []}, fn %Schema.Place{} = place, {:ok, token_ids} ->
+    places
+    |> Enum.reduce_while([], fn %Schema.Place{} = place, token_ids ->
       match_spec = [
         {
           {:"$1", %{place_id: place.id}, :_},
@@ -28,11 +29,16 @@ defmodule WorkflowMetal.Controller.Join.And do
 
       case :ets.select(token_table, match_spec) do
         [token_id | _rest] ->
-          {:cont, {:ok, [token_id | token_ids]}}
+          {:cont, [token_id | token_ids]}
 
         _ ->
           {:halt, {:error, :task_not_enabled}}
       end
     end)
+    |> case do
+      [_ | _] -> :ok
+      [] -> {:error, :task_not_enabled}
+      error -> error
+    end
   end
 end

@@ -315,7 +315,7 @@ defmodule WorkflowMetal.Task.Task do
   @impl GenStateMachine
   def handle_event(:cast, :try_allocate, :started, %__MODULE__{} = data) do
     case JoinController.task_enablement(data) do
-      {:ok, _token_ids} ->
+      :ok ->
         {:ok, data} = allocate_workitem(data)
         {:ok, data} = update_task(%{state: :allocated}, data)
 
@@ -663,7 +663,7 @@ defmodule WorkflowMetal.Task.Task do
 
   defp do_lock_tokens(%__MODULE__{} = data) do
     with(
-      {:ok, token_ids} <- JoinController.task_enablement(data),
+      {:ok, token_ids} <- get_tokens(data),
       %{
         application: application,
         task_schema: %Schema.Task{id: task_id, case_id: case_id}
@@ -686,6 +686,40 @@ defmodule WorkflowMetal.Task.Task do
         )
 
       {:ok, locked_token_schemas, data}
+    end
+  end
+
+  defp get_tokens(%__MODULE__{} = data) do
+    %{
+      application: application,
+      transition_schema: transition_schema,
+      token_table: token_table
+    } = data
+
+    {:ok, places} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
+
+    places
+    |> Enum.reduce_while([], fn %Schema.Place{} = place, token_ids ->
+      match_spec = [
+        {
+          {:"$1", %{place_id: place.id}, :_},
+          [],
+          [:"$1"]
+        }
+      ]
+
+      case :ets.select(token_table, match_spec) do
+        [token_id | _rest] ->
+          {:cont, [token_id | token_ids]}
+
+        _ ->
+          {:halt, {:error, :task_not_enabled}}
+      end
+    end)
+    |> case do
+      [] -> {:error, :tokens_not_available}
+      [_ | _] = token_ids -> {:ok, token_ids}
+      error -> error
     end
   end
 
