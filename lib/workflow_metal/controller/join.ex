@@ -9,9 +9,13 @@ defmodule WorkflowMetal.Controller.Join do
   @type task_data :: WorkflowMetal.Task.Task.t()
 
   @type on_task_enablement :: :ok | {:error, :task_not_enabled}
+  @type on_preexecute :: {:ok, nonempty_list(token_id)} | {:error, :task_not_enabled}
 
   @doc false
   @callback task_enablement(task_data) :: on_task_enablement
+
+  @doc false
+  @callback preexecute(task_data) :: on_preexecute
 
   @doc false
   @spec task_enablement(task_data) :: on_task_enablement
@@ -23,6 +27,18 @@ defmodule WorkflowMetal.Controller.Join do
     } = task_data
 
     controller(join_type).task_enablement(task_data)
+  end
+
+  @doc false
+  @spec preexecute(task_data) :: on_preexecute
+  def preexecute(task_data) do
+    %{
+      transition_schema: %Schema.Transition{
+        join_type: join_type
+      }
+    } = task_data
+
+    controller(join_type).preexecute(task_data)
   end
 
   defp controller(:none), do: WorkflowMetal.Controller.Join.None

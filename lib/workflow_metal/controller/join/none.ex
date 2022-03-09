@@ -11,6 +11,18 @@ defmodule WorkflowMetal.Controller.Join.None do
 
   @impl WorkflowMetal.Controller.Join
   def task_enablement(task_data) do
+    case get_token(task_data) do
+      {:error, _reason} = error -> error
+      {:ok, _token_ids} -> :ok
+    end
+  end
+
+  @impl WorkflowMetal.Controller.Join
+  def preexecute(task_data) do
+    get_token(task_data)
+  end
+
+  defp get_token(task_data) do
     %{
       application: application,
       transition_schema: transition_schema,
@@ -29,8 +41,8 @@ defmodule WorkflowMetal.Controller.Join.None do
     ]
 
     case :ets.select(token_table, match_spec) do
-      [_token_id | _rest] ->
-        :ok
+      [token_id | _rest] ->
+        {:ok, [token_id]}
 
       _ ->
         {:error, :task_not_enabled}

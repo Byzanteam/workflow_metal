@@ -9,6 +9,18 @@ defmodule WorkflowMetal.Controller.Join.And do
 
   @impl WorkflowMetal.Controller.Join
   def task_enablement(task_data) do
+    case get_tokens(task_data) do
+      {:error, _reason} = error -> error
+      {:ok, _token_ids} -> :ok
+    end
+  end
+
+  @impl WorkflowMetal.Controller.Join
+  def preexecute(task_data) do
+    get_tokens(task_data)
+  end
+
+  defp get_tokens(task_data) do
     %{
       application: application,
       transition_schema: transition_schema,
@@ -36,9 +48,9 @@ defmodule WorkflowMetal.Controller.Join.And do
       end
     end)
     |> case do
-      [_ | _] -> :ok
-      [] -> {:error, :task_not_enabled}
-      error -> error
+      {:error, _reason} = error -> error
+      [] -> {:error, :tokens_not_available}
+      [_ | _] = token_ids -> {:ok, token_ids}
     end
   end
 end
