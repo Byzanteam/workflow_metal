@@ -44,7 +44,7 @@ defmodule WorkflowMetal.MixProject do
       {:dialyxir, "~> 1.1.0", only: [:dev], runtime: false},
       {:doctor, "~> 0.17.0", only: [:dev]},
       {:gen_state_machine, "~> 3.0"},
-      {:typed_struct, "~> 0.2.0"}
+      {:typed_struct, "~> 0.3.0"}
     ]
   end
 
