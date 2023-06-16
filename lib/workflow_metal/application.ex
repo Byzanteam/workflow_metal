@@ -1,5 +1,20 @@
 defmodule WorkflowMetal.Application do
-  @moduledoc false
+  @moduledoc """
+  A workflow_metal application is a collection of workflows, cases, tasks and workitems.
+
+  In `config/config.exs` set default_lifespan_timeout for any `Case`, `Task` and `Workitem`:
+
+      config :my_app, MyApp.Application,
+        case: [
+          lifespan_timeout: 30000
+        ],
+        task: [
+          lifespan_timeout: 60000
+        ],
+        workitem: [
+          lifespan_timeout: 300000
+        ]
+  """
 
   alias WorkflowMetal.Application.Config
 
