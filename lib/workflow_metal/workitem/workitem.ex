@@ -151,7 +151,8 @@ defmodule WorkflowMetal.Workitem.Workitem do
             application: application,
             state: :started,
             workitem_schema: workitem_schema
-          }
+          },
+          get_timeout(application)
         }
 
       state when state in [:completed, :abandoned] ->
@@ -167,7 +168,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       {:ok, :started, data} ->
         data = update_workitem(%{state: :started}, data)
 
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
 
       {:ok, {:completed, workitem_output}, data} ->
         {:noreply, %{data | state: :started}, {:continue, {:complete, workitem_output}}}
@@ -175,7 +176,7 @@ defmodule WorkflowMetal.Workitem.Workitem do
       {:ok, :abandoned, data} ->
         data = update_workitem(%{state: :abandoned}, data)
 
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
     end
   end
 
@@ -213,6 +214,13 @@ defmodule WorkflowMetal.Workitem.Workitem do
   @impl GenServer
   def handle_cast(:abandon, data) do
     {:noreply, data, {:continue, :stop_server}}
+  end
+
+  @impl GenServer
+  def handle_info(:timeout, %__MODULE__{} = data) do
+    Logger.debug(describe(data) <> " stopping due to inactivity timeout")
+
+    {:stop, :normal, data}
   end
 
   @spec update_workitem(map(), t()) :: t()
@@ -328,6 +336,13 @@ defmodule WorkflowMetal.Workitem.Workitem do
       )
 
     {:ok, data}
+  end
+
+  defp get_timeout(application) do
+    application
+    |> WorkflowMetal.Application.Config.get(:case)
+    |> Kernel.||([])
+    |> Keyword.get(:lifespan_timeout, :timer.seconds(30))
   end
 
   defp describe(%__MODULE__{} = data) do

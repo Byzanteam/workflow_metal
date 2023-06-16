@@ -233,7 +233,7 @@ defmodule WorkflowMetal.Case.Case do
         {:noreply, data, {:continue, :stop_server}}
 
       _error ->
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
     end
   end
 
@@ -241,7 +241,7 @@ defmodule WorkflowMetal.Case.Case do
   def handle_continue({:revoke_tokens, locked_token_schemas, except_task_id}, %__MODULE__{state: :active} = data) do
     data = do_revoke_tokens(locked_token_schemas, except_task_id, data)
 
-    {:noreply, data}
+    {:noreply, data, get_timeout(data.application)}
   end
 
   @impl GenServer
@@ -257,10 +257,10 @@ defmodule WorkflowMetal.Case.Case do
           "#{describe(data)}: tokens(#{Enum.join(token_ids, ", ")}) have been locked by the task(#{task_id})"
         end)
 
-        {:reply, {:ok, locked_token_schemas}, data}
+        {:reply, {:ok, locked_token_schemas}, data, get_timeout(data.application)}
 
       {:error, _reason} = error ->
-        {:reply, error, data}
+        {:reply, error, data, get_timeout(data.application)}
     end
   end
 
@@ -290,19 +290,19 @@ defmodule WorkflowMetal.Case.Case do
   def handle_call({:offer_tokens_to_task, task_id}, _from, %{state: :active} = data) do
     {tokens, data} = do_offer_tokens_to_task(task_id, data)
 
-    {:reply, {:ok, tokens}, data}
+    {:reply, {:ok, tokens}, data, get_timeout(data.application)}
   end
 
   @impl GenServer
   def handle_call({:fetch_locked_tokens_from_task, task_id}, _from, %{state: :active} = data) do
     tokens = do_fetch_locked_tokens_from_task(task_id, data)
 
-    {:reply, {:ok, tokens}, data}
+    {:reply, {:ok, tokens}, data, get_timeout(data.application)}
   end
 
   @impl GenServer
   def handle_call(_msg, _from, %{} = data) do
-    {:reply, {:error, :case_not_available}, data}
+    {:reply, {:error, :case_not_available}, data, get_timeout(data.application)}
   end
 
   @impl GenServer
@@ -330,6 +330,13 @@ defmodule WorkflowMetal.Case.Case do
       |> update_case(%{state: :terminated})
 
     {:noreply, data, {:continue, :stop_server}}
+  end
+
+  @impl GenServer
+  def handle_info(:timeout, %__MODULE__{} = data) do
+    Logger.debug(describe(data) <> " stopping due to inactivity timeout")
+
+    {:stop, :normal, data}
   end
 
   @spec fetch_unconsumed_tokens(t()) :: t()
@@ -827,6 +834,13 @@ defmodule WorkflowMetal.Case.Case do
       )
 
     {:ok, data}
+  end
+
+  defp get_timeout(application) do
+    application
+    |> WorkflowMetal.Application.Config.get(:case)
+    |> Kernel.||([])
+    |> Keyword.get(:lifespan_timeout, :timer.minutes(5))
   end
 
   defp describe(%__MODULE__{} = data) do

@@ -198,7 +198,7 @@ defmodule WorkflowMetal.Task.Task do
       |> request_tokens()
       |> start_created_workitems()
 
-    {:noreply, data}
+    {:noreply, data, get_timeout(data.application)}
   end
 
   def handle_continue(:after_start, %{state: :executing} = data) do
@@ -221,10 +221,10 @@ defmodule WorkflowMetal.Task.Task do
           |> allocate_workitem()
           |> update_task(%{state: :allocated})
 
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
 
       _other ->
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
     end
   end
 
@@ -240,7 +240,7 @@ defmodule WorkflowMetal.Task.Task do
         {:noreply, data, {:continue, :stop_server}}
 
       _error ->
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
     end
   end
 
@@ -254,7 +254,7 @@ defmodule WorkflowMetal.Task.Task do
         {:noreply, data, {:continue, :stop_server}}
 
       _error ->
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
     end
   end
 
@@ -271,7 +271,7 @@ defmodule WorkflowMetal.Task.Task do
         {:noreply, data, {:continue, :stop_server}}
 
       _ ->
-        {:noreply, data}
+        {:noreply, data, get_timeout(data.application)}
     end
   end
 
@@ -295,7 +295,7 @@ defmodule WorkflowMetal.Task.Task do
   def handle_cast({:receive_tokens, token_schemas}, %{state: :allocated} = data) do
     data = Enum.reduce(token_schemas, data, &upsert_ets_token/2)
 
-    {:noreply, data}
+    {:noreply, data, get_timeout(data.application)}
   end
 
   @impl GenServer
@@ -325,7 +325,7 @@ defmodule WorkflowMetal.Task.Task do
       when state in [:allocated, :executing] do
     data = upsert_ets_workitem({workitem_id, :started}, data)
 
-    {:noreply, data}
+    {:noreply, data, get_timeout(data.application)}
   end
 
   @impl GenServer
@@ -345,7 +345,7 @@ defmodule WorkflowMetal.Task.Task do
 
   @impl GenServer
   def handle_cast(_msg, %{} = data) do
-    {:noreply, data}
+    {:noreply, data, get_timeout(data.application)}
   end
 
   @impl GenServer
@@ -357,7 +357,7 @@ defmodule WorkflowMetal.Task.Task do
         {:reply, {:ok, locked_token_schemas}, data}
 
       error ->
-        {:reply, error, data}
+        {:reply, error, data, get_timeout(data.application)}
     end
   end
 
@@ -378,12 +378,19 @@ defmodule WorkflowMetal.Task.Task do
           acc
       end)
 
-    {:reply, {:ok, tokens}, data}
+    {:reply, {:ok, tokens}, data, get_timeout(data.application)}
   end
 
   @impl GenServer
   def handle_call(_msg, _from, %{} = data) do
-    {:reply, {:error, :task_not_available}, data}
+    {:reply, {:error, :task_not_available}, data, get_timeout(data.application)}
+  end
+
+  @impl GenServer
+  def handle_info(:timeout, %__MODULE__{} = data) do
+    Logger.debug(describe(data) <> " stopping due to inactivity timeout")
+
+    {:stop, :normal, data}
   end
 
   @spec fetch_workitems(t()) :: t()
@@ -773,6 +780,13 @@ defmodule WorkflowMetal.Task.Task do
     true = :ets.insert(workitem_table, {workitem_id, workitem_state})
 
     data
+  end
+
+  defp get_timeout(application) do
+    application
+    |> WorkflowMetal.Application.Config.get(:task)
+    |> Kernel.||([])
+    |> Keyword.get(:lifespan_timeout, :timer.minutes(1))
   end
 
   defp describe(%__MODULE__{} = data) do
