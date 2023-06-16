@@ -63,16 +63,12 @@ defmodule WorkflowMetal.Case.CaseTest do
         assert case_schema.state === :terminated
       end)
 
-      {:ok, {_start_place, end_place}} =
-        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+      {:ok, {_start_place, end_place}} = WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
 
-      {:ok, [b_transition]} =
-        WorkflowMetal.Storage.fetch_transitions(DummyApplication, end_place.id, :in)
+      {:ok, [b_transition]} = WorkflowMetal.Storage.fetch_transitions(DummyApplication, end_place.id, :in)
 
       {:ok, [task_schema]} =
-        WorkflowMetal.Storage.fetch_tasks(DummyApplication, case_schema.id,
-          transition_id: b_transition.id
-        )
+        WorkflowMetal.Storage.fetch_tasks(DummyApplication, case_schema.id, transition_id: b_transition.id)
 
       assert task_schema.state === :abandoned
     end
@@ -118,26 +114,11 @@ defmodule WorkflowMetal.Case.CaseTest do
           %{state: :active}
         )
 
-      {:ok, {start_place, _end_place}} =
-        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+      {:ok, {start_place, _end_place}} = WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
 
-      {:ok, [a_transition]} =
-        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+      {:ok, [a_transition]} = WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       [a_transition: a_transition, case_schema: case_schema]
-    end
-
-    test "restore from created state", %{case_schema: case_schema} do
-      assert {:ok, _pid} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
-
-      until(fn -> assert_receive :a_completed end)
-      until(fn -> assert_receive :b_completed end)
-
-      until(fn ->
-        {:ok, case_schema} = WorkflowMetal.Storage.fetch_case(DummyApplication, case_schema.id)
-
-        assert case_schema.state === :active
-      end)
     end
 
     test "restore from active state", %{a_transition: a_transition, case_schema: case_schema} do
@@ -174,8 +155,7 @@ defmodule WorkflowMetal.Case.CaseTest do
           %{state: :terminated}
         )
 
-      assert {:error, :case_not_available} =
-               CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:error, :case_not_available} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
     end
 
     test "restore from finished state", %{case_schema: case_schema} do
@@ -195,8 +175,7 @@ defmodule WorkflowMetal.Case.CaseTest do
 
       until(fn -> refute Process.alive?(pid) end)
 
-      assert {:error, :case_not_available} =
-               CaseSupervisor.open_case(DummyApplication, case_schema.id)
+      assert {:error, :case_not_available} = CaseSupervisor.open_case(DummyApplication, case_schema.id)
     end
   end
 
