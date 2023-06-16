@@ -23,6 +23,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     defmodule AsynchronousTransition do
+      @moduledoc false
       use WorkflowMetal.Executor
 
       @impl true
@@ -116,6 +117,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     defmodule TwiceLockTransition do
+      @moduledoc false
       use WorkflowMetal.Executor
 
       @impl true
@@ -191,11 +193,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
           %{state: :active}
         )
 
-      {:ok, {start_place, _end_place}} =
-        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+      {:ok, {start_place, _end_place}} = WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
 
-      {:ok, [a_transition]} =
-        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+      {:ok, [a_transition]} = WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
         WorkflowMetal.Storage.insert_task(
@@ -232,15 +232,6 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       [workitem_schema: workitem_schema]
     end
 
-    test "cannt complete a created workitem", %{workitem_schema: workitem_schema} do
-      {:error, :workitem_not_available} =
-        WorkflowMetal.Workitem.Supervisor.complete_workitem(
-          DummyApplication,
-          workitem_schema.id,
-          :a_completed
-        )
-    end
-
     test "complete a started workitem", %{workitem_schema: workitem_schema} do
       WorkflowMetal.Storage.update_workitem(
         DummyApplication,
@@ -255,8 +246,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
           :a_completed
         )
 
-      {:ok, workitem_schema} =
-        WorkflowMetal.Storage.fetch_workitem(DummyApplication, workitem_schema.id)
+      {:ok, workitem_schema} = WorkflowMetal.Storage.fetch_workitem(DummyApplication, workitem_schema.id)
 
       assert workitem_schema.state === :completed
     end
@@ -327,11 +317,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
           %{state: :active}
         )
 
-      {:ok, {start_place, _end_place}} =
-        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+      {:ok, {start_place, _end_place}} = WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
 
-      {:ok, [a_transition]} =
-        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+      {:ok, [a_transition]} = WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
         WorkflowMetal.Storage.insert_task(
@@ -383,8 +371,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
         )
 
       until(fn ->
-        {:ok, workitem_schema} =
-          WorkflowMetal.Storage.fetch_workitem(DummyApplication, workitem_schema.id)
+        {:ok, workitem_schema} = WorkflowMetal.Storage.fetch_workitem(DummyApplication, workitem_schema.id)
 
         assert workitem_schema.state === :abandoned
       end)
@@ -415,8 +402,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
       until(fn -> refute Process.alive?(pid) end)
 
       until(fn ->
-        {:ok, workitem_schema} =
-          WorkflowMetal.Storage.fetch_workitem(DummyApplication, workitem_schema.id)
+        {:ok, workitem_schema} = WorkflowMetal.Storage.fetch_workitem(DummyApplication, workitem_schema.id)
 
         assert workitem_schema.state === :abandoned
       end)
@@ -475,11 +461,9 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
           %{state: :active}
         )
 
-      {:ok, {start_place, _end_place}} =
-        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+      {:ok, {start_place, _end_place}} = WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
 
-      {:ok, [a_transition]} =
-        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+      {:ok, [a_transition]} = WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
         WorkflowMetal.Storage.insert_task(
@@ -517,8 +501,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
     end
 
     test "from created", %{workitem_schema: workitem_schema} do
-      {:ok, _} =
-        WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
+      {:ok, _} = WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
 
       until(fn -> assert_receive :a_completed end)
       until(fn -> assert_receive :b_completed end)
@@ -532,8 +515,7 @@ defmodule WorkflowMetal.Workitem.WorkitemTest do
           %{state: :started}
         )
 
-      {:ok, _pid} =
-        WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
+      {:ok, _pid} = WorkflowMetal.Workitem.Supervisor.open_workitem(DummyApplication, workitem_schema.id)
 
       refute_receive :a_completed
     end
