@@ -117,10 +117,7 @@ defmodule WorkflowMetal.Support.Workflows.SequentialRouting do
   end
 
   @doc false
-  def build_workflow_associations_params(
-        %Schema.Workflow{} = workflow_schema,
-        [first | rest] = nodes
-      ) do
+  def build_workflow_associations_params(%Schema.Workflow{} = workflow_schema, [first | rest] = nodes) do
     {_, arcs} =
       Enum.reduce(rest, {first, []}, fn
         %Schema.Place{} = to, {%Schema.Transition{} = from, arcs} ->

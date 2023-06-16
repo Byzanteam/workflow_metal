@@ -5,9 +5,9 @@ defmodule WorkflowMetal.Controller.Join.None do
   There is only one branch of the transition.
   """
 
-  alias WorkflowMetal.Storage.Schema
-
   @behaviour WorkflowMetal.Controller.Join
+
+  alias WorkflowMetal.Storage.Schema
 
   @impl WorkflowMetal.Controller.Join
   def task_enablement(task_data) do
@@ -29,8 +29,7 @@ defmodule WorkflowMetal.Controller.Join.None do
       token_table: token_table
     } = task_data
 
-    {:ok, [%Schema.Place{id: place_id}]} =
-      WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
+    {:ok, [%Schema.Place{id: place_id}]} = WorkflowMetal.Storage.fetch_places(application, transition_schema.id, :in)
 
     match_spec = [
       {
@@ -44,7 +43,7 @@ defmodule WorkflowMetal.Controller.Join.None do
       [token_id | _rest] ->
         {:ok, [token_id]}
 
-      _ ->
+      _other ->
         {:error, :task_not_enabled}
     end
   end

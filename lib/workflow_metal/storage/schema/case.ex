@@ -9,10 +9,11 @@ defmodule WorkflowMetal.Storage.Schema.Case do
 
   use TypedStruct
 
-  @type id :: term()
-  @type state :: :created | :active | :terminated | :finished
+  # credo:disable-for-next-line JetCredo.Checks.ExplicitAnyType
+  @type id() :: term()
+  @type state() :: :created | :active | :terminated | :finished
 
-  @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()
+  @type workflow_id() :: WorkflowMetal.Storage.Schema.Workflow.id()
 
   typedstruct enforce: true do
     field :id, id(), enforce: false

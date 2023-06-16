@@ -5,11 +5,8 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
   import WorkflowMetal.Helpers.Wait
 
   alias WorkflowMetal.Case.Supervisor, as: CaseSupervisor
-
-  alias WorkflowMetal.Support.Workflows.DeferredChoiceRouting.{
-    ManualTransition,
-    SimpleTransition
-  }
+  alias WorkflowMetal.Support.Workflows.DeferredChoiceRouting.ManualTransition
+  alias WorkflowMetal.Support.Workflows.DeferredChoiceRouting.SimpleTransition
 
   setup do
     params = %{workflow_id: 1}
@@ -90,7 +87,7 @@ defmodule WorkflowMetal.Integrations.AbandonCompetitorsTest do
           ^last ->
             :end
 
-          _ ->
+          _other ->
             :normal
         end
 

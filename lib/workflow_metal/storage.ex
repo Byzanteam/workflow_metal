@@ -1,10 +1,10 @@
 defmodule WorkflowMetal.Storage do
-  alias WorkflowMetal.Application
-  alias WorkflowMetal.Storage.Adapter
-
   @moduledoc """
   Use the storage configured for a WorkflowMetal application.
   """
+
+  alias WorkflowMetal.Application
+  alias WorkflowMetal.Storage.Adapter
 
   @type application :: WorkflowMetal.Application.t()
   @type workflow_id :: WorkflowMetal.Storage.Schema.Workflow.id()

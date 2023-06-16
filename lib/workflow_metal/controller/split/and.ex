@@ -1,9 +1,9 @@
 defmodule WorkflowMetal.Controller.Split.And do
   @moduledoc false
 
-  alias WorkflowMetal.Storage.Schema
-
   @behaviour WorkflowMetal.Controller.Split
+
+  alias WorkflowMetal.Storage.Schema
 
   @impl true
   def issue_tokens(task_data, token_payload) do

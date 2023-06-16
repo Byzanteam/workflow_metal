@@ -26,11 +26,11 @@ defmodule WorkflowMetal.MixProject do
     ]
   end
 
-  defp description() do
+  defp description do
     "Workflow engine based on PetriNet"
   end
 
-  defp package() do
+  defp package do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/Byzanteam/workflow_metal"}
@@ -44,16 +44,12 @@ defmodule WorkflowMetal.MixProject do
       {:typed_struct, "~> 0.3.0"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:jet_credo, [github: "Byzanteam/jet_credo", only: [:dev, :test], runtime: false]},
+      {:styler, "~> 0.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false}
     ]
   end
 
-  defp elixirc_paths(:test),
-    do: [
-      "lib",
-      "test/support",
-      "test/helpers"
-    ]
+  defp elixirc_paths(:test), do: ["lib", "test/support", "test/helpers"]
 
   defp elixirc_paths(_), do: ["lib"]
 

@@ -1,13 +1,14 @@
 defmodule WorkflowMetal.Application.WorkflowsSupervisorTest do
   use ExUnit.Case, async: true
 
+  alias WorkflowMetal.Application.WorkflowsSupervisor
+  alias WorkflowMetal.Support.Workflows.SequentialRouting
+
   defmodule DummyApplication do
+    @moduledoc false
     use WorkflowMetal.Application,
       storage: WorkflowMetal.Storage.Adapters.InMemory
   end
-
-  alias WorkflowMetal.Application.WorkflowsSupervisor
-  alias WorkflowMetal.Support.Workflows.SequentialRouting
 
   setup_all do
     start_supervised!(DummyApplication)
@@ -17,8 +18,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisorTest do
 
   describe ".open_workflow/2" do
     test "failed to open a non-existing workflow" do
-      assert {:error, :workflow_not_found} =
-               WorkflowsSupervisor.open_workflow(DummyApplication, 123)
+      assert {:error, :workflow_not_found} = WorkflowsSupervisor.open_workflow(DummyApplication, 123)
     end
 
     test "open a sequential_routing workflow successfully" do

@@ -79,11 +79,11 @@ defmodule WorkflowMetal.Executor do
     application = Keyword.get(opts, :application)
 
     quote do
+      @behaviour WorkflowMetal.Executor
+
       alias WorkflowMetal.Storage.Schema
 
       @application unquote(application)
-
-      @behaviour WorkflowMetal.Executor
 
       @before_compile unquote(__MODULE__)
 
