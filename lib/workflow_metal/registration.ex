@@ -31,9 +31,7 @@ defmodule WorkflowMetal.Registration do
 
       config ->
         raise ArgumentError,
-              "invalid :registry option for WorkflowMetal application `#{inspect(application)}`: `#{
-                inspect(config)
-              }`"
+              "invalid :registry option for WorkflowMetal application `#{inspect(application)}`: `#{inspect(config)}`"
     end
   end
 

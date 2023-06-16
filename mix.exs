@@ -5,7 +5,7 @@ defmodule WorkflowMetal.MixProject do
     [
       app: :workflow_metal,
       version: "0.3.0",
-      elixir: "~> 1.10",
+      elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
@@ -40,11 +40,12 @@ defmodule WorkflowMetal.MixProject do
   defp deps do
     [
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
-      {:credo, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.1.0", only: [:dev], runtime: false},
       {:doctor, "~> 0.17.0", only: [:dev]},
       {:gen_state_machine, "~> 3.0"},
-      {:typed_struct, "~> 0.3.0"}
+      {:typed_struct, "~> 0.3.0"},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
+      {:jet_credo, [github: "Byzanteam/jet_credo", only: [:dev, :test], runtime: false]},
+      {:dialyxir, "~> 1.0", only: [:dev], runtime: false}
     ]
   end
 

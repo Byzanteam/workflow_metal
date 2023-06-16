@@ -319,9 +319,7 @@ defmodule WorkflowMetal.Case.Case do
     case do_lock_tokens(MapSet.new(token_ids), task_id, data) do
       {:ok, locked_token_schemas, data} ->
         Logger.debug(fn ->
-          "#{describe(data)}: tokens(#{token_ids |> Enum.join(", ")}) have been locked by the task(#{
-            task_id
-          })"
+          "#{describe(data)}: tokens(#{token_ids |> Enum.join(", ")}) have been locked by the task(#{task_id})"
         end)
 
         {
@@ -349,9 +347,7 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, tokens, data} = do_consume_tokens(task_id, data)
 
     Logger.debug(fn ->
-      "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{
-        task_id
-      })"
+      "#{describe(data)}: tokens(#{tokens |> Enum.map_join(", ", & &1.id)}) have been consumed by the task(#{task_id})"
     end)
 
     {
@@ -423,9 +419,7 @@ defmodule WorkflowMetal.Case.Case do
     {:ok, tokens} = WorkflowMetal.Storage.unlock_tokens(data.application, token_ids)
 
     Logger.debug(fn ->
-      "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been freed by the task(#{
-        task_id
-      })"
+      "#{describe(data)}: tokens(#{tokens |> Enum.map(& &1.id) |> Enum.join(", ")}) have been freed by the task(#{task_id})"
     end)
 
     {
@@ -771,9 +765,7 @@ defmodule WorkflowMetal.Case.Case do
       {:ok, [%Schema.Task{id: task_id}]} when task_id !== except_task_id ->
         Logger.info(fn ->
           """
-          #{describe(data)} withdraw token(#{inspect(token_schema.id)}) from task #{
-            inspect(task_id)
-          }.
+          #{describe(data)} withdraw token(#{inspect(token_schema.id)}) from task #{inspect(task_id)}.
           """
         end)
 
