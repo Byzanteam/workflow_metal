@@ -233,7 +233,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   @type token_payload :: WorkflowMetal.Storage.Schema.Token.payload()
 
   @type on_issue_token :: {:ok, token_schema}
-  @type on_lock_tokens :: {:ok, token_schema}
+  @type on_lock_tokens :: {:ok, [token_schema]}
   @type on_unlock_tokens :: {:ok, [token_schema]}
   @type on_consume_tokens :: {:ok, [token_schema]}
   @type on_fetch_tokens :: {:ok, [token_schema]}
