@@ -40,9 +40,7 @@ defmodule WorkflowMetal.Application.WorkflowsSupervisor do
           WorkflowMetal.Registration.Adapter.on_start_child()
           | {:error, :workflow_not_found}
   def open_workflow(application, workflow_id) do
-    with(
-      {:ok, workflow_schema} <- WorkflowMetal.Storage.fetch_workflow(application, workflow_id)
-    ) do
+    with({:ok, workflow_schema} <- WorkflowMetal.Storage.fetch_workflow(application, workflow_id)) do
       workflows_supervisor = supervisor_name(application)
       workflow_supervisor = {WorkflowMetal.Workflow.Supervisor, workflow_id: workflow_schema.id}
 

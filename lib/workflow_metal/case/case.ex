@@ -801,7 +801,10 @@ defmodule WorkflowMetal.Case.Case do
         state: [:started, :allocated, :executing]
       )
 
-    Enum.each(tasks, fn task -> WorkflowMetal.Task.Supervisor.force_abandon_task(application, task.id) end)
+    Enum.each(tasks, fn task ->
+      WorkflowMetal.Task.Supervisor.force_abandon_task(application, task.id)
+    end)
+
     data
   end
 

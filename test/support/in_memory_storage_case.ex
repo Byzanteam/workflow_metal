@@ -7,6 +7,8 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
 
   using do
     quote location: :keep do
+      import unquote(__MODULE__)
+
       alias WorkflowMetal.Storage.Schema
 
       defmodule DummyApplication do
@@ -15,8 +17,6 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
         use WorkflowMetal.Application,
           storage: WorkflowMetal.Storage.Adapters.InMemory
       end
-
-      import unquote(__MODULE__)
 
       setup_all do
         start_supervised!(DummyApplication)
@@ -27,8 +27,7 @@ defmodule WorkflowMetal.Support.InMemoryStorageCase do
   end
 
   def generate_genesis_token(application, workflow_schema, case_schema) do
-    {:ok, {start_place, _end_place}} =
-      WorkflowMetal.Storage.fetch_edge_places(application, workflow_schema.id)
+    {:ok, {start_place, _end_place}} = WorkflowMetal.Storage.fetch_edge_places(application, workflow_schema.id)
 
     genesis_token_schema =
       struct(

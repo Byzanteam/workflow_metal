@@ -3,9 +3,9 @@ defmodule WorkflowMetal.Controller.Join.And do
   All incoming branch are active.
   """
 
-  alias WorkflowMetal.Storage.Schema
-
   @behaviour WorkflowMetal.Controller.Join
+
+  alias WorkflowMetal.Storage.Schema
 
   @impl WorkflowMetal.Controller.Join
   def task_enablement(task_data) do
