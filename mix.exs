@@ -22,7 +22,7 @@ defmodule WorkflowMetal.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :gen_state_machine]
+      extra_applications: [:logger]
     ]
   end
 
@@ -41,7 +41,6 @@ defmodule WorkflowMetal.MixProject do
     [
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:doctor, "~> 0.17.0", only: [:dev]},
-      {:gen_state_machine, "~> 3.0"},
       {:typed_struct, "~> 0.3.0"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:jet_credo, [github: "Byzanteam/jet_credo", only: [:dev, :test], runtime: false]},
