@@ -26,21 +26,20 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, workflow_schema.id)
 
-        {:ok, workitem_schemas} =
-          InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
+        {:ok, workitem_schemas} = InMemoryStorage.list_workitems(DummyApplication, workflow_schema.id)
 
         assert length(tasks) === 2
 
         [a_task, b_task] = Enum.filter(tasks, &(&1.case_id === case_schema.id))
 
         assert a_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == a_task.id)).id => %{
                    reply: :a_completed
                  }
                }
 
         assert b_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == b_task.id)).id => %{
                    reply: :b_completed
                  }
                }
@@ -68,11 +67,9 @@ defmodule WorkflowMetal.Task.TaskTest do
           %{state: :active}
         )
 
-      {:ok, {start_place, _end_place}} =
-        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+      {:ok, {start_place, _end_place}} = WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
 
-      {:ok, [a_transition]} =
-        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+      {:ok, [a_transition]} = WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
         WorkflowMetal.Storage.insert_task(
@@ -98,8 +95,7 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
 
-        {:ok, workitem_schemas} =
-          InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
+        {:ok, workitem_schemas} = InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
 
         assert length(tasks) === 2
 
@@ -109,13 +105,13 @@ defmodule WorkflowMetal.Task.TaskTest do
         assert b_task.state === :completed
 
         assert a_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == a_task.id)).id => %{
                    reply: :a_completed
                  }
                }
 
         assert b_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == b_task.id)).id => %{
                    reply: :b_completed
                  }
                }
@@ -160,8 +156,7 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
 
-        {:ok, workitem_schemas} =
-          InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
+        {:ok, workitem_schemas} = InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
 
         assert length(tasks) === 2
 
@@ -171,13 +166,13 @@ defmodule WorkflowMetal.Task.TaskTest do
         assert b_task.state === :completed
 
         assert a_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == a_task.id)).id => %{
                    reply: :a_completed
                  }
                }
 
         assert b_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == b_task.id)).id => %{
                    reply: :b_completed
                  }
                }
@@ -207,18 +202,15 @@ defmodule WorkflowMetal.Task.TaskTest do
         Enum.each(tasks, fn task ->
           assert task.state === :completed
 
-          assert {:error, :task_not_available} =
-                   TaskSupervisor.open_task(DummyApplication, task.id)
+          assert {:error, :task_not_available} = TaskSupervisor.open_task(DummyApplication, task.id)
         end)
       end)
     end
 
     test "restore from abandoned state", %{task_schema: task_schema} do
-      {:ok, task_schema} =
-        WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, %{state: :abandoned})
+      {:ok, task_schema} = WorkflowMetal.Storage.update_task(DummyApplication, task_schema.id, %{state: :abandoned})
 
-      assert {:error, :task_not_available} =
-               TaskSupervisor.open_task(DummyApplication, task_schema.id)
+      assert {:error, :task_not_available} = TaskSupervisor.open_task(DummyApplication, task_schema.id)
     end
   end
 
@@ -250,11 +242,9 @@ defmodule WorkflowMetal.Task.TaskTest do
           %{state: :active}
         )
 
-      {:ok, {start_place, _end_place}} =
-        WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
+      {:ok, {start_place, _end_place}} = WorkflowMetal.Storage.fetch_edge_places(DummyApplication, workflow_schema.id)
 
-      {:ok, [a_transition]} =
-        WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
+      {:ok, [a_transition]} = WorkflowMetal.Storage.fetch_transitions(DummyApplication, start_place.id, :out)
 
       {:ok, task_schema} =
         WorkflowMetal.Storage.insert_task(
@@ -302,8 +292,7 @@ defmodule WorkflowMetal.Task.TaskTest do
           }
         )
 
-      {:ok, _} =
-        WorkflowMetal.Storage.lock_tokens(DummyApplication, [genesis_token.id], task_schema.id)
+      {:ok, _} = WorkflowMetal.Storage.lock_tokens(DummyApplication, [genesis_token.id], task_schema.id)
 
       {:ok, task_schema} =
         WorkflowMetal.Storage.update_task(
@@ -325,8 +314,7 @@ defmodule WorkflowMetal.Task.TaskTest do
       until(fn ->
         {:ok, tasks} = InMemoryStorage.list_tasks(DummyApplication, task_schema.workflow_id)
 
-        {:ok, workitem_schemas} =
-          InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
+        {:ok, workitem_schemas} = InMemoryStorage.list_workitems(DummyApplication, task_schema.workflow_id)
 
         assert length(tasks) === 2
 
@@ -336,13 +324,13 @@ defmodule WorkflowMetal.Task.TaskTest do
         assert b_task.state === :completed
 
         assert a_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == a_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == a_task.id)).id => %{
                    reply: :a_completed
                  }
                }
 
         assert b_task.token_payload === %{
-                 (workitem_schemas |> Enum.find(&(&1.task_id == b_task.id))).id => %{
+                 Enum.find(workitem_schemas, &(&1.task_id == b_task.id)).id => %{
                    reply: :b_completed
                  }
                }
