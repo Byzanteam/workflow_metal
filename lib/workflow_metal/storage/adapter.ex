@@ -13,7 +13,7 @@ defmodule WorkflowMetal.Storage.Adapter do
   Return a child spec for the storage
   """
   @callback child_spec(application, config) ::
-              {:ok, :supervisor.child_spec() | {module, term} | module, adapter_meta}
+              {:ok, :supervisor.child_spec() | {module, term} | module | nil, adapter_meta}
 
   # Workflow
 

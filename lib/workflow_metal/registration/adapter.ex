@@ -21,7 +21,7 @@ defmodule WorkflowMetal.Registration.Adapter do
   Return a supervisor spec for the registry
   """
   @callback child_spec(application, config) ::
-              {:ok, :supervisor.child_spec() | {module, term} | module, adapter_meta}
+              {:ok, :supervisor.child_spec() | {module, term} | module | nil, adapter_meta}
 
   @doc """
   Return a `:via` tuple to route a message to a process by its registered name

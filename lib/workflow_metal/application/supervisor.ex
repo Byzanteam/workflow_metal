@@ -25,12 +25,16 @@ defmodule WorkflowMetal.Application.Supervisor do
 
     config_child_spec = config_child_spec(application, config)
 
-    children = [
-      config_child_spec,
-      registry_child_spec,
-      storage_child_spec,
-      {WorkflowMetal.Application.WorkflowsSupervisor, application}
-    ]
+    children =
+      Enum.reject(
+        [
+          config_child_spec,
+          registry_child_spec,
+          storage_child_spec,
+          {WorkflowMetal.Application.WorkflowsSupervisor, application}
+        ],
+        &is_nil/1
+      )
 
     Supervisor.init(children, strategy: :one_for_one)
   end
